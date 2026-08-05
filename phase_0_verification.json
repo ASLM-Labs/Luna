@@ -1,0 +1,21 @@
+{
+  "phase": "Faz 0 — Repository ve kalite iskeleti",
+  "package_version": "0.1.0-phase0",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "generated_utc": "2026-08-05T20:52:09.438329+00:00",
+  "verified": {
+    "compileall": true,
+    "pytest": {
+      "status": "PASS",
+      "summary": "6 passed in 0.03s"
+    },
+    "structural_verifier": "PASS",
+    "direct_cli_version": "PASS",
+    "direct_cli_status": "PASS",
+    "editable_install": "NOT_RUN_ENVIRONMENT_BLOCKED",
+    "ruff": "NOT_RUN_IN_GENERATION_ENV",
+    "mypy": "NOT_RUN_IN_GENERATION_ENV"
+  },
+  "environment_blocker": "Artifact-generation environment does not expose setuptools.build_meta inside a fresh venv, so the clean editable-install check could not be completed here.",
+  "next_gate": "On Windows run scripts\\bootstrap.bat and scripts\\check.bat. Promote Faz 0 to PASS only if installation, pytest, Ruff, mypy and CLI checks all return exit code 0."
+}

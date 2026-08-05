@@ -1,0 +1,16 @@
+{
+  "document": "Luna_0.1_Teknik_Anayasa_v0.1.md",
+  "version": "0.1",
+  "status": "APPROVED_FROZEN",
+  "owner_decision": "Remaining constitution approved after removal of all Atlas references.",
+  "source_document": "Luna_0.1_Teknik_Anayasa_v0.1-rc1.md",
+  "changes_from_rc1": [
+    "Removed every Atlas-specific line.",
+    "Renumbered Article 1 after removal.",
+    "Promoted status from owner-approval-pending to approved and frozen.",
+    "Removed rc1 suffix from document version."
+  ],
+  "sha256": "a25f5c92fcebd6307e745a7132eba70d7b880fd7b2020edaefa74197459bfa42",
+  "size_bytes": 16727,
+  "created_utc": "2026-08-05T20:44:06.827821+00:00"
+}
