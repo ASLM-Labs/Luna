@@ -1,0 +1,33 @@
+{
+  "phase": 3,
+  "base": "Luna 0.1 Phase 2",
+  "apply_to_repository_root": true,
+  "changed_or_added_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_3_REPORT.md",
+    "docs/PHASE_3_UPDATE_MANIFEST.json",
+    "phase_3_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase3.py",
+    "src/luna/__init__.py",
+    "src/luna/cli.py",
+    "src/luna/intent/resolver.py",
+    "src/luna/planning/__init__.py",
+    "src/luna/planning/expectation.py",
+    "src/luna/planning/lifecycle.py",
+    "src/luna/planning/models.py",
+    "src/luna/planning/planner.py",
+    "src/luna/planning/replanner.py",
+    "src/luna/planning/retry.py",
+    "tests/test_adaptive_planner.py",
+    "tests/test_cli.py",
+    "tests/test_plan_lifecycle.py",
+    "tests/test_replanner.py",
+    "tests/test_retry_guard.py"
+  ]
+}

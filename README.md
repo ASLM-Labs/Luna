@@ -5,17 +5,18 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 2 — intent, görev kontratı hazırlığı ve bağlam
-toplama** durumundadır.
+Repository şu anda **Faz 3 — uyarlanabilir plan, eylem öncesi beklenti ve
+gözleme göre yeniden planlama** durumundadır.
 
-## Faz 2'de çalışan parçalar
+## Faz 3'te çalışan parçalar
 
-- sekiz sürümlü çekirdek kontrat;
-- şeffaf ve deterministik intent baseline'ı;
-- eksik başarı koşullarını açıkça gösteren görev kontratı taslağı;
-- yalnız gözlemlenmiş kaynakları kabul eden context collector;
-- kaynak, digest, token tahmini ve bütçe takibi;
-- planning öncesi birleşik `TaskPreparation` çıktısı.
+- görev boyutuna göre `SIMPLE`, `STANDARD` veya `COMPLEX` kısa plan;
+- sıralı ve doğrulanan plan-adımı yaşam döngüsü;
+- yüksek etkili adım öncesi zorunlu `ExpectedObservation`;
+- gerçek `Observation` ile deterministik beklenti karşılaştırması;
+- başarısız varsayım kaydı;
+- aynı eylemi aynı koşullarla yeniden çalıştırmayı engelleyen retry guard;
+- yeni kanıt veya değişen stratejiyle sürümlü replan.
 
 ## Henüz kapalı yetenekler
 
@@ -41,7 +42,7 @@ scripts\check.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 2 intent ve context kapisi gecti.
+[PASS] Luna 0.1 Faz 3 planning ve replan kapisi gecti.
 ```
 
 ## CLI
@@ -52,5 +53,4 @@ Beklenen son satır:
 .venv\Scripts\python.exe -m luna resolve-intent "README.md dosyasını incele"
 ```
 
-Intent resolver, ileride bağlanacak modelin yerine geçmez. Faz 2 için
-deterministik, denetlenebilir ve yan etkisiz bir baseline'dır.
+Faz 3 planlayıcısı gerçek araç kullanmaz. Araç yürütme Faz 4'e kadar kapalıdır.

@@ -2,6 +2,19 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase3] - 2026-08-06
+
+### Added
+
+- Görev boyutuna göre kısa plan üreten adaptive planner baseline'ı.
+- Versioned TaskPlan ve doğrulanan plan-step lifecycle.
+- Yüksek etkili adımlar için expected-observation kapısı.
+- Observation ile deterministic expectation assessment.
+- Explicit failed-assumption records.
+- Aynı action basis'iyle blind retry engeli.
+- Değişen evidence veya strategy ile versioned replan.
+- Faz 3 unit, integration ve verifier testleri.
+
 ## [0.1.0-phase2] - 2026-08-06
 
 ### Added
@@ -18,7 +31,7 @@ Tüm önemli değişiklikler bu dosyada belgelenir.
 ### Changed
 
 - Proje geliştiricisi Novopic Intelligence olarak güncellendi.
-- LICENSE tam Apache License 2.0 metniyle değiştirildi.
+- LICENSE tam Apache-2.0 metniyle değiştirildi.
 - CLI status ve kalite kapısı Faz 2'yi gösterir.
 - GitHub Actions Faz 1 ve Faz 2 verifier'larını çalıştırır.
 

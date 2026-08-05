@@ -9,38 +9,42 @@ if not exist "%PYTHON%" (
   exit /b 3
 )
 
-echo [1/7] Package import ve compile kontrolu...
+echo [1/8] Package import ve compile kontrolu...
 "%PYTHON%" -m compileall -q src tests
 if errorlevel 1 exit /b 10
 
-echo [2/7] Pytest...
+echo [2/8] Pytest...
 "%PYTHON%" -m pytest -q
 if errorlevel 1 exit /b 11
 
-echo [3/7] Ruff...
+echo [3/8] Ruff...
 "%PYTHON%" -m ruff check .
 if errorlevel 1 exit /b 12
 
-echo [4/7] mypy strict...
+echo [4/8] mypy strict...
 "%PYTHON%" -m mypy src
 if errorlevel 1 exit /b 13
 
-echo [5/7] Faz 1 kontrat dogrulamasi...
+echo [5/8] Faz 1 kontrat dogrulamasi...
 "%PYTHON%" scripts\verify_phase1.py
 if errorlevel 1 exit /b 14
 
-echo [6/7] Faz 2 intent ve context dogrulamasi...
+echo [6/8] Faz 2 intent ve context dogrulamasi...
 "%PYTHON%" scripts\verify_phase2.py
 if errorlevel 1 exit /b 15
 
-echo [7/7] CLI smoke...
-"%PYTHON%" -m luna --version
+echo [7/8] Faz 3 planning ve replan dogrulamasi...
+"%PYTHON%" scripts\verify_phase3.py
 if errorlevel 1 exit /b 16
-"%PYTHON%" -m luna status
+
+echo [8/8] CLI smoke...
+"%PYTHON%" -m luna --version
 if errorlevel 1 exit /b 17
-"%PYTHON%" -m luna resolve-intent "README.md dosyasini incele" >nul
+"%PYTHON%" -m luna status
 if errorlevel 1 exit /b 18
+"%PYTHON%" -m luna resolve-intent "README.md dosyasini incele" >nul
+if errorlevel 1 exit /b 19
 
 echo.
-echo [PASS] Luna 0.1 Faz 2 intent ve context kapisi gecti.
+echo [PASS] Luna 0.1 Faz 3 planning ve replan kapisi gecti.
 exit /b 0

@@ -12,11 +12,24 @@ from luna.contracts import (
     TaskState,
 )
 from luna.intent import DeterministicIntentResolver, IntentResolution
+from luna.planning import (
+    AdaptivePlanner,
+    AdaptiveReplanner,
+    AttemptBasis,
+    AttemptRecord,
+    FailedAssumption,
+    PlanLifecycle,
+    TaskPlan,
+)
 from luna.preparation import PreparationStatus, TaskPreparation, TaskPreparer
 from luna.tasking import TaskContractBuilder, TaskContractDraft
 from luna.version import __version__
 
 __all__ = [
+    "AdaptivePlanner",
+    "AdaptiveReplanner",
+    "AttemptBasis",
+    "AttemptRecord",
     "Checkpoint",
     "CompletionStatus",
     "ContextBudget",
@@ -26,13 +39,16 @@ __all__ = [
     "DeterministicIntentResolver",
     "Evidence",
     "ExpectedObservation",
+    "FailedAssumption",
     "IntentResolution",
     "Observation",
+    "PlanLifecycle",
     "PlanStep",
     "PreparationStatus",
     "TaskContract",
     "TaskContractBuilder",
     "TaskContractDraft",
+    "TaskPlan",
     "TaskPreparation",
     "TaskPreparer",
     "TaskState",

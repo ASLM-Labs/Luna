@@ -125,7 +125,10 @@ class DeterministicIntentResolver:
         for quoted in _QUOTED_RE.findall(normalized):
             if "/" in quoted or "\\" in quoted or "." in quoted:
                 resources.append(quoted.strip())
-        resources.extend(match.group(0).rstrip(".,;:") for match in _PATH_TOKEN_RE.finditer(normalized))
+        resources.extend(
+            match.group(0).rstrip(".,;:")
+            for match in _PATH_TOKEN_RE.finditer(normalized)
+        )
         return _dedupe(resources)
 
     @staticmethod

@@ -12,10 +12,10 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 2" in output
-    assert "status: INTENT_CONTEXT_IMPLEMENTED_UNVERIFIED" in output
-    assert "intent_resolver: deterministic_baseline" in output
-    assert "context_io: disabled" in output
+    assert "phase: 3" in output
+    assert "status: PLANNING_REPLANNING_IMPLEMENTED_UNVERIFIED" in output
+    assert "planner: adaptive_deterministic_baseline" in output
+    assert "blind_retry_guard: enabled" in output
     assert "runtime_capabilities: disabled" in output
 
 

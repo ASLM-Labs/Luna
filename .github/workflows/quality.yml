@@ -28,6 +28,7 @@ jobs:
       - run: python -m mypy src
       - run: python scripts/verify_phase1.py
       - run: python scripts/verify_phase2.py
+      - run: python scripts/verify_phase3.py
       - run: python -m luna --version
       - run: python -m luna status
       - run: python -m luna resolve-intent "README.md dosyasini incele"

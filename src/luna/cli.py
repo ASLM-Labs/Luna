@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 2 preparation package."""
+"""Command-line entry point for the Luna Phase 3 planning package."""
 
 from __future__ import annotations
 
@@ -40,10 +40,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 2")
-        print("status: INTENT_CONTEXT_IMPLEMENTED_UNVERIFIED")
+        print("phase: 3")
+        print("status: PLANNING_REPLANNING_IMPLEMENTED_UNVERIFIED")
         print("contracts: 8")
         print("intent_resolver: deterministic_baseline")
+        print("planner: adaptive_deterministic_baseline")
+        print("blind_retry_guard: enabled")
         print("context_io: disabled")
         print("runtime_capabilities: disabled")
         return 0

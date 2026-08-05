@@ -1,0 +1,105 @@
+{
+  "phase": 3,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "generated_utc": "2026-08-05T22:52:09.622862+00:00",
+  "checks": [
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-c",
+        "from pathlib import Path;files=sorted(list(Path('src').rglob('*.py'))+list(Path('tests').rglob('*.py')));[compile(p.read_text(encoding='utf-8'),str(p),'exec') for p in files];print(f'{len(files)} Python files parsed')"
+      ],
+      "exit_code": 0,
+      "stdout": "46 Python files parsed",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider"
+      ],
+      "exit_code": 0,
+      "stdout": "....................................................                     [100%]\n52 passed in 0.16s",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/verify_phase1.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"phase\": 1,\n  \"core_contract_count\": 8,\n  \"pydantic_schema_count\": 7,\n  \"contracts\": [\n    \"TaskContract\",\n    \"TaskState\",\n    \"PlanStep\",\n    \"ExpectedObservation\",\n    \"Observation\",\n    \"Evidence\",\n    \"Checkpoint\",\n    \"CompletionStatus\"\n  ],\n  \"status\": \"PASS\"\n}",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/verify_phase2.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"phase\": 2,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"deterministic_intent\": true,\n    \"unseen_source_not_loaded\": true,\n    \"missing_contract_fields_exposed\": true,\n    \"preparation_ready_with_explicit_inputs\": true,\n    \"context_io_disabled\": true,\n    \"tool_execution_disabled\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/verify_phase3.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"phase\": 3,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"deterministic_plan_outline\": true,\n    \"simple_plan_is_short\": true,\n    \"expectation_before_high_impact_step\": true,\n    \"blind_retry_is_blocked\": true,\n    \"new_evidence_allows_retry\": true,\n    \"failed_assumption_triggers_replan\": true,\n    \"tool_execution_disabled\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "luna",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Luna 0.1.0",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "luna",
+        "status"
+      ],
+      "exit_code": 0,
+      "stdout": "phase: 3\nstatus: PLANNING_REPLANNING_IMPLEMENTED_UNVERIFIED\ncontracts: 8\nintent_resolver: deterministic_baseline\nplanner: adaptive_deterministic_baseline\nblind_retry_guard: enabled\ncontext_io: disabled\nruntime_capabilities: disabled",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": null,
+      "stdout": "",
+      "stderr": "ruff is not installed in the artifact-generation environment.",
+      "status": "NOT_RUN"
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "mypy",
+        "src"
+      ],
+      "exit_code": null,
+      "stdout": "",
+      "stderr": "mypy is not installed in the artifact-generation environment.",
+      "status": "NOT_RUN"
+    }
+  ],
+  "next_gate": "Run scripts\\bootstrap.bat and scripts\\check.bat on the target Windows machine. Promote Phase 3 to PASS only when all commands return exit code 0."
+}
