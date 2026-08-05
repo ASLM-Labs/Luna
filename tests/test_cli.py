@@ -12,11 +12,10 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 3" in output
-    assert "status: PLANNING_REPLANNING_IMPLEMENTED_UNVERIFIED" in output
-    assert "planner: adaptive_deterministic_baseline" in output
-    assert "blind_retry_guard: enabled" in output
-    assert "runtime_capabilities: disabled" in output
+    assert "phase: 4" in output
+    assert "tool_dispatcher: deny_by_default" in output
+    assert "scripted_test_backend: enabled" in output
+    assert "shell: disabled" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -27,12 +26,30 @@ def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().out.strip() == "Luna 0.1.0"
 
 
-def test_resolve_intent_command_returns_json(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_resolve_intent_command_returns_json(capsys: pytest.CaptureFixture[str]) -> None:
     exit_code = main(["resolve-intent", "README.md dosyasını incele"])
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
     assert payload["kind"] == "CODE_INSPECTION"
     assert payload["referenced_resources"] == ["README.md"]
+
+
+def test_list_tools(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["list-tools"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "core.echo" in output
+    assert "filesystem.read_text" in output
+    assert "filesystem.list_directory" in output
+
+
+def test_tool_smoke_runs_through_dispatcher(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["tool-smoke", "hello"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["result"]["status"] == "SUCCESS"
+    assert payload["result"]["stdout_excerpt"] == "hello"
+    assert payload["event"]["decision"] == "EXECUTED"

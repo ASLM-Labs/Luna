@@ -17,25 +17,14 @@ def test_pyproject_declares_expected_python_version_and_developer() -> None:
 
 
 def test_governance_constitution_is_present() -> None:
-    constitution = (
-        PROJECT_ROOT
-        / "docs"
-        / "governance"
-        / "Luna_0.1_Teknik_Anayasa_v0.1.md"
-    )
+    constitution = PROJECT_ROOT / "docs" / "governance" / "Luna_0.1_Teknik_Anayasa_v0.1.md"
     assert constitution.is_file()
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_two_does_not_open_runtime_capabilities() -> None:
+def test_phase_four_keeps_dangerous_runtime_capabilities_closed() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
-    forbidden = {
-        "tools",
-        "memory",
-        "workspace",
-        "checkpoint",
-        "verification",
-    }
+    forbidden = {"memory", "workspace", "checkpoint", "verification", "shell"}
 
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
     assert forbidden.isdisjoint(present)

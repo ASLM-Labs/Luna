@@ -5,52 +5,50 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 3 — uyarlanabilir plan, eylem öncesi beklenti ve
-gözleme göre yeniden planlama** durumundadır.
+Repository şu anda **Faz 4 — model backend sınırı ve kontrollü araç çalıştırma**
+durumundadır.
 
-## Faz 3'te çalışan parçalar
+## Faz 4'te çalışan parçalar
 
-- görev boyutuna göre `SIMPLE`, `STANDARD` veya `COMPLEX` kısa plan;
-- sıralı ve doğrulanan plan-adımı yaşam döngüsü;
-- yüksek etkili adım öncesi zorunlu `ExpectedObservation`;
-- gerçek `Observation` ile deterministik beklenti karşılaştırması;
-- başarısız varsayım kaydı;
-- aynı eylemi aynı koşullarla yeniden çalıştırmayı engelleyen retry guard;
-- yeni kanıt veya değişen stratejiyle sürümlü replan.
+- sağlayıcıdan bağımsız `ModelBackend` arayüzü;
+- model erişimi gerektirmeyen deterministik `ScriptedTestBackend`;
+- yalnız loopback adreslerine bağlanan yerel OpenAI-compatible adapter;
+- `ToolSpec`, `ToolRequest`, `ToolResult` ve `ToolEvent` kontratları;
+- kayıtlı olmayan aracı çalıştırmayan deny-by-default registry/dispatcher;
+- açık izin, risk, özerklik, scope, argüman, timeout, çıktı ve cwd kontrolleri;
+- model tool-call önerilerini sıradan ve yetkisiz request olarak ele alan trust boundary;
+- hashli ve sınırlı output ile yapılandırılmış `Observation` üretimi;
+- yan etkisiz `core.echo` ve scope kontrollü iki read-only filesystem aracı.
 
 ## Henüz kapalı yetenekler
 
-- gerçek model backend;
-- dosya veya web kaynağını kendiliğinden okuma;
-- shell ve Tool Dispatcher;
-- workspace yazma;
-- verifier, checkpoint ve hafıza depoları;
-- zamanlanmış çalışma ve subagent.
+- shell ve process çalıştırma;
+- dosya yazma, snapshot ve rollback;
+- internet/web araçları;
+- kalıcı audit, checkpoint ve hafıza;
+- deterministic completion verifier;
+- subagent.
 
-## Kurulum
-
-```bat
-scripts\bootstrap.bat
-```
-
-## Kalite kapısı
+## Kurulum ve kalite kapısı
 
 ```bat
+scriptsootstrap.bat
 scripts\check.bat
 ```
 
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 3 planning ve replan kapisi gecti.
+[PASS] Luna 0.1 Faz 4 model ve tool kapisi gecti.
 ```
 
 ## CLI
 
 ```bat
-.venv\Scripts\python.exe -m luna --version
 .venv\Scripts\python.exe -m luna status
-.venv\Scripts\python.exe -m luna resolve-intent "README.md dosyasını incele"
+.venv\Scripts\python.exe -m luna list-tools
+.venv\Scripts\python.exe -m luna tool-smoke "merhaba"
 ```
 
-Faz 3 planlayıcısı gerçek araç kullanmaz. Araç yürütme Faz 4'e kadar kapalıdır.
+Model bir araç çağrısı önerebilir; izni model vermez. Son karar her zaman runtime
+tarafındaki `ToolDispatcher` tarafından verilir.

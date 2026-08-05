@@ -12,24 +12,22 @@ from luna.contracts import (
     TaskState,
 )
 from luna.intent import DeterministicIntentResolver, IntentResolution
-from luna.planning import (
-    AdaptivePlanner,
-    AdaptiveReplanner,
-    AttemptBasis,
-    AttemptRecord,
-    FailedAssumption,
-    PlanLifecycle,
-    TaskPlan,
+from luna.modeling import (
+    LocalOpenAICompatibleBackend,
+    ModelBackend,
+    ModelRequest,
+    ModelResponse,
+    ScriptedTestBackend,
 )
+from luna.planning import AdaptivePlanner, AdaptiveReplanner, TaskPlan
 from luna.preparation import PreparationStatus, TaskPreparation, TaskPreparer
 from luna.tasking import TaskContractBuilder, TaskContractDraft
+from luna.tools import ToolDispatcher, ToolRegistry, ToolRequest, ToolResult, ToolSpec
 from luna.version import __version__
 
 __all__ = [
     "AdaptivePlanner",
     "AdaptiveReplanner",
-    "AttemptBasis",
-    "AttemptRecord",
     "Checkpoint",
     "CompletionStatus",
     "ContextBudget",
@@ -39,12 +37,15 @@ __all__ = [
     "DeterministicIntentResolver",
     "Evidence",
     "ExpectedObservation",
-    "FailedAssumption",
     "IntentResolution",
+    "LocalOpenAICompatibleBackend",
+    "ModelBackend",
+    "ModelRequest",
+    "ModelResponse",
     "Observation",
-    "PlanLifecycle",
     "PlanStep",
     "PreparationStatus",
+    "ScriptedTestBackend",
     "TaskContract",
     "TaskContractBuilder",
     "TaskContractDraft",
@@ -52,5 +53,10 @@ __all__ = [
     "TaskPreparation",
     "TaskPreparer",
     "TaskState",
+    "ToolDispatcher",
+    "ToolRegistry",
+    "ToolRequest",
+    "ToolResult",
+    "ToolSpec",
     "__version__",
 ]

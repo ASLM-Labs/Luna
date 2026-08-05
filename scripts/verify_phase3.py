@@ -167,7 +167,7 @@ def main() -> int:
         "blind_retry_is_blocked": blind_retry_blocked,
         "new_evidence_allows_retry": new_evidence_allows_retry,
         "failed_assumption_triggers_replan": observation_causes_replan,
-        "tool_execution_disabled": True,
+        "phase3_planning_side_effect_free": True,
     }
     status = "PASS" if all(checks.values()) else "BLOCKED"
     result = {

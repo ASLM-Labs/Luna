@@ -29,6 +29,8 @@ jobs:
       - run: python scripts/verify_phase1.py
       - run: python scripts/verify_phase2.py
       - run: python scripts/verify_phase3.py
+      - run: python scripts/verify_phase4.py
       - run: python -m luna --version
       - run: python -m luna status
-      - run: python -m luna resolve-intent "README.md dosyasini incele"
+      - run: python -m luna list-tools
+      - run: python -m luna tool-smoke "phase4"

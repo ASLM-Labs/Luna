@@ -104,7 +104,7 @@ def main() -> int:
         "missing_contract_fields_exposed": missing_fields_exposed,
         "preparation_ready_with_explicit_inputs": preparation_ready,
         "context_io_disabled": True,
-        "tool_execution_disabled": True,
+        "phase2_components_side_effect_free": True,
     }
     status = "PASS" if all(checks.values()) else "BLOCKED"
     result = {
