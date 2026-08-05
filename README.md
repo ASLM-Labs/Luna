@@ -1,38 +1,56 @@
 # Luna 0.1
 
-Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ runtime çekirdeğidir.
+**Geliştirici:** Novopic Intelligence
 
-Bu repository şu anda **Faz 0 — repository ve kalite iskeleti** durumundadır. Model, araç yürütme, hafıza, shell, web ve dosya değiştirme yetenekleri henüz aktif değildir.
+Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
+runtime çekirdeğidir.
 
-## Gereksinimler
-- Windows 11
-- Python 3.12 veya 3.13
-- Git
+Repository şu anda **Faz 2 — intent, görev kontratı hazırlığı ve bağlam
+toplama** durumundadır.
+
+## Faz 2'de çalışan parçalar
+
+- sekiz sürümlü çekirdek kontrat;
+- şeffaf ve deterministik intent baseline'ı;
+- eksik başarı koşullarını açıkça gösteren görev kontratı taslağı;
+- yalnız gözlemlenmiş kaynakları kabul eden context collector;
+- kaynak, digest, token tahmini ve bütçe takibi;
+- planning öncesi birleşik `TaskPreparation` çıktısı.
+
+## Henüz kapalı yetenekler
+
+- gerçek model backend;
+- dosya veya web kaynağını kendiliğinden okuma;
+- shell ve Tool Dispatcher;
+- workspace yazma;
+- verifier, checkpoint ve hafıza depoları;
+- zamanlanmış çalışma ve subagent.
 
 ## Kurulum
+
 ```bat
 scripts\bootstrap.bat
 ```
 
-## Kalite kontrolleri
+## Kalite kapısı
+
 ```bat
 scripts\check.bat
 ```
 
+Beklenen son satır:
+
+```text
+[PASS] Luna 0.1 Faz 2 intent ve context kapisi gecti.
+```
+
 ## CLI
+
 ```bat
 .venv\Scripts\python.exe -m luna --version
 .venv\Scripts\python.exe -m luna status
+.venv\Scripts\python.exe -m luna resolve-intent "README.md dosyasını incele"
 ```
 
-Beklenen Faz 0 durumu:
-```text
-phase: 0
-status: SCAFFOLD_READY
-runtime_capabilities: disabled
-```
-
-## Yönetişim
-Onaylı teknik anayasa: `docs/governance/Luna_0.1_Teknik_Anayasa_v0.1.md`
-
-Faz 1 başlamadan önce Faz 0 doğrulama raporu `PASS` olmalıdır.
+Intent resolver, ileride bağlanacak modelin yerine geçmez. Faz 2 için
+deterministik, denetlenebilir ve yan etkisiz bir baseline'dır.

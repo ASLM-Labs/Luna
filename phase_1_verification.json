@@ -1,0 +1,57 @@
+{
+  "phase": 1,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "generated_utc": "2026-08-05T21:05:32.189446+00:00",
+  "local_generation_checks": [
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "compileall",
+        "-q",
+        "src",
+        "tests"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit_code": 0,
+      "stdout": "...........................                                              [100%]\n27 passed in 0.09s",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/verify_phase1.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"phase\": 1,\n  \"core_contract_count\": 8,\n  \"pydantic_schema_count\": 7,\n  \"contracts\": [\n    \"TaskContract\",\n    \"TaskState\",\n    \"PlanStep\",\n    \"ExpectedObservation\",\n    \"Observation\",\n    \"Evidence\",\n    \"Checkpoint\",\n    \"CompletionStatus\"\n  ],\n  \"status\": \"PASS\"\n}",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "luna",
+        "status"
+      ],
+      "exit_code": 0,
+      "stdout": "phase: 1\nstatus: CONTRACTS_IMPLEMENTED_UNVERIFIED\ncontracts: 8\nruntime_capabilities: disabled",
+      "stderr": ""
+    }
+  ],
+  "not_run_here": [
+    "ruff",
+    "mypy strict",
+    "Windows bootstrap/update"
+  ],
+  "next_gate": "Run scripts\\bootstrap.bat then scripts\\check.bat on the target Windows repository."
+}

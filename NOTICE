@@ -1,5 +1,7 @@
 Luna 0.1
-Copyright 2026 Luna Project
+Copyright 2026 Novopic Intelligence
 
-This initial Phase 0 repository contains no incorporated third-party source code.
-Python development dependencies retain their respective licenses.
+Licensed under the Apache License, Version 2.0.
+
+This repository does not incorporate third-party source code in Phase 2.
+Python dependencies retain their respective licenses.

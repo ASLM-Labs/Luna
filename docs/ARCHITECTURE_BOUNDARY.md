@@ -1,25 +1,28 @@
-# Faz 0 Mimari Sınırı
+# Faz 2 Mimari Sınırı
 
-Faz 0'ın amacı yalnız repository ve kalite iskeletini doğrulamaktır.
+Faz 2, isteğin yapısal yorumlanmasını ve açık bağlam hazırlığını kanıtlar.
 
 ## Var
-- kurulabilir Python package;
-- minimal CLI;
-- test, lint ve type-check yapılandırması;
-- CI;
-- anayasa ve yönetişim belgeleri;
-- bütünlük manifesti.
+
+- Faz 1 çekirdek kontratları;
+- deterministik intent resolver;
+- TaskContractDraft ve TaskContractBuilder;
+- ContextSource, ContextBudget ve ContextBundle;
+- yan etkisiz ContextCollector;
+- planning öncesi TaskPreparation;
+- CLI intent görünürlüğü;
+- Faz 2 test ve verifier kapısı.
 
 ## Yok
-- model backend;
-- TaskState veya görev kontratları;
-- shell ve araç dispatcher;
+
+- gerçek model inference;
+- dosya sistemi veya internetten otomatik context okuma;
+- shell;
+- araç dispatcher;
 - workspace yazma;
-- hafıza;
-- checkpoint;
 - verifier;
-- web;
-- zamanlanmış çalışma;
+- kalıcı checkpoint veya hafıza;
 - subagent.
 
-Bu sınır, Faz 1 başlamadan kaldırılmaz.
+ContextCollector yalnız çağıran katmanın gerçekten sağladığı içerikle çalışır.
+Bir dosya yolu verilmesi, dosyanın gözlemlendiği anlamına gelmez.

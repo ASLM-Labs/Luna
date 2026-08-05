@@ -1,0 +1,33 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip setuptools
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m compileall -q src tests
+      - run: python -m pytest -q
+      - run: python -m ruff check .
+      - run: python -m mypy src
+      - run: python scripts/verify_phase1.py
+      - run: python scripts/verify_phase2.py
+      - run: python -m luna --version
+      - run: python -m luna status
+      - run: python -m luna resolve-intent "README.md dosyasini incele"
