@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from hashlib import sha256
 from typing import Protocol
+from uuid import UUID
 
+from luna.contracts.base import utc_now
 from luna.contracts.enums import ObservationStatus
 from luna.contracts.observation import Observation
 from luna.contracts.task import TaskContract
@@ -81,6 +84,8 @@ class ToolDispatcher:
     ) -> None:
         self._registry = registry
         self._output_capture = output_capture
+        self._free_research_usage: dict[UUID, int] = {}
+        self._free_research_started_at: dict[UUID, datetime] = {}
 
     def _capture(self, *, stream_name: str, text: str) -> tuple[str, str, str, tuple[str, ...]]:
         if self._output_capture is None:
@@ -297,11 +302,32 @@ class ToolDispatcher:
                 error_class=type(exc).__name__,
             )
 
+        runtime_now = utc_now()
+        effective_policy = policy
+        research_contract = policy.free_research_contract
+        if research_contract is not None:
+            contract_id = research_contract.contract_id
+            used = max(
+                policy.free_research_requests_used,
+                self._free_research_usage.get(contract_id, 0),
+            )
+            started_at = self._free_research_started_at.get(
+                contract_id,
+                policy.free_research_session_started_at or runtime_now,
+            )
+            effective_policy = policy.model_copy(
+                update={
+                    "free_research_requests_used": used,
+                    "free_research_session_started_at": started_at,
+                }
+            )
+
         decision = evaluate_tool_policy(
             spec=registered.spec,
             request=request,
             task_contract=task_contract,
-            policy=policy,
+            policy=effective_policy,
+            now=runtime_now,
         )
         if not decision.allowed:
             return self._blocked(
@@ -309,6 +335,13 @@ class ToolDispatcher:
                 checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
                 reason=decision.reason,
                 error_class="ToolPolicyDenied",
+            )
+
+        if research_contract is not None:
+            contract_id = research_contract.contract_id
+            self._free_research_started_at.setdefault(contract_id, runtime_now)
+            self._free_research_usage[contract_id] = (
+                self._free_research_usage.get(contract_id, 0) + 1
             )
 
         decision = PolicyDecision(

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
+from luna.autonomy import AutonomyLevel
+from luna.contracts.base import utc_now
 from luna.contracts.enums import RiskLevel
 from luna.contracts.task import TaskContract
 from luna.tools.models import (
-    AutonomyLevel,
     ToolCapability,
     ToolPolicy,
     ToolRequest,
@@ -50,9 +52,11 @@ def evaluate_tool_policy(
     request: ToolRequest,
     task_contract: TaskContract,
     policy: ToolPolicy,
+    now: datetime | None = None,
 ) -> PolicyDecision:
     """Run every pre-execution policy check in a fixed order."""
     checks: list[str] = []
+    current_time = now or utc_now()
 
     if request.task_id != task_contract.task_id:
         return _denied(checks, "task_id", "task_id does not match contract")
@@ -80,17 +84,77 @@ def evaluate_tool_policy(
         )
     checks.append("expected_observation:PASS")
 
+    autonomy = policy.autonomy_policy_for(request.task_id)
+    if autonomy.level is AutonomyLevel.LEVEL_0_ADVISORY:
+        return _denied(checks, "autonomy", "Level 0 does not permit tool execution")
     if (
-        policy.autonomy_level is AutonomyLevel.OBSERVE_ONLY
+        autonomy.level is AutonomyLevel.LEVEL_1_READ_ONLY
         and capabilities - {ToolCapability.READ}
+    ):
+        return _denied(checks, "autonomy", "Level 1 permits read-only tools")
+    if (
+        autonomy.level is AutonomyLevel.LEVEL_2_CONTROLLED
+        and ToolCapability.NETWORK in capabilities
     ):
         return _denied(
             checks,
             "autonomy",
-            "autonomy level permits read-only tools",
+            "Level 2 blocks network capability",
         )
+    if autonomy.level is AutonomyLevel.LEVEL_4_FREE_RESEARCH:
+        contract = autonomy.free_research_contract
+        if contract is None:
+            return _denied(
+                checks,
+                "free_research_contract",
+                "Level 4 requires a FREE_RESEARCH contract",
+            )
+        if not autonomy.research_budget_available():
+            return _denied(
+                checks,
+                "free_research_budget",
+                "FREE_RESEARCH request budget is exhausted",
+            )
+        if not autonomy.research_window_active(current_time):
+            return _denied(
+                checks,
+                "free_research_window",
+                "FREE_RESEARCH authorization is expired or outside its session window",
+            )
+        if spec.name not in contract.allowed_tools:
+            return _denied(
+                checks,
+                "free_research_tool",
+                "tool is outside the FREE_RESEARCH contract",
+            )
+        if ToolCapability.WRITE in capabilities:
+            return _denied(
+                checks,
+                "free_research_write",
+                "FREE_RESEARCH does not authorize workspace writes",
+            )
+        if ToolCapability.NETWORK in capabilities:
+            target = next(
+                (
+                    value
+                    for key, value in request.arguments.items()
+                    if key in {"url", "uri", "endpoint", "host", "domain"}
+                    and isinstance(value, str)
+                ),
+                None,
+            )
+            if target is None or not contract.allows_domain(target):
+                return _denied(
+                    checks,
+                    "free_research_domain",
+                    "network target is outside the FREE_RESEARCH domain allowlist",
+                )
+        checks.append("free_research_contract:PASS")
     if spec.risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL} and (
-        policy.autonomy_level is not AutonomyLevel.OWNER_APPROVED
+        autonomy.level not in {
+            AutonomyLevel.LEVEL_3_TASK,
+            AutonomyLevel.LEVEL_4_FREE_RESEARCH,
+        }
         or spec.name not in policy.owner_approved_tools
     ):
         return _denied(

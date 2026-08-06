@@ -6,6 +6,12 @@ from luna.audit import (
     AuditSession,
     EvidenceBuilder,
 )
+from luna.autonomy import (
+    AutonomyGrantSource,
+    AutonomyLevel,
+    AutonomyPolicy,
+    FreeResearchContract,
+)
 from luna.context import ContextBudget, ContextBundle, ContextCollector, ContextSource
 from luna.continuity import (
     ContinuityService,
@@ -22,6 +28,7 @@ from luna.contracts import (
     TaskContract,
     TaskState,
 )
+from luna.identity import CommunicationPrinciples, IdentityProfile, UserProfile
 from luna.intent import DeterministicIntentResolver, IntentResolution
 from luna.memory import (
     MemoryCandidate,
@@ -41,6 +48,7 @@ from luna.modeling import (
 )
 from luna.planning import AdaptivePlanner, AdaptiveReplanner, TaskPlan
 from luna.preparation import PreparationStatus, TaskPreparation, TaskPreparer
+from luna.reporting import FinalReport, FinalReportComposer, ReportRisk
 from luna.tasking import TaskContractBuilder, TaskContractDraft
 from luna.tools import (
     ProcessApproval,
@@ -69,7 +77,11 @@ __all__ = [
     "AppendOnlyAuditLedger",
     "AuditSession",
     "AuditedToolDispatcher",
+    "AutonomyGrantSource",
+    "AutonomyLevel",
+    "AutonomyPolicy",
     "Checkpoint",
+    "CommunicationPrinciples",
     "CompletionGate",
     "CompletionStatus",
     "ContextBudget",
@@ -82,6 +94,10 @@ __all__ = [
     "Evidence",
     "EvidenceBuilder",
     "ExpectedObservation",
+    "FinalReport",
+    "FinalReportComposer",
+    "FreeResearchContract",
+    "IdentityProfile",
     "IntentResolution",
     "LocalOpenAICompatibleBackend",
     "MemoryCandidate",
@@ -96,6 +112,7 @@ __all__ = [
     "PlanStep",
     "PreparationStatus",
     "ProcessApproval",
+    "ReportRisk",
     "ResumePolicy",
     "RollbackResult",
     "SQLiteContinuityStore",
@@ -113,6 +130,7 @@ __all__ = [
     "ToolRequest",
     "ToolResult",
     "ToolSpec",
+    "UserProfile",
     "VerificationPolicy",
     "VerifiedMemoryService",
     "WorkspaceMutationResult",

@@ -15,13 +15,18 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 9" in output
+    assert "phase: 10" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
     assert "network_tools: disabled" in output
     assert "memory_policy: candidate_verify_commit_or_reject" in output
     assert "plaintext_secrets_in_memory: blocked" in output
+    assert "identity_profile: versioned_runtime_owned" in output
+    assert "final_report: gate_bound_and_audited" in output
+    assert "autonomy_levels: 0_1_2_3_4_runtime_enforced" in output
+    assert "free_research: separate_expiring_contract_required" in output
+    assert "model_authority_escalation: blocked" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -173,3 +178,21 @@ def test_memory_smoke_command(
     assert payload["source_preserved"] is True
     assert "MEMORY_COMMITTED" in payload["event_kinds"]
     assert "MEMORY_RETRIEVAL" in payload["event_kinds"]
+
+
+def test_phase10_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase10-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["identity_name"] == "Luna"
+    assert payload["hard_coded_user_absent"] is True
+    assert payload["completion_status"] == "VERIFIED_COMPLETE"
+    assert payload["report_sections_separated"] is True
+    assert payload["final_report_audited"] is True
+    assert payload["level_zero_blocked"] is True
+    assert payload["level_one_allowed"] is True
+    assert payload["free_research_domain_allowed"] is True
+    assert payload["audit_integrity"] is True

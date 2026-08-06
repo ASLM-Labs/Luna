@@ -1,21 +1,24 @@
-Luna Faz 9 doğrulanmış hafıza paketi
+Luna Faz 10 kimlik, raporlama ve özerklik paketi
 
 Gerçek Git repository:
 C:\Users\istem\Projects\Luna
 
-1. Luna_0.1_Faz_9_Guncelleme_v0.1.zip içeriğini yukarıdaki repository köküne
-   çıkarın ve dosyaların üzerine yazılmasına izin verin.
-2. ZIP'in içinde ek bir Luna klasörü yoktur; paket repository-root overlay'dir.
+1. Bu ZIP içeriğini yukarıdaki repository köküne çıkarın ve dosyaların üzerine
+   yazılmasına izin verin.
+2. ZIP repository-root overlay olarak hazırlanmıştır; ek bir iç Luna klasörü yoktur.
 3. PowerShell'de çalıştırın:
 
    cd C:\Users\istem\Projects\Luna
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   & .\.venv\Scripts\Activate.ps1
+   python -m pip install -e ".[dev]"
    .\scripts\check_hold.bat
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1–9 verifier PASS
-- memory-smoke PASS
+- Faz 1–10 verifier PASS
+- phase10-smoke PASS
 - exit code 0
-- son satır: [PASS] Luna 0.1 Faz 9 dogrulanmis hafiza kapisi gecti.
+- son satır: [PASS] Luna 0.1 Faz 10 kimlik, raporlama ve ozerklik kapisi gecti.
 
 Tam kapı yeşil olmadan commit yapmayın.

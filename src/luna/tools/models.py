@@ -9,6 +9,12 @@ from uuid import UUID, uuid4
 
 from pydantic import Field, field_validator, model_validator
 
+from luna.autonomy import (
+    AutonomyGrantSource,
+    AutonomyLevel,
+    AutonomyPolicy,
+    FreeResearchContract,
+)
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 from luna.contracts.enums import RiskLevel
 from luna.contracts.observation import Observation
@@ -32,14 +38,6 @@ class ToolOrigin(StrEnum):
     MODEL = "MODEL"
     RUNTIME = "RUNTIME"
     USER = "USER"
-
-
-class AutonomyLevel(StrEnum):
-    """Runtime autonomy boundary used by the dispatcher policy."""
-
-    OBSERVE_ONLY = "OBSERVE_ONLY"
-    BOUNDED = "BOUNDED"
-    OWNER_APPROVED = "OWNER_APPROVED"
 
 
 class ToolArgumentType(StrEnum):
@@ -257,10 +255,14 @@ class ToolPolicy(LunaContractModel):
     """Explicit permissions and budgets; an empty allowlist denies all tools."""
 
     allowed_tools: tuple[str, ...] = ()
-    autonomy_level: AutonomyLevel = AutonomyLevel.OBSERVE_ONLY
+    autonomy_level: AutonomyLevel = AutonomyLevel.LEVEL_1_READ_ONLY
+    autonomy_grant_source: AutonomyGrantSource = AutonomyGrantSource.RUNTIME_POLICY
     max_risk: RiskLevel = RiskLevel.LOW
     owner_approved_tools: tuple[str, ...] = ()
     process_approvals: tuple[ProcessApproval, ...] = ()
+    free_research_contract: FreeResearchContract | None = None
+    free_research_requests_used: int = Field(default=0, ge=0)
+    free_research_session_started_at: datetime | None = None
     max_timeout_ms: int = Field(default=15000, ge=1, le=120000)
     max_output_chars: int = Field(default=16000, ge=1, le=1000000)
 
@@ -274,6 +276,13 @@ class ToolPolicy(LunaContractModel):
             raise ValueError("tool names must be unique")
         return cleaned
 
+    @field_validator("free_research_session_started_at")
+    @classmethod
+    def validate_research_session_start(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return require_utc(value)
+
     @model_validator(mode="after")
     def validate_owner_approvals(self) -> ToolPolicy:
         if not set(self.owner_approved_tools).issubset(self.allowed_tools):
@@ -284,7 +293,25 @@ class ToolPolicy(LunaContractModel):
         )
         if len(approval_keys) != len(set(approval_keys)):
             raise ValueError("process approvals must be unique")
+        if self.autonomy_level is AutonomyLevel.LEVEL_4_FREE_RESEARCH:
+            if self.free_research_contract is None:
+                raise ValueError("Level 4 requires a separate FREE_RESEARCH contract")
+        elif self.free_research_contract is not None:
+            raise ValueError("FREE_RESEARCH contract is valid only at Level 4")
         return self
+
+    def autonomy_policy_for(self, task_id: UUID) -> AutonomyPolicy:
+        """Build the effective runtime-owned autonomy policy for one task."""
+        return AutonomyPolicy(
+            task_id=task_id,
+            level=self.autonomy_level,
+            grant_source=self.autonomy_grant_source,
+            allowed_tools=self.allowed_tools,
+            max_risk=self.max_risk,
+            free_research_contract=self.free_research_contract,
+            free_research_requests_used=self.free_research_requests_used,
+            free_research_session_started_at=self.free_research_session_started_at,
+        )
 
 
 class DispatchOutcome(LunaContractModel):

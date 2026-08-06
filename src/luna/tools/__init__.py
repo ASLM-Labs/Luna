@@ -1,9 +1,14 @@
 """Deny-by-default tool registry, policy, dispatcher, and safe built-ins."""
 
+from luna.autonomy import (
+    AutonomyGrantSource,
+    AutonomyLevel,
+    AutonomyPolicy,
+    FreeResearchContract,
+)
 from luna.tools.builtins import build_phase4_registry, build_phase5_registry
 from luna.tools.dispatcher import ToolDispatcher
 from luna.tools.models import (
-    AutonomyLevel,
     DispatchOutcome,
     ProcessApproval,
     ToolArgumentRule,
@@ -21,8 +26,11 @@ from luna.tools.models import (
 from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
 
 __all__ = [
+    "AutonomyGrantSource",
     "AutonomyLevel",
+    "AutonomyPolicy",
     "DispatchOutcome",
+    "FreeResearchContract",
     "ProcessApproval",
     "ToolArgumentRule",
     "ToolArgumentType",

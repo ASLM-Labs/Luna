@@ -12,7 +12,7 @@ license = { text = "Apache-2.0" }
 authors = [
   { name = "Novopic Intelligence" }
 ]
-keywords = ["local-agent", "runtime", "evidence", "checkpoint"]
+keywords = ["local-agent", "runtime", "evidence", "checkpoint", "identity", "autonomy"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Programming Language :: Python :: 3",

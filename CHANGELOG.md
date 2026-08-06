@@ -3,6 +3,27 @@
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
 
+## [0.1.0-phase10] - 2026-08-06
+
+### Added
+
+- Versioned `IdentityProfile`, `UserProfile` ve kilitli iletişim ilkeleri.
+- Kullanıcıya ait adlandırma alanlarının runtime profilinden çözülmesi; sabit kişi adı yok.
+- Gate-owned `FinalReportComposer` ve yapılan/değişen/doğrulanan/doğrulanamayan/risk ayrımı.
+- Append-only `FINAL_REPORT` audit olayı.
+- Runtime-enforced autonomy Level 0–4 ve Phase 4/5 adları için uyumluluk alias'ları.
+- Ayrı, süreli, domain/tool/bütçe sınırlı `FREE_RESEARCH` kontratı.
+- Dispatcher içinde Level 4 istek bütçesi ve oturum süresi muhasebesi.
+- Faz 10 unit, integration, verifier ve CLI smoke testleri.
+
+### Security
+
+- Modelin yetki kaynağı olarak kabul edilmesi engellendi.
+- Level 0 araç yürütmesi, Level 1 yazma ve Level 2 ağ erişimi runtime'da engellendi.
+- Level 4 için kontratsız, süresi geçmiş, bütçesi tükenmiş veya domain dışı çağrı engellendi.
+- `FREE_RESEARCH` ile workspace yazma yetkisi verilmesi engellendi.
+- Nihai raporun completion gate ve verification report ile çelişmesi engellendi.
+
 ## [0.1.0-phase9] - 2026-08-06
 
 ### Added

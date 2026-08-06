@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 9 — doğrulanmış hafıza** durumundadır.
+Repository şu anda **Faz 10 — kimlik, raporlama ve özerklik** durumundadır.
 
 ## Çalışan zincir
 
@@ -17,12 +17,25 @@ intent → context → contract → plan → expected observation
 → SQLite WAL checkpoint → guarded restart/resume
 → memory candidate → policy/verification → commit or reject
 → scoped retrieval → expiry/supersede
+→ versioned identity profile → runtime autonomy level 0–4
+→ gate-bound final report → explicit evidence/uncertainty/risk
 ```
 
-Luna hafızaya yazmadan önce adayın kaynağını, güvenini, kapsamını,
-güncelliğini ve hassasiyetini denetler. Model çıkarımı doğrulanmış gerçek olarak
-kaydedilemez. Tek seferlik tercih kalıcı tercih sayılmaz. Sırlar yalnız onaylı
-`secret://`, `keyring://` veya `vault://` referansı olarak saklanabilir.
+Luna kimliği model ağırlıklarına veya sabit bir kullanıcı adına bağlı değildir.
+Runtime profili; `user_id`, `display_name`, `alias` ve `preferred_address`
+alanlarını isteğe bağlı olarak taşır. İletişim ilkeleri doğal, sıcak, açık ve dürüst
+olmayı; bilinç, duygu veya kanıtsız kesinlik rolü yapmamayı zorunlu tutar.
+
+Özerklik seviyeleri runtime tarafından uygulanır:
+
+- Level 0: danışman, araç çalıştırmaz;
+- Level 1: salt-okunur;
+- Level 2: kontrollü uygulama;
+- Level 3: görev özerkliği ve açık yüksek-risk onayları;
+- Level 4: yalnız ayrı, süreli ve scope sınırlı `FREE_RESEARCH` kontratıyla.
+
+Model kendi yetkisini yükseltemez. Level 4 varsayılan olarak kapalıdır ve mevcut
+paket gerçek ağ aracı içermez; yalnız izin kontratı ve runtime guard'ı vardır.
 
 ## Kurulum
 
@@ -32,7 +45,9 @@ scripts\bootstrap.bat
 
 ## Testler
 
-Windows üzerinde düz `python -m pytest` komutu proje içindeki `.pytest_tmp` klasörünü kullanır; böylece sistem geçici klasöründeki izin sorunlarından etkilenmez.
+Windows üzerinde düz `python -m pytest` komutu proje içindeki `.pytest_tmp`
+klasörünü kullanır; böylece sistem geçici klasöründeki izin sorunlarından
+etkilenmez.
 
 ```bat
 python -m pytest
@@ -49,11 +64,11 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 9 dogrulanmis hafiza kapisi gecti.
+[PASS] Luna 0.1 Faz 10 kimlik, raporlama ve ozerklik kapisi gecti.
 ```
 
-## Görünür hafıza testi
+## Görünür Faz 10 testi
 
 ```bat
-.venv\Scripts\python.exe -m luna memory-smoke
+.venv\Scripts\python.exe -m luna phase10-smoke
 ```

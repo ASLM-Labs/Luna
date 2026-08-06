@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 9 verified-memory runtime."""
+"""Command-line entry point for the Luna Phase 10 identity and autonomy runtime."""
 
 from __future__ import annotations
 
@@ -6,11 +6,13 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
-from luna.audit import AuditedToolDispatcher, AuditSession, EvidenceBuilder
+from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
+from luna.autonomy import FreeResearchContract
 from luna.continuity import ContinuityService, ResumePolicy, SQLiteContinuityStore
 from luna.contracts.enums import (
     EvidenceResult,
@@ -23,6 +25,7 @@ from luna.contracts.evidence import Evidence
 from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
+from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
 from luna.memory import (
     MemoryCandidate,
@@ -37,14 +40,20 @@ from luna.memory import (
     SQLiteMemoryStore,
     VerifiedMemoryService,
 )
+from luna.reporting import FinalReportComposer
 from luna.tools import (
     AutonomyLevel,
     ProcessApproval,
+    ToolArgumentRule,
+    ToolArgumentType,
+    ToolCapability,
     ToolDispatcher,
     ToolPolicy,
     ToolRequest,
+    ToolSpec,
     build_phase5_registry,
 )
+from luna.tools.policy import evaluate_tool_policy
 from luna.verification import (
     CompletionGate,
     VerificationPolicy,
@@ -76,6 +85,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "memory-smoke",
         help="Verify Phase 9 memory policy, safe storage, and scoped retrieval.",
+    )
+    subparsers.add_parser(
+        "phase10-smoke",
+        help="Verify Phase 10 identity, final reporting, and autonomy enforcement.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -575,13 +588,156 @@ def _run_memory_smoke() -> int:
         ) else 2
 
 
+
+def _run_phase10_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase10-") as directory:
+        root = Path(directory)
+        task_id = uuid4()
+        trace_id = uuid4()
+        required = "Phase 10 report is derived from verified evidence."
+        contract = TaskContract(
+            task_id=task_id,
+            objective="Verify identity, reporting, and autonomy boundaries.",
+            required_conditions=(required,),
+            evidence_required=("test result",),
+            scope=TaskScope(workspace_root=str(root)),
+            risk_level=RiskLevel.LOW,
+            owner="user",
+        )
+        evidence = Evidence(
+            task_id=task_id,
+            requirement_id=required_condition_claim_id(required),
+            source_kind=EvidenceSourceKind.TEST_RESULT,
+            source_ref="phase10-smoke:test",
+            result=EvidenceResult.PASS,
+            environment_fingerprint="phase10-smoke",
+            revision="phase10",
+            freshness_seconds=0,
+            reproducible=True,
+            confidence=1.0,
+        )
+        audit = AuditSession(root / "audit")
+        audit.record_task_contract(contract=contract, trace_id=trace_id)
+        gate = CompletionGate(audit).evaluate(
+            contract=contract,
+            evidence=(evidence,),
+            policy=VerificationPolicy(
+                current_revision="phase10",
+                expected_environment_fingerprint="phase10-smoke",
+            ),
+            trace_id=trace_id,
+        )
+        identity = IdentityProfile()
+        final_report = FinalReportComposer(audit).compose(
+            contract=contract,
+            gate_result=gate,
+            identity=identity,
+            performed=("Ran the Phase 10 deterministic smoke test.",),
+            changed=(),
+            trace_id=trace_id,
+        )
+
+        echo_spec = build_phase5_registry().get("core.echo")
+        if echo_spec is None:
+            return 2
+        request = ToolRequest(
+            task_id=task_id,
+            trace_id=trace_id,
+            tool_name="core.echo",
+            arguments={"message": "phase10"},
+        )
+        level_zero = evaluate_tool_policy(
+            spec=echo_spec.spec,
+            request=request,
+            task_contract=contract,
+            policy=ToolPolicy(
+                allowed_tools=("core.echo",),
+                autonomy_level=AutonomyLevel.LEVEL_0_ADVISORY,
+            ),
+        )
+        level_one = evaluate_tool_policy(
+            spec=echo_spec.spec,
+            request=request,
+            task_contract=contract,
+            policy=ToolPolicy(
+                allowed_tools=("core.echo",),
+                autonomy_level=AutonomyLevel.LEVEL_1_READ_ONLY,
+            ),
+        )
+
+        research_task_id = uuid4()
+        now = datetime.now(UTC)
+        research_spec = ToolSpec(
+            name="research.fetch",
+            description="Phase 10 synthetic network policy fixture.",
+            capabilities=(ToolCapability.NETWORK,),
+            argument_schema={
+                "url": ToolArgumentRule(
+                    argument_type=ToolArgumentType.STRING,
+                    required=True,
+                )
+            },
+        )
+        research_contract = TaskContract(
+            task_id=research_task_id,
+            objective="Verify FREE_RESEARCH domain enforcement.",
+            required_conditions=("Only an approved domain is reachable.",),
+            evidence_required=("policy decision",),
+            scope=TaskScope(workspace_root=str(root), network_allowed=True),
+            risk_level=RiskLevel.LOW,
+            owner="user",
+        )
+        free_research = FreeResearchContract(
+            task_id=research_task_id,
+            purpose="Inspect approved public documentation.",
+            allowed_tools=(research_spec.name,),
+            allowed_domains=("example.com",),
+            issued_at=now - timedelta(seconds=1),
+            expires_at=now + timedelta(minutes=5),
+        )
+        research_decision = evaluate_tool_policy(
+            spec=research_spec,
+            request=ToolRequest(
+                task_id=research_task_id,
+                trace_id=uuid4(),
+                tool_name=research_spec.name,
+                arguments={"url": "https://docs.example.com/reference"},
+                expectation_id=uuid4(),
+            ),
+            task_contract=research_contract,
+            policy=ToolPolicy(
+                allowed_tools=(research_spec.name,),
+                autonomy_level=AutonomyLevel.LEVEL_4_FREE_RESEARCH,
+                free_research_contract=free_research,
+            ),
+        )
+        event_kinds = {event.kind for event in audit.events_for_task(task_id)}
+        payload = {
+            "identity_name": identity.identity_name,
+            "identity_version": identity.identity_version,
+            "hard_coded_user_absent": identity.user_profile is None,
+            "completion_status": final_report.completion_status.value,
+            "report_sections_separated": bool(
+                final_report.performed
+                and final_report.verified
+                and not final_report.unverified
+            ),
+            "final_report_audited": AuditEventKind.FINAL_REPORT in event_kinds,
+            "level_zero_blocked": level_zero.allowed is False,
+            "level_one_allowed": level_one.allowed is True,
+            "free_research_domain_allowed": research_decision.allowed is True,
+            "audit_integrity": audit.verify_integrity().valid,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if all(payload.values()) else 2
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 9")
-        print("status: VERIFIED_MEMORY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 10")
+        print("status: IDENTITY_REPORTING_AUTONOMY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -603,6 +759,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("plaintext_secrets_in_memory: blocked")
         print("one_off_preference_persistence: blocked")
         print("memory_expiry_and_supersede: enabled")
+        print("identity_profile: versioned_runtime_owned")
+        print("hard_coded_user_profile: absent")
+        print("final_report: gate_bound_and_audited")
+        print("autonomy_levels: 0_1_2_3_4_runtime_enforced")
+        print("free_research: separate_expiring_contract_required")
+        print("model_authority_escalation: blocked")
         return 0
 
     if args.command == "resolve-intent":
@@ -620,6 +782,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "memory-smoke":
         return _run_memory_smoke()
+
+    if args.command == "phase10-smoke":
+        return _run_phase10_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)
