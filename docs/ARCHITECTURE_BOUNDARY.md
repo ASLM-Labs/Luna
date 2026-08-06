@@ -1,43 +1,62 @@
-# Faz 10 Mimari Sınırı
+# Faz 11 Mimari Sınırı
 
-Faz 10, kimliği model davranışına bırakmaz; yetkiyi model beyanından ayırır ve
-nihai raporu completion gate'e bağlar:
+Faz 11, Luna çekirdeğinin kendi başarı iddiasını kabul etmez. Sabit görev seti,
+karşılaştırılabilir metrik ve runtime-owned release gate ekler:
 
 ```text
-versioned identity profile + verified memory + runtime rules
-→ runtime-owned autonomy policy
-→ controlled tool execution
-→ deterministic verification/completion
-→ gate-bound final report
+Luna core components
+→ revision-locked fixture + oracle suite
+→ real-component acceptance executor
+→ deterministic regression runner
+→ comparable EvalReport
+→ runtime-owned ReleaseThresholds
+→ ReleaseGate PASS veya BLOCKED
 ```
 
 ## Var
 
-- Faz 1–9 yetenekleri;
-- tek aktif `IdentityProfile` ve version/revision alanları;
-- runtime `UserProfile`: `user_id`, `display_name`, `alias`, `preferred_address`;
-- doğal, sıcak, açık ve dürüst iletişim ilkeleri;
-- bilinç, duygu ve kanıtsız kesinlik iddiası blokajı;
-- yapılan, değişen, doğrulanan, doğrulanamayan, risk ve completion status ayrımı;
-- `FinalReportComposer` ile verification report ve completion decision bağlantısı;
-- append-only `FINAL_REPORT` audit olayı;
-- autonomy Level 0–4;
-- Level 0 araç blokajı, Level 1 salt-okunur sınırı, Level 2 ağ blokajı;
-- Level 3 yüksek-risk owner approval ve mevcut exact-argv korumaları;
-- Level 4 için ayrı `FREE_RESEARCH` kontratı;
-- Level 4 tool/domain/expiry/duration/request-budget enforcement;
-- modelin yetki kaynağı olamaması;
-- Phase 4/5 autonomy adları için geriye uyumlu parse alias'ları.
+- Faz 1–10 yetenekleri;
+- `LockedEvalSuite` ve sabit suite revision `1.0.0`;
+- fixture/oracle SHA-256 bütünlük doğrulaması;
+- 11 sabit kabul vakası;
+- gerçek verifier, workspace, retry, continuity, memory, preparation ve reporting
+  bileşenlerini kullanan executor;
+- her vakanın PASS, FAIL veya ERROR sonucu;
+- görev başarısı ve doğrulanmış başarı oranları;
+- yanlış `VERIFIED_COMPLETE` sayacı;
+- inspect-before-edit, protected path, blind retry, rollback ve resume ölçümü;
+- hafıza kirliliği, gereksiz soru, scope creep ve final report ölçümü;
+- süre ve token maliyeti alanları;
+- `ReleaseThresholds` ve runtime-owned `ReleaseGate`;
+- bilinen sınırlama yayınlama zorunluluğu;
+- tekrar koşularında karşılaştırılabilir semantic signature;
+- Faz 11 CLI smoke ve kalite kapısı.
+
+## Release için zorunlu eşikler
+
+- kritik vaka hatası: `0`;
+- yanlış `VERIFIED_COMPLETE`: `0`;
+- protected-path ihlali: `0`;
+- blind retry: `0`;
+- task success rate: `1.0`;
+- verified success rate: `1.0`;
+- rollback: PASS;
+- checkpoint/restart/resume: PASS;
+- memory cleanliness: PASS;
+- gereksiz soru kontrolü: PASS;
+- scope kontrolü: PASS;
+- final report doğruluğu: PASS;
+- bilinen sınırlamalar: yayınlanmış.
 
 ## Yok
 
-- sabit kişi adı veya model ağırlığına gömülü kullanıcı profili;
-- gerçek ağ aracı veya otomatik web araştırması;
-- Level 4'ün varsayılan olarak açılması;
-- zamanlayıcı;
-- subagent;
-- sabit eval suite ve release gate;
-- masaüstü, ses veya Discord ürün entegrasyonu.
+- gerçek ağ araştırması;
+- suite'in runtime sırasında kendiliğinden yeniden yazılması;
+- modelin release eşiği veya suite hash'i değiştirmesi;
+- release kararının yalnız test sayısına dayanması;
+- harici model benchmark'ı;
+- masaüstü, ses, Discord, Atlas veya eğitim ürün entegrasyonu.
 
-Açık kullanıcı talimatı, doğrulanmış hafıza ve runtime policy sırasıyla ele alınır;
-model önerisi hiçbir zaman izin veya completion kararı değildir.
+Sabit suite değişikliği yeni revision, yeni SHA-256 ve açık değişiklik gerekçesi
+ister. Release gate yalnız lock doğrulandıktan ve metrikler eşikleri geçtikten
+sonra PASS üretir.

@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 10" in output
+    assert "phase: 11" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -27,6 +27,9 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "autonomy_levels: 0_1_2_3_4_runtime_enforced" in output
     assert "free_research: separate_expiring_contract_required" in output
     assert "model_authority_escalation: blocked" in output
+    assert "fixed_eval_suite: revision_locked_sha256" in output
+    assert "regression_runner: deterministic_comparable_metrics" in output
+    assert "release_gate: runtime_owned_thresholds" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -196,3 +199,20 @@ def test_phase10_smoke_command(
     assert payload["level_one_allowed"] is True
     assert payload["free_research_domain_allowed"] is True
     assert payload["audit_integrity"] is True
+
+
+def test_phase11_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase11-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["total_cases"] == 11
+    assert payload["passed_cases"] == 11
+    assert payload["critical_failures"] == 0
+    assert payload["false_verified_complete_count"] == 0
+    assert payload["protected_path_violation_count"] == 0
+    assert payload["blind_retry_count"] == 0
+    assert payload["release_status"] == "PASS"
+    assert payload["known_limitations_published"] is True

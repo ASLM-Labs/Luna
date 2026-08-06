@@ -2,6 +2,30 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase11] - 2026-08-06
+
+### Added
+
+- Revision ve SHA-256 ile kilitlenen 11 vakalık sabit Luna core eval suite.
+- Fixture/oracle bütünlüğünü doğrulayan `LockedEvalSuite`.
+- Gerçek çekirdek bileşenlerini çalıştıran `CoreAcceptanceExecutor`.
+- Deterministik `RegressionRunner`, `EvalMetrics` ve `EvalReport`.
+- Karşılaştırılabilir görev başarısı, yanlış başarı, scope, retry, rollback,
+  resume, hafıza ve rapor doğruluğu metrikleri.
+- Runtime-owned `ReleaseGate`, açık eşikler ve bilinen sınırlama zorunluluğu.
+- Faz 11 verifier, unit/integration/acceptance testleri ve `phase11-smoke`.
+
+### Security
+
+- Sabit eval fixture veya oracle içeriğinin hash güncellenmeden değiştirilmesi
+  engellendi.
+- Model veya rapor beyanının release yetkisi vermesi engellendi.
+- Kritik yanlış `VERIFIED_COMPLETE`, protected-path ihlali ve blind retry için
+  release eşiği sıfıra kilitlendi.
+- Kritik vaka, rollback, restart/resume, memory cleanliness, scope ve final report
+  doğruluğu geçmeden release PASS verilmesi engellendi.
+- Bilinen sınırlamalar yayınlanmadan release PASS verilmesi engellendi.
+
 
 ## [0.1.0-phase10] - 2026-08-06
 
