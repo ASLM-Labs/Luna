@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from luna.audit.redaction import SecretRedactor
 from luna.memory.models import (
+    SECRET_PLACEHOLDER,
     MemoryCandidate,
     MemoryDecisionStatus,
     MemoryPolicy,
@@ -12,7 +13,6 @@ from luna.memory.models import (
     MemorySensitivity,
     MemorySourceKind,
     MemoryType,
-    SECRET_PLACEHOLDER,
 )
 
 

@@ -125,7 +125,7 @@ def main() -> int:
             trace_id=trace_id,
         )
         assert old.record is not None
-        new = service.commit_candidate(
+        service.commit_candidate(
             candidate=MemoryCandidate(
                 task_id=task_id,
                 memory_type=MemoryType.PROJECT_DECISION,
