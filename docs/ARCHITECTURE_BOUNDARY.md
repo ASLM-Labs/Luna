@@ -1,36 +1,29 @@
-# Faz 5 Mimari Sınırı
+# Faz 6 Mimari Sınırı
 
-Faz 5, Luna'nın proje üzerinde sınırlı ve geri alınabilir yan etki üretmesini
-kanıtlar. Model hâlâ karar yetkisine sahip değildir; izin, scope ve onay runtime
-katmanındadır.
+Faz 6, kontrollü araç akışının gözlemlerini kalıcı, redakte edilmiş ve
+değişiklik tespit edilebilir bir audit/evidence katmanına bağlar.
 
 ## Var
 
-- Faz 1 çekirdek kontratları;
-- Faz 2 intent, contract draft ve context hazırlığı;
-- Faz 3 adaptive planning, expectation ve retry guard;
-- Faz 4 model backend sınırı ve deny-by-default dispatcher;
-- `process.run_argv` için exact argv + cwd approval;
-- `shell=False`, kapalı stdin, hard timeout ve bounded output;
-- shell/script-host ve inline-code reddi;
-- `filesystem.write_text` ve `filesystem.replace_text`;
-- write öncesi snapshot, content-addressed blob ve SHA-256 manifest;
-- atomic replace, post-write digest doğrulaması ve otomatik rollback;
-- owner-approved `workspace.rollback`;
-- protected descendant, path traversal, workspace escape ve symlink engeli;
-- her işlemde `ToolResult`, `ToolEvent`, `Observation` ve change hash evidence.
+- Faz 1–5 kontrat, planning, dispatcher, safe process ve workspace katmanları;
+- append-only JSONL audit ledger;
+- sıralı SHA-256 event chain ve replay doğrulaması;
+- task/tool/observation/evidence için ortak `trace_id`;
+- hassas değerleri persistence öncesinde redakte eden sınır;
+- content-addressed tam stdout/stderr artifact deposu;
+- bounded excerpt ve hash reference kullanan Observation;
+- current Observation → Evidence oluşturma;
+- correction-as-new-event davranışı;
+- owner task audit inspection API/CLI.
 
 ## Yok
 
-- command string veya genel amaçlı interactive shell;
-- dosya/dizin silme aracı;
-- network tool;
-- append-only kalıcı audit deposu;
-- deterministic completion verifier;
-- kalıcı checkpoint veya memory;
+- requirement→evidence completion verifier;
+- `VERIFIED_COMPLETE` kararı;
+- conflicting-evidence resolution;
+- SQLite task/checkpoint/memory state;
+- network/web araçları;
 - subagent.
 
-Snapshot verileri workspace içindeki runtime-owned `.luna/snapshots` alanında tutulur
-ve `.gitignore` tarafından dışlanır. Task araçları `.luna` altını hedefleyemez.
-Rollback yalnız aynı workspace ve aynı `task_id` için geçerlidir; manifest veya blob
-hash'i uyuşmazsa restore başlamadan reddedilir.
+Audit log bir reasoning/chain-of-thought günlüğü değildir. Yalnız karar için
+gerekli observable olay, policy, result, observation ve evidence kayıtlarını tutar.

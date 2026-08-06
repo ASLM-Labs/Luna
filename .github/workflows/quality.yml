@@ -31,9 +31,11 @@ jobs:
       - run: python scripts/verify_phase3.py
       - run: python scripts/verify_phase4.py
       - run: python scripts/verify_phase5.py
+      - run: python scripts/verify_phase6.py
       - run: python -m luna --version
       - run: python -m luna status
       - run: python -m luna list-tools
-      - run: python -m luna tool-smoke "phase5"
+      - run: python -m luna tool-smoke "phase6"
       - run: python -m luna workspace-smoke
       - run: python -m luna process-smoke
+      - run: python -m luna audit-smoke

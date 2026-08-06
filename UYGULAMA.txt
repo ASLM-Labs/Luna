@@ -1,0 +1,14 @@
+Luna Faz 5 toplu düzeltme paketi
+
+1. ZIP içeriğini mevcut Luna repository köküne çıkarın ve dosyaların üzerine yazılmasına izin verin.
+2. PowerShell'de repository kökünde çalıştırın:
+
+   .\.venv\Scripts\python.exe scripts\clean_generated_artifacts.py
+   .\scripts\check.bat *> .\phase5_check.log
+   $LASTEXITCODE
+   Get-Content .\phase5_check.log -Tail 80
+
+Nihai kabul:
+- exit code 0
+- 5 faz verifier PASS
+- log sonunda: [PASS] Luna 0.1 Faz 5 workspace, shell ve rollback kapisi gecti.

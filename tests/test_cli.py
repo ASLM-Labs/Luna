@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
+from luna.audit import AppendOnlyAuditLedger, AuditEventKind
 from luna.cli import main
 
 
@@ -12,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 5" in output
+    assert "phase: 6" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -78,3 +81,45 @@ def test_process_smoke_uses_shell_false(capsys: pytest.CaptureFixture[str]) -> N
     assert exit_code == 0
     assert payload["result"]["status"] == "SUCCESS"
     assert payload["result"]["metadata"]["shell"] is False
+
+
+def test_audit_smoke(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["audit-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["integrity"] is True
+    assert payload["event_count"] == 6
+    assert payload["secret_absent"] is True
+
+
+def test_audit_inspect_prints_only_selected_task(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ledger = AppendOnlyAuditLedger(tmp_path)
+    selected_task = uuid4()
+    other_task = uuid4()
+    trace_id = uuid4()
+    ledger.append(
+        kind=AuditEventKind.OBSERVATION,
+        task_id=selected_task,
+        trace_id=trace_id,
+        subject_id=str(uuid4()),
+        payload={"status": "SUCCESS"},
+    )
+    ledger.append(
+        kind=AuditEventKind.OBSERVATION,
+        task_id=other_task,
+        trace_id=uuid4(),
+        subject_id=str(uuid4()),
+        payload={"status": "FAILURE"},
+    )
+
+    exit_code = main(["audit-inspect", str(tmp_path), str(selected_task)])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert len(payload) == 1
+    assert payload[0]["task_id"] == str(selected_task)
+    assert payload[0]["trace_id"] == str(trace_id)

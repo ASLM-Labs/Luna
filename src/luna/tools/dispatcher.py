@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from hashlib import sha256
+from typing import Protocol
 
 from luna.contracts.enums import ObservationStatus
 from luna.contracts.observation import Observation
@@ -28,7 +29,20 @@ from luna.tools.registry import (
     ToolRegistry,
 )
 
-_EMPTY_DIGEST = sha256(b"").hexdigest()
+class CapturedOutputLike(Protocol):
+    text: str
+    digest: str
+    ref: str
+    redactions_applied: tuple[str, ...]
+
+
+class OutputCapture(Protocol):
+    """Optional persistent redaction boundary used by Phase 6."""
+
+    def capture_output(self, *, stream_name: str, text: str) -> CapturedOutputLike:
+        """Capture redacted output under a stable content reference."""
+        ...
+
 
 
 def _digest(value: str) -> str:
@@ -60,27 +74,51 @@ def _protected_changes(
 class ToolDispatcher:
     """Deny-by-default dispatcher; models may propose but cannot authorize calls."""
 
-    def __init__(self, registry: ToolRegistry) -> None:
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        output_capture: OutputCapture | None = None,
+    ) -> None:
         self._registry = registry
+        self._output_capture = output_capture
 
-    @staticmethod
+    def _capture(self, *, stream_name: str, text: str) -> tuple[str, str, str, tuple[str, ...]]:
+        if self._output_capture is None:
+            digest = _digest(text)
+            return text, digest, f"sha256:{digest}", ()
+        captured = self._output_capture.capture_output(stream_name=stream_name, text=text)
+        return (
+            captured.text,
+            captured.digest,
+            captured.ref,
+            captured.redactions_applied,
+        )
+
     def _blocked(
+        self,
         *,
         request: ToolRequest,
         checks: tuple[str, ...],
         reason: str,
         error_class: str,
     ) -> DispatchOutcome:
+        stdout_text, stdout_digest, stdout_ref, stdout_redactions = self._capture(
+            stream_name="stdout", text=""
+        )
+        stderr_text, stderr_digest, stderr_ref, stderr_redactions = self._capture(
+            stream_name="stderr", text=reason
+        )
         result = ToolResult(
             request_id=request.request_id,
             tool_name=request.tool_name,
             status=ToolResultStatus.BLOCKED,
-            stdout_digest=_EMPTY_DIGEST,
-            stderr_digest=_digest(reason),
+            stdout_digest=stdout_digest,
+            stderr_digest=stderr_digest,
             output_chars=len(reason),
             duration_ms=0,
             error_class=error_class,
-            stderr_excerpt=reason,
+            stdout_excerpt=stdout_text,
+            stderr_excerpt=stderr_text,
         )
         event = ToolEvent(
             request_id=request.request_id,
@@ -97,9 +135,12 @@ class ToolDispatcher:
             tool_event_id=event.event_id,
             status=ObservationStatus.BLOCKED,
             errors=(f"{error_class}: {reason}",),
-            stdout_ref=f"sha256:{result.stdout_digest}",
-            stderr_ref=f"sha256:{result.stderr_digest}",
+            stdout_ref=stdout_ref,
+            stderr_ref=stderr_ref,
             measured_values={"output_chars": result.output_chars, "duration_ms": 0},
+            redactions_applied=tuple(
+                dict.fromkeys((*stdout_redactions, *stderr_redactions))
+            ),
         )
         return DispatchOutcome(
             request=request,
@@ -141,9 +182,15 @@ class ToolDispatcher:
             error_class = type(exc).__name__
         duration_ms = max(0, int((time.perf_counter() - started) * 1000))
 
+        stdout_text, stdout_digest, stdout_ref, stdout_redactions = self._capture(
+            stream_name="stdout", text=output.stdout
+        )
+        stderr_text, stderr_digest, stderr_ref, stderr_redactions = self._capture(
+            stream_name="stderr", text=output.stderr
+        )
         stdout_excerpt, stderr_excerpt, truncated = _bounded_excerpts(
-            output.stdout,
-            output.stderr,
+            stdout_text,
+            stderr_text,
             decision.max_output_chars,
         )
         protected_changed = _protected_changes(
@@ -162,8 +209,8 @@ class ToolDispatcher:
             exit_code=output.exit_code,
             stdout_excerpt=stdout_excerpt,
             stderr_excerpt=stderr_excerpt,
-            stdout_digest=_digest(output.stdout),
-            stderr_digest=_digest(output.stderr),
+            stdout_digest=stdout_digest,
+            stderr_digest=stderr_digest,
             output_chars=len(output.stdout) + len(output.stderr),
             truncated=truncated,
             duration_ms=duration_ms,
@@ -206,13 +253,16 @@ class ToolDispatcher:
             changed_files=output.changed_files,
             protected_files_changed=protected_changed,
             errors=errors,
-            stdout_ref=f"sha256:{result.stdout_digest}",
-            stderr_ref=f"sha256:{result.stderr_digest}",
+            stdout_ref=stdout_ref,
+            stderr_ref=stderr_ref,
             measured_values={
                 "duration_ms": duration_ms,
                 "output_chars": result.output_chars,
                 "truncated": truncated,
             },
+            redactions_applied=tuple(
+                dict.fromkeys((*stdout_redactions, *stderr_redactions))
+            ),
         )
         return DispatchOutcome(
             request=request,

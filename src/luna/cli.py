@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 5 controlled workspace runtime."""
+"""Command-line entry point for the Luna Phase 6 auditable runtime."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
+from luna.audit import AuditSession, AuditedToolDispatcher, EvidenceBuilder
 from luna.contracts.enums import RiskLevel
 from luna.contracts.task import TaskContract, TaskScope
 from luna.intent import DeterministicIntentResolver
@@ -34,6 +35,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("status", help="Show the current project phase and capability state.")
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
+    subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
+    inspect_parser = subparsers.add_parser(
+        "audit-inspect",
+        help="Print one task audit from an owner-selected audit root.",
+    )
+    inspect_parser.add_argument("root", help="Audit root containing events.jsonl.")
+    inspect_parser.add_argument("task_id", help="Task UUID to inspect.")
     subparsers.add_parser(
         "workspace-smoke",
         help="Create a temporary file through the dispatcher, then restore its snapshot.",
@@ -186,13 +194,71 @@ def _run_process_smoke() -> int:
     return 0 if outcome.result.status.value == "SUCCESS" else 2
 
 
+
+def _run_audit_smoke() -> int:
+    secret = "phase6-smoke-secret"
+    with TemporaryDirectory(prefix="luna-phase6-") as directory:
+        root = Path(directory)
+        task_id = uuid4()
+        trace_id = uuid4()
+        contract = _echo_contract(task_id)
+        audit = AuditSession(root / "audit", explicit_secrets=(secret,))
+        audit.record_task_contract(contract=contract, trace_id=trace_id)
+        outcome = AuditedToolDispatcher(build_phase5_registry(), audit).dispatch(
+            request=ToolRequest(
+                task_id=task_id,
+                trace_id=trace_id,
+                tool_name="core.echo",
+                arguments={"message": f"token={secret}"},
+                max_output_chars=8,
+            ),
+            task_contract=contract,
+            policy=ToolPolicy(
+                allowed_tools=("core.echo",),
+                autonomy_level=AutonomyLevel.OBSERVE_ONLY,
+                max_risk=RiskLevel.LOW,
+                max_output_chars=8,
+            ),
+        )
+        evidence = EvidenceBuilder.from_observation(
+            task_id=task_id,
+            requirement_id="echo-output-observed",
+            observation=outcome.observation,
+            environment_fingerprint="cli-audit-smoke",
+            revision="phase6",
+            freshness_seconds=0,
+            reproducible=True,
+            confidence=1.0,
+        )
+        audit.record_evidence(
+            evidence=evidence,
+            trace_id=trace_id,
+            observation_id=outcome.observation.observation_id,
+        )
+        verification = audit.verify_integrity()
+        persisted = audit.ledger.path.read_text(encoding="utf-8")
+        full_output = audit.logs.read_text(outcome.observation.stdout_ref or "")
+        common_trace_id = all(
+            event.trace_id == trace_id for event in audit.events_for_task(task_id)
+        )
+        secret_absent = secret not in persisted and secret not in full_output
+        payload = {
+            "integrity": verification.valid,
+            "event_count": verification.event_count,
+            "common_trace_id": common_trace_id,
+            "secret_absent": secret_absent,
+            "redactions": list(outcome.observation.redactions_applied),
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if verification.valid and common_trace_id and secret_absent else 2
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 5")
-        print("status: WORKSPACE_SHELL_IMPLEMENTED_UNVERIFIED")
+        print("phase: 6")
+        print("status: OBSERVATION_EVIDENCE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -201,10 +267,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("shell_parsing: disabled")
         print("file_delete: disabled")
         print("network_tools: disabled")
+        print("audit_log: append_only_jsonl_sha256_chain")
+        print("output_logs: redacted_content_addressed")
+        print("completion_verifier: disabled")
         return 0
 
     if args.command == "resolve-intent":
         print(DeterministicIntentResolver().resolve(args.request).to_json())
+        return 0
+
+    if args.command == "audit-smoke":
+        return _run_audit_smoke()
+
+    if args.command == "audit-inspect":
+        task_id = UUID(args.task_id)
+        events = AuditSession(Path(args.root)).events_for_task(task_id)
+        print(
+            json.dumps(
+                [event.model_dump(mode="json") for event in events],
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     registry = build_phase5_registry()

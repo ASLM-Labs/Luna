@@ -1,0 +1,200 @@
+{
+  "phase": 6,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "generated_utc": "2026-08-06T02:32:42.785471+00:00",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "linux"
+  },
+  "checks": {
+    "syntax": {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/verify_syntax.py"
+      ],
+      "exit_code": 0,
+      "stdout": "100 Python files parsed",
+      "stderr": ""
+    },
+    "pytest": {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=/tmp/luna_phase6_final_pytest"
+      ],
+      "exit_code": 0,
+      "stdout": "........................................................................ [ 58%]\n....................................................                     [100%]\n124 passed in 0.91s",
+      "stderr": ""
+    },
+    "verifiers": [
+      {
+        "phase": 1,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase1.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 1,\n  \"core_contract_count\": 8,\n  \"pydantic_schema_count\": 7,\n  \"contracts\": [\n    \"TaskContract\",\n    \"TaskState\",\n    \"PlanStep\",\n    \"ExpectedObservation\",\n    \"Observation\",\n    \"Evidence\",\n    \"Checkpoint\",\n    \"CompletionStatus\"\n  ],\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      },
+      {
+        "phase": 2,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase2.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 2,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"deterministic_intent\": true,\n    \"unseen_source_not_loaded\": true,\n    \"missing_contract_fields_exposed\": true,\n    \"preparation_ready_with_explicit_inputs\": true,\n    \"context_io_disabled\": true,\n    \"phase2_components_side_effect_free\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      },
+      {
+        "phase": 3,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase3.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 3,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"deterministic_plan_outline\": true,\n    \"simple_plan_is_short\": true,\n    \"expectation_before_high_impact_step\": true,\n    \"blind_retry_is_blocked\": true,\n    \"new_evidence_allows_retry\": true,\n    \"failed_assumption_triggers_replan\": true,\n    \"phase3_planning_side_effect_free\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      },
+      {
+        "phase": 4,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase4.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 4,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"scripted_backend_without_model_access\": true,\n    \"local_adapter_loopback_only\": true,\n    \"default_deny\": true,\n    \"explicit_permission_executes\": true,\n    \"scoped_read_executes\": true,\n    \"unregistered_shell_blocked\": true,\n    \"tool_result_event_observation_linked\": true,\n    \"workspace_writes_disabled\": true,\n    \"network_tools_disabled\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      },
+      {
+        "phase": 5,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase5.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 5,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"seven_tools_registered\": true,\n    \"snapshot_before_write\": true,\n    \"verified_explicit_rollback\": true,\n    \"stale_hash_blocks_write\": true,\n    \"automatic_rollback_on_verification_failure\": true,\n    \"exact_argv_process_executes\": true,\n    \"unapproved_argv_is_blocked\": true,\n    \"shell_parsing_disabled\": true,\n    \"shell_aliases_disabled\": true,\n    \"inline_py_launcher_disabled\": true,\n    \"license_present\": true,\n    \"network_tools_disabled\": true,\n    \"file_delete_tool_absent\": true\n  },\n  \"missing_files\": [],\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      },
+      {
+        "phase": 6,
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/verify_phase6.py"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"phase\": 6,\n  \"checks\": {\n    \"required_files_present\": true,\n    \"append_only_chain_valid\": true,\n    \"expected_event_count\": true,\n    \"common_trace_id\": true,\n    \"tool_and_evidence_events_present\": true,\n    \"secret_absent_from_jsonl\": true,\n    \"secret_absent_from_log_artifact\": true,\n    \"full_output_hash_reference_readable\": true,\n    \"completion_verifier_still_disabled\": true\n  },\n  \"missing_files\": [],\n  \"event_count\": 6,\n  \"status\": \"PASS\"\n}",
+        "stderr": ""
+      }
+    ],
+    "cli": [
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "--version"
+        ],
+        "exit_code": 0,
+        "stdout": "Luna 0.1.0",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "status"
+        ],
+        "exit_code": 0,
+        "stdout": "phase: 6\nstatus: OBSERVATION_EVIDENCE_IMPLEMENTED_UNVERIFIED\ntool_dispatcher: deny_by_default\nregistered_tools: 7\nworkspace_writes: snapshot_first_atomic\nrollback: sha256_verified\nprocess_execution: exact_argv_owner_approved\nshell_parsing: disabled\nfile_delete: disabled\nnetwork_tools: disabled\naudit_log: append_only_jsonl_sha256_chain\noutput_logs: redacted_content_addressed\ncompletion_verifier: disabled",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "list-tools"
+        ],
+        "exit_code": 0,
+        "stdout": "core.echo\tLOW\tNONE\nfilesystem.list_directory\tLOW\tREAD\nfilesystem.read_text\tLOW\tREAD\nfilesystem.replace_text\tMEDIUM\tWRITE\nfilesystem.write_text\tMEDIUM\tWRITE\nprocess.run_argv\tHIGH\tPROCESS\nworkspace.rollback\tHIGH\tWRITE",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "tool-smoke",
+          "phase6"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"schema_version\": \"1.0\",\n  \"request\": {\n    \"schema_version\": \"1.0\",\n    \"request_id\": \"40c99440-747f-4711-aa80-8ba76193abbd\",\n    \"task_id\": \"2708e272-a3c6-4384-80d5-070384b3a221\",\n    \"trace_id\": \"26e77a33-b19e-42b0-9a72-c8b91b92bb1c\",\n    \"tool_name\": \"core.echo\",\n    \"arguments\": {\n      \"message\": \"phase6\"\n    },\n    \"working_directory\": null,\n    \"timeout_ms\": null,\n    \"max_output_chars\": null,\n    \"expectation_id\": null,\n    \"origin\": \"RUNTIME\",\n    \"requested_at\": \"2026-08-06T02:32:36.806039Z\"\n  },\n  \"result\": {\n    \"schema_version\": \"1.0\",\n    \"result_id\": \"5b43145b-28d4-4965-a5f1-45f3e1ae791a\",\n    \"request_id\": \"40c99440-747f-4711-aa80-8ba76193abbd\",\n    \"tool_name\": \"core.echo\",\n    \"status\": \"SUCCESS\",\n    \"exit_code\": 0,\n    \"stdout_excerpt\": \"phase6\",\n    \"stderr_excerpt\": \"\",\n    \"stdout_digest\": \"80e80cdf47a41f3ae0d34a0816593b6f723dbc586cb8459cdcb26cf323287154\",\n    \"stderr_digest\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"output_chars\": 6,\n    \"truncated\": false,\n    \"duration_ms\": 0,\n    \"error_class\": null,\n    \"metadata\": {}\n  },\n  \"event\": {\n    \"schema_version\": \"1.0\",\n    \"event_id\": \"ce019751-489b-4e1e-971d-122f551d838c\",\n    \"request_id\": \"40c99440-747f-4711-aa80-8ba76193abbd\",\n    \"result_id\": \"5b43145b-28d4-4965-a5f1-45f3e1ae791a\",\n    \"task_id\": \"2708e272-a3c6-4384-80d5-070384b3a221\",\n    \"trace_id\": \"26e77a33-b19e-42b0-9a72-c8b91b92bb1c\",\n    \"tool_name\": \"core.echo\",\n    \"decision\": \"EXECUTED\",\n    \"policy_checks\": [\n      \"registration:PASS\",\n      \"argument_schema:PASS\",\n      \"task_id:PASS\",\n      \"tool_permission:PASS\",\n      \"risk_budget:PASS\",\n      \"expected_observation:PASS\",\n      \"autonomy:PASS\",\n      \"write_scope:PASS\",\n      \"network_scope:PASS\",\n      \"process_scope:PASS\",\n      \"timeout_budget:PASS\",\n      \"output_budget:PASS\",\n      \"working_directory:PASS\",\n      \"process_approval:PASS\",\n      \"handler_boundary:PASS\"\n    ],\n    \"reason\": \"tool executed successfully\",\n    \"occurred_at\": \"2026-08-06T02:32:36.806238Z\"\n  },\n  \"observation\": {\n    \"schema_version\": \"1.0\",\n    \"observation_id\": \"f50e9738-4b26-4faa-ac0c-7092fbe2e562\",\n    \"trace_id\": \"26e77a33-b19e-42b0-9a72-c8b91b92bb1c\",\n    \"tool_event_id\": \"ce019751-489b-4e1e-971d-122f551d838c\",\n    \"captured_at\": \"2026-08-06T02:32:36.806250Z\",\n    \"status\": \"SUCCESS\",\n    \"exit_code\": 0,\n    \"changed_files\": [],\n    \"protected_files_changed\": [],\n    \"tests\": null,\n    \"errors\": [],\n    \"stdout_ref\": \"sha256:80e80cdf47a41f3ae0d34a0816593b6f723dbc586cb8459cdcb26cf323287154\",\n    \"stderr_ref\": \"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"measured_values\": {\n      \"duration_ms\": 0,\n      \"output_chars\": 6,\n      \"truncated\": false\n    },\n    \"redactions_applied\": []\n  }\n}",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "workspace-smoke"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"write_status\": \"SUCCESS\",\n  \"rollback_status\": \"SUCCESS\",\n  \"snapshot_id\": \"ab8616f1-5ad2-467a-ab64-60f31b73692e\",\n  \"file_exists_after_rollback\": false,\n  \"rollback_verified\": true\n}",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "process-smoke"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"schema_version\": \"1.0\",\n  \"request\": {\n    \"schema_version\": \"1.0\",\n    \"request_id\": \"1406e849-71ae-40c8-87d4-cd383fba9984\",\n    \"task_id\": \"ce16e50f-66a4-4a17-8c30-9d372b481ef7\",\n    \"trace_id\": \"69eabff2-6142-45d8-bde9-01720f63ffbd\",\n    \"tool_name\": \"process.run_argv\",\n    \"arguments\": {\n      \"argv\": [\n        \"/opt/pyvenv/bin/python\",\n        \"--version\"\n      ]\n    },\n    \"working_directory\": \".\",\n    \"timeout_ms\": null,\n    \"max_output_chars\": null,\n    \"expectation_id\": \"550f302e-b677-4163-85a0-6d0551147e3e\",\n    \"origin\": \"RUNTIME\",\n    \"requested_at\": \"2026-08-06T02:32:38.051176Z\"\n  },\n  \"result\": {\n    \"schema_version\": \"1.0\",\n    \"result_id\": \"ee4a2bbe-ce90-4c90-b71a-012bffdf1cc1\",\n    \"request_id\": \"1406e849-71ae-40c8-87d4-cd383fba9984\",\n    \"tool_name\": \"process.run_argv\",\n    \"status\": \"SUCCESS\",\n    \"exit_code\": 0,\n    \"stdout_excerpt\": \"Python 3.13.5\",\n    \"stderr_excerpt\": \"\",\n    \"stdout_digest\": \"01870de7caca112afeefd77b3c3b4c5e263cf5539a33af3f3411100727fad7d3\",\n    \"stderr_digest\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"output_chars\": 14,\n    \"truncated\": false,\n    \"duration_ms\": 11,\n    \"error_class\": null,\n    \"metadata\": {\n      \"argv_sha256\": \"3c95f6d033b7911f2966ab92b11c1b42c12d87b0e712adfa35c042488241a341\",\n      \"timed_out\": false,\n      \"output_limit_exceeded\": false,\n      \"shell\": false\n    }\n  },\n  \"event\": {\n    \"schema_version\": \"1.0\",\n    \"event_id\": \"e7df6c6f-73e4-40fd-8fa6-470dc2400b2a\",\n    \"request_id\": \"1406e849-71ae-40c8-87d4-cd383fba9984\",\n    \"result_id\": \"ee4a2bbe-ce90-4c90-b71a-012bffdf1cc1\",\n    \"task_id\": \"ce16e50f-66a4-4a17-8c30-9d372b481ef7\",\n    \"trace_id\": \"69eabff2-6142-45d8-bde9-01720f63ffbd\",\n    \"tool_name\": \"process.run_argv\",\n    \"decision\": \"EXECUTED\",\n    \"policy_checks\": [\n      \"registration:PASS\",\n      \"argument_schema:PASS\",\n      \"task_id:PASS\",\n      \"tool_permission:PASS\",\n      \"risk_budget:PASS\",\n      \"expected_observation:PASS\",\n      \"autonomy:PASS\",\n      \"write_scope:PASS\",\n      \"network_scope:PASS\",\n      \"process_scope:PASS\",\n      \"timeout_budget:PASS\",\n      \"output_budget:PASS\",\n      \"working_directory:PASS\",\n      \"process_approval:PASS\",\n      \"handler_boundary:PASS\"\n    ],\n    \"reason\": \"tool executed successfully\",\n    \"occurred_at\": \"2026-08-06T02:32:38.065474Z\"\n  },\n  \"observation\": {\n    \"schema_version\": \"1.0\",\n    \"observation_id\": \"7df02429-2295-4deb-9cde-aca58e9cb83e\",\n    \"trace_id\": \"69eabff2-6142-45d8-bde9-01720f63ffbd\",\n    \"tool_event_id\": \"e7df6c6f-73e4-40fd-8fa6-470dc2400b2a\",\n    \"captured_at\": \"2026-08-06T02:32:38.065489Z\",\n    \"status\": \"SUCCESS\",\n    \"exit_code\": 0,\n    \"changed_files\": [],\n    \"protected_files_changed\": [],\n    \"tests\": null,\n    \"errors\": [],\n    \"stdout_ref\": \"sha256:01870de7caca112afeefd77b3c3b4c5e263cf5539a33af3f3411100727fad7d3\",\n    \"stderr_ref\": \"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"measured_values\": {\n      \"duration_ms\": 11,\n      \"output_chars\": 14,\n      \"truncated\": false\n    },\n    \"redactions_applied\": []\n  }\n}",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "luna",
+          "audit-smoke"
+        ],
+        "exit_code": 0,
+        "stdout": "{\n  \"integrity\": true,\n  \"event_count\": 6,\n  \"common_trace_id\": true,\n  \"secret_absent\": true,\n  \"redactions\": [\n    \"explicit_1\",\n    \"token\"\n  ]\n}",
+        "stderr": ""
+      }
+    ],
+    "editable_install": {
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "-e",
+        "/mnt/data/Luna_0.1_Faz_6_Observation_Evidence_v0.1/Luna",
+        "--no-build-isolation",
+        "--no-deps"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"integrity\": true,\n  \"event_count\": 6,\n  \"common_trace_id\": true,\n  \"secret_absent\": true,\n  \"redactions\": [\n    \"explicit_1\",\n    \"token\"\n  ]\n}",
+      "stderr": "WARNING: The directory '/home/oai/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag."
+    },
+    "ruff": {
+      "status": "NOT_RUN",
+      "reason": "ruff is unavailable in the package-generation environment"
+    },
+    "mypy": {
+      "status": "NOT_RUN",
+      "reason": "mypy is unavailable in the package-generation environment"
+    }
+  },
+  "next_gate": "Run scripts\\bootstrap.bat and scripts\\check.bat on the target Windows machine. Promote Phase 6 only when the command returns exit code 0."
+}

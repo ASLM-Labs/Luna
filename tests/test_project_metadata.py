@@ -21,11 +21,11 @@ def test_governance_constitution_is_present() -> None:
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_five_opens_only_bounded_workspace_and_shell_packages() -> None:
+def test_phase_six_opens_audit_without_future_runtime_packages() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
 
-    assert {"workspace", "shell"}.issubset(present)
+    assert {"workspace", "shell", "audit"}.issubset(present)
     assert {"memory", "checkpoint", "verification", "network"}.isdisjoint(present)
 
 

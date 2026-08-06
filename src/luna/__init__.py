@@ -1,5 +1,11 @@
 """Luna 0.1 local single-agent runtime package."""
 
+from luna.audit import (
+    AppendOnlyAuditLedger,
+    AuditSession,
+    AuditedToolDispatcher,
+    EvidenceBuilder,
+)
 from luna.context import ContextBudget, ContextBundle, ContextCollector, ContextSource
 from luna.contracts import (
     Checkpoint,
@@ -41,6 +47,9 @@ from luna.workspace import (
 __all__ = [
     "AdaptivePlanner",
     "AdaptiveReplanner",
+    "AppendOnlyAuditLedger",
+    "AuditSession",
+    "AuditedToolDispatcher",
     "Checkpoint",
     "CompletionStatus",
     "ContextBudget",
@@ -49,6 +58,7 @@ __all__ = [
     "ContextSource",
     "DeterministicIntentResolver",
     "Evidence",
+    "EvidenceBuilder",
     "ExpectedObservation",
     "IntentResolution",
     "LocalOpenAICompatibleBackend",
