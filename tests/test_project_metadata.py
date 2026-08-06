@@ -21,7 +21,7 @@ def test_governance_constitution_is_present() -> None:
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_ten_adds_identity_reporting_and_autonomy_without_network_package() -> None:
+def test_phase_eleven_adds_eval_and_acceptance_without_network_package() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
 
@@ -35,6 +35,8 @@ def test_phase_ten_adds_identity_reporting_and_autonomy_without_network_package(
         "identity",
         "reporting",
         "autonomy",
+        "evals",
+        "acceptance",
     }.issubset(present)
     assert "network" not in present
 

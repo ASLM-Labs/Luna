@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 10 — kimlik, raporlama ve özerklik** durumundadır.
+Repository şu anda **Faz 11 — eval ve kabul sınavı** durumundadır.
 
 ## Çalışan zincir
 
@@ -19,23 +19,29 @@ intent → context → contract → plan → expected observation
 → scoped retrieval → expiry/supersede
 → versioned identity profile → runtime autonomy level 0–4
 → gate-bound final report → explicit evidence/uncertainty/risk
+→ revision-locked fixed eval suite → comparable metrics
+→ runtime-owned release gate → PASS or BLOCKED
 ```
 
-Luna kimliği model ağırlıklarına veya sabit bir kullanıcı adına bağlı değildir.
-Runtime profili; `user_id`, `display_name`, `alias` ve `preferred_address`
-alanlarını isteğe bağlı olarak taşır. İletişim ilkeleri doğal, sıcak, açık ve dürüst
-olmayı; bilinç, duygu veya kanıtsız kesinlik rolü yapmamayı zorunlu tutar.
+Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
+ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
+`RegressionRunner`, gerçek Luna çekirdek bileşenlerini kullanarak şunları ölçer:
 
-Özerklik seviyeleri runtime tarafından uygulanır:
+- yanlış `VERIFIED_COMPLETE`;
+- inspect-before-edit;
+- protected-path ihlali;
+- blind retry;
+- gerçek dosya rollback;
+- checkpoint/restart/resume;
+- hafıza kirliliği;
+- gereksiz soru;
+- scope creep;
+- nihai rapor doğruluğu.
 
-- Level 0: danışman, araç çalıştırmaz;
-- Level 1: salt-okunur;
-- Level 2: kontrollü uygulama;
-- Level 3: görev özerkliği ve açık yüksek-risk onayları;
-- Level 4: yalnız ayrı, süreli ve scope sınırlı `FREE_RESEARCH` kontratıyla.
-
-Model kendi yetkisini yükseltemez. Level 4 varsayılan olarak kapalıdır ve mevcut
-paket gerçek ağ aracı içermez; yalnız izin kontratı ve runtime guard'ı vardır.
+Release kararı model metninden değil, `EvalReport`, kilitli suite hash'i ve
+runtime-owned `ReleaseThresholds` üzerinden üretilir. Kritik yanlış başarı,
+protected-path ihlali ve blind retry eşiği sıfırdır. Bilinen sınırlamalar
+yayınlanmadan release gate PASS vermez.
 
 ## Kurulum
 
@@ -64,11 +70,20 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 10 kimlik, raporlama ve ozerklik kapisi gecti.
+[PASS] Luna 0.1 Faz 11 eval ve kabul sinavi kapisi gecti.
 ```
 
-## Görünür Faz 10 testi
+## Görünür Faz 11 testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase10-smoke
+.venv\Scripts\python.exe -m luna phase11-smoke
 ```
+
+Başarılı çıktıda `total_cases: 11`, `passed_cases: 11` ve
+`release_status: PASS` görülür.
+
+## Bilinen sınırlar
+
+- Gerçek ağ araştırması Luna 0.1 çekirdeğinde kapalıdır.
+- Ses, Discord, masaüstü, Atlas ve eğitim entegrasyonları ayrı RFC ister.
+- Sabit eval çekirdeği deterministik backend ve yerel dosya fixture'ları kullanır.

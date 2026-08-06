@@ -36,8 +36,10 @@ jobs:
       - run: python scripts/verify_phase8.py
       - run: python scripts/verify_phase9.py
       - run: python scripts/verify_phase10.py
+      - run: python scripts/verify_phase11.py
       - run: python -m luna --version
       - run: python -m luna status
       - run: python -m luna checkpoint-smoke
       - run: python -m luna memory-smoke
       - run: python -m luna phase10-smoke
+      - run: python -m luna phase11-smoke

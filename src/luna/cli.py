@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 10 identity and autonomy runtime."""
+"""Command-line entry point for the Luna Phase 11 eval and acceptance runtime."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
+from luna.acceptance import ReleaseStatus, run_core_acceptance
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
 from luna.autonomy import FreeResearchContract
 from luna.continuity import ContinuityService, ResumePolicy, SQLiteContinuityStore
@@ -89,6 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase10-smoke",
         help="Verify Phase 10 identity, final reporting, and autonomy enforcement.",
+    )
+    subparsers.add_parser(
+        "phase11-smoke",
+        help="Run the locked Phase 11 eval suite and release gate.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -731,13 +736,39 @@ def _run_phase10_smoke() -> int:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if all(payload.values()) else 2
 
+
+def _run_phase11_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase11-") as directory:
+        report, decision = run_core_acceptance(Path(directory))
+        payload = {
+            "suite_name": report.suite_name,
+            "suite_revision": report.suite_revision,
+            "suite_sha256": report.suite_sha256,
+            "total_cases": report.metrics.total_cases,
+            "passed_cases": report.metrics.passed_cases,
+            "critical_failures": report.metrics.critical_failures,
+            "false_verified_complete_count": (
+                report.metrics.false_verified_complete_count
+            ),
+            "protected_path_violation_count": (
+                report.metrics.protected_path_violation_count
+            ),
+            "blind_retry_count": report.metrics.blind_retry_count,
+            "release_status": decision.status.value,
+            "known_limitations_published": bool(decision.known_limitations),
+            "reasons": list(decision.reasons),
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if decision.status is ReleaseStatus.PASS else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 10")
-        print("status: IDENTITY_REPORTING_AUTONOMY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 11")
+        print("status: EVAL_ACCEPTANCE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -765,6 +796,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("autonomy_levels: 0_1_2_3_4_runtime_enforced")
         print("free_research: separate_expiring_contract_required")
         print("model_authority_escalation: blocked")
+        print("fixed_eval_suite: revision_locked_sha256")
+        print("regression_runner: deterministic_comparable_metrics")
+        print("release_gate: runtime_owned_thresholds")
+        print("critical_false_success: zero_required")
+        print("known_limitations: publication_required")
         return 0
 
     if args.command == "resolve-intent":
@@ -785,6 +821,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase10-smoke":
         return _run_phase10_smoke()
+
+    if args.command == "phase11-smoke":
+        return _run_phase11_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

@@ -1,5 +1,12 @@
 """Luna 0.1 local single-agent runtime package."""
 
+from luna.acceptance import (
+    ReleaseGate,
+    ReleaseGateDecision,
+    ReleaseStatus,
+    ReleaseThresholds,
+    run_core_acceptance,
+)
 from luna.audit import (
     AppendOnlyAuditLedger,
     AuditedToolDispatcher,
@@ -27,6 +34,18 @@ from luna.contracts import (
     PlanStep,
     TaskContract,
     TaskState,
+)
+from luna.evals import (
+    EvalCase,
+    EvalCaseResult,
+    EvalCaseStatus,
+    EvalMetric,
+    EvalMetrics,
+    EvalObservation,
+    EvalReport,
+    LockedEvalSuite,
+    RegressionRunner,
+    build_core_eval_suite,
 )
 from luna.identity import CommunicationPrinciples, IdentityProfile, UserProfile
 from luna.intent import DeterministicIntentResolver, IntentResolution
@@ -91,6 +110,13 @@ __all__ = [
     "ContinuityService",
     "DeterministicIntentResolver",
     "DeterministicVerifier",
+    "EvalCase",
+    "EvalCaseResult",
+    "EvalCaseStatus",
+    "EvalMetric",
+    "EvalMetrics",
+    "EvalObservation",
+    "EvalReport",
     "Evidence",
     "EvidenceBuilder",
     "ExpectedObservation",
@@ -100,6 +126,7 @@ __all__ = [
     "IdentityProfile",
     "IntentResolution",
     "LocalOpenAICompatibleBackend",
+    "LockedEvalSuite",
     "MemoryCandidate",
     "MemoryPolicy",
     "MemoryQuery",
@@ -112,6 +139,11 @@ __all__ = [
     "PlanStep",
     "PreparationStatus",
     "ProcessApproval",
+    "RegressionRunner",
+    "ReleaseGate",
+    "ReleaseGateDecision",
+    "ReleaseStatus",
+    "ReleaseThresholds",
     "ReportRisk",
     "ResumePolicy",
     "RollbackResult",
@@ -137,4 +169,6 @@ __all__ = [
     "WorkspaceMutator",
     "WorkspaceSnapshot",
     "__version__",
+    "build_core_eval_suite",
+    "run_core_acceptance",
 ]

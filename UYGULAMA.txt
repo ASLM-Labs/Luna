@@ -1,4 +1,4 @@
-Luna Faz 10 kimlik, raporlama ve özerklik paketi
+Luna Faz 11 eval ve kabul sınavı paketi
 
 Gerçek Git repository:
 C:\Users\istem\Projects\Luna
@@ -8,17 +8,19 @@ C:\Users\istem\Projects\Luna
 2. ZIP repository-root overlay olarak hazırlanmıştır; ek bir iç Luna klasörü yoktur.
 3. PowerShell'de çalıştırın:
 
-   cd C:\Users\istem\Projects\Luna
+   Set-Location "C:\Users\istem\Projects\Luna"
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-   & .\.venv\Scripts\Activate.ps1
+   & ".\.venv\Scripts\Activate.ps1"
    python -m pip install -e ".[dev]"
    .\scripts\check_hold.bat
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1–10 verifier PASS
-- phase10-smoke PASS
+- Faz 1–11 verifier PASS
+- phase11-smoke PASS
+- sabit eval 11/11 PASS
+- release gate PASS
 - exit code 0
-- son satır: [PASS] Luna 0.1 Faz 10 kimlik, raporlama ve ozerklik kapisi gecti.
+- son satır: [PASS] Luna 0.1 Faz 11 eval ve kabul sinavi kapisi gecti.
 
 Tam kapı yeşil olmadan commit yapmayın.
