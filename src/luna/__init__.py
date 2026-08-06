@@ -36,6 +36,11 @@ from luna.tools import (
     ToolResult,
     ToolSpec,
 )
+from luna.verification import (
+    CompletionGate,
+    DeterministicVerifier,
+    VerificationPolicy,
+)
 from luna.version import __version__
 from luna.workspace import (
     RollbackResult,
@@ -56,6 +61,8 @@ __all__ = [
     "ContextBundle",
     "ContextCollector",
     "ContextSource",
+    "CompletionGate",
+    "DeterministicVerifier",
     "DeterministicIntentResolver",
     "Evidence",
     "EvidenceBuilder",
@@ -85,6 +92,7 @@ __all__ = [
     "ToolSpec",
     "WorkspaceMutationResult",
     "WorkspaceMutator",
+    "VerificationPolicy",
     "WorkspaceSnapshot",
     "__version__",
 ]

@@ -1,0 +1,31 @@
+{
+  "phase": 7,
+  "base": "Luna 0.1 Phase 6",
+  "apply_to_repository_root": true,
+  "changed_or_added_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_7_REPORT.md",
+    "docs/PHASE_7_UPDATE_MANIFEST.json",
+    "phase_7_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase6.py",
+    "scripts/verify_phase7.py",
+    "src/luna/__init__.py",
+    "src/luna/audit/models.py",
+    "src/luna/cli.py",
+    "src/luna/verification/__init__.py",
+    "src/luna/verification/claims.py",
+    "src/luna/verification/gate.py",
+    "src/luna/verification/models.py",
+    "src/luna/verification/verifier.py",
+    "tests/test_cli.py",
+    "tests/test_phase7_completion_gate.py",
+    "tests/test_phase7_verifier.py",
+    "tests/test_project_metadata.py"
+  ]
+}

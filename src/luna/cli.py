@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 6 auditable runtime."""
+"""Command-line entry point for the Luna Phase 7 verified runtime."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
 from luna.audit import AuditSession, AuditedToolDispatcher, EvidenceBuilder
-from luna.contracts.enums import RiskLevel
+from luna.contracts.enums import EvidenceResult, EvidenceSourceKind, RiskLevel
+from luna.contracts.evidence import Evidence
 from luna.contracts.task import TaskContract, TaskScope
 from luna.intent import DeterministicIntentResolver
 from luna.tools import (
@@ -21,6 +22,12 @@ from luna.tools import (
     ToolPolicy,
     ToolRequest,
     build_phase5_registry,
+)
+from luna.verification import (
+    CompletionGate,
+    VerificationPolicy,
+    forbidden_absence_claim_id,
+    required_condition_claim_id,
 )
 from luna.version import __version__
 
@@ -36,6 +43,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("status", help="Show the current project phase and capability state.")
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
     subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
+    subparsers.add_parser(
+        "verify-smoke",
+        help="Run the deterministic Phase 7 completion gate.",
+    )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
         help="Print one task audit from an owner-selected audit root.",
@@ -252,13 +263,89 @@ def _run_audit_smoke() -> int:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if verification.valid and common_trace_id and secret_absent else 2
 
+
+def _run_verify_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase7-") as directory:
+        root = Path(directory)
+        task_id = uuid4()
+        trace_id = uuid4()
+        required = "Quality gate must pass."
+        forbidden = "Protected files are changed."
+        contract = TaskContract(
+            task_id=task_id,
+            objective="Verify deterministic completion gating.",
+            required_conditions=(required,),
+            forbidden_outcomes=(forbidden,),
+            evidence_required=("test result", "hash evidence"),
+            scope=TaskScope(workspace_root=str(root)),
+            risk_level=RiskLevel.LOW,
+            owner="user",
+        )
+        evidence = (
+            Evidence(
+                task_id=task_id,
+                requirement_id=required_condition_claim_id(required),
+                source_kind=EvidenceSourceKind.TEST_RESULT,
+                source_ref="observation:test",
+                result=EvidenceResult.PASS,
+                environment_fingerprint="phase7-smoke",
+                revision="phase7",
+                freshness_seconds=0,
+                reproducible=True,
+                confidence=1.0,
+            ),
+            Evidence(
+                task_id=task_id,
+                requirement_id=forbidden_absence_claim_id(forbidden),
+                source_kind=EvidenceSourceKind.HASH,
+                source_ref="observation:hash",
+                result=EvidenceResult.PASS,
+                environment_fingerprint="phase7-smoke",
+                revision="phase7",
+                freshness_seconds=0,
+                reproducible=True,
+                confidence=1.0,
+            ),
+        )
+        audit = AuditSession(root / "audit")
+        audit.record_task_contract(contract=contract, trace_id=trace_id)
+        result = CompletionGate(audit).evaluate(
+            contract=contract,
+            evidence=evidence,
+            policy=VerificationPolicy(
+                current_revision="phase7",
+                expected_environment_fingerprint="phase7-smoke",
+            ),
+            trace_id=trace_id,
+        )
+        payload = {
+            "status": result.decision.status.value,
+            "claim_statuses": [
+                item.status.value for item in result.report.claim_assessments
+            ],
+            "evidence_requirements": [
+                item.status.value
+                for item in result.report.evidence_requirement_assessments
+            ],
+            "audit_integrity": audit.verify_integrity().valid,
+            "event_kinds": [
+                event.kind.value for event in audit.events_for_task(task_id)
+            ],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if (
+            result.decision.status.value == "VERIFIED_COMPLETE"
+            and payload["audit_integrity"] is True
+        ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 6")
-        print("status: OBSERVATION_EVIDENCE_IMPLEMENTED_UNVERIFIED")
+        print("phase: 7")
+        print("status: DETERMINISTIC_VERIFICATION_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -269,7 +356,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("network_tools: disabled")
         print("audit_log: append_only_jsonl_sha256_chain")
         print("output_logs: redacted_content_addressed")
-        print("completion_verifier: disabled")
+        print("completion_verifier: deterministic_requirement_evidence_gate")
+        print("verified_complete: gate_only")
         return 0
 
     if args.command == "resolve-intent":
@@ -278,6 +366,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "audit-smoke":
         return _run_audit_smoke()
+
+    if args.command == "verify-smoke":
+        return _run_verify_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

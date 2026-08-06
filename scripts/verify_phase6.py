@@ -96,9 +96,11 @@ def main() -> int:
             "secret_absent_from_jsonl": secret not in persisted,
             "secret_absent_from_log_artifact": secret not in full_output,
             "full_output_hash_reference_readable": bool(full_output),
-            "completion_verifier_still_disabled": not (
-                ROOT / "src" / "luna" / "verification"
-            ).exists(),
+            "phase6_evidence_builder_has_no_completion_decision": (
+                "CompletionStatus" not in (
+                    ROOT / "src" / "luna" / "audit" / "evidence.py"
+                ).read_text(encoding="utf-8")
+            ),
         }
         status = "PASS" if all(checks.values()) else "BLOCKED"
         result = {

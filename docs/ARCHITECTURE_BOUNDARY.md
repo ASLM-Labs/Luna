@@ -1,29 +1,29 @@
-# Faz 6 Mimari Sınırı
+# Faz 7 Mimari Sınırı
 
-Faz 6, kontrollü araç akışının gözlemlerini kalıcı, redakte edilmiş ve
-değişiklik tespit edilebilir bir audit/evidence katmanına bağlar.
+Faz 7, Faz 6 evidence kayıtlarını deterministik biçimde değerlendirir ve
+completion statüsünü yalnız kontrollü gate üzerinden üretir.
 
 ## Var
 
-- Faz 1–5 kontrat, planning, dispatcher, safe process ve workspace katmanları;
-- append-only JSONL audit ledger;
-- sıralı SHA-256 event chain ve replay doğrulaması;
-- task/tool/observation/evidence için ortak `trace_id`;
-- hassas değerleri persistence öncesinde redakte eden sınır;
-- content-addressed tam stdout/stderr artifact deposu;
-- bounded excerpt ve hash reference kullanan Observation;
-- current Observation → Evidence oluşturma;
-- correction-as-new-event davranışı;
-- owner task audit inspection API/CLI.
+- Faz 1–6 yetenekleri;
+- kontrattan deterministik claim kimliği;
+- revision, environment, freshness ve clock kontrolleri;
+- requirement→evidence eşleme;
+- PASS/FAIL/BLOCKED/INCONCLUSIVE/UNVERIFIED/CONFLICTING claim sonucu;
+- altı resmi completion status;
+- append-only VerificationReport ve CompletionDecision audit olayları;
+- VERIFYING → REPORTING state uygulaması;
+- modelden bağımsız completion gate.
 
 ## Yok
 
-- requirement→evidence completion verifier;
-- `VERIFIED_COMPLETE` kararı;
-- conflicting-evidence resolution;
-- SQLite task/checkpoint/memory state;
-- network/web araçları;
+- kalıcı checkpoint/restart-resume;
+- uzun dönem hafıza;
+- kimlik paketi ve final kullanıcı raporu;
+- sabit eval suite ve release gate;
+- ağ araçları;
 - subagent.
 
-Audit log bir reasoning/chain-of-thought günlüğü değildir. Yalnız karar için
-gerekli observable olay, policy, result, observation ve evidence kayıtlarını tutar.
+CompletionGate, modelin “bitti” beyanını kabul etmez. VERIFIED_COMPLETE yalnız
+bütün zorunlu claim'ler ve evidence requirement'lar güncel qualifying kanıtla
+PASS olduğunda üretilebilir.
