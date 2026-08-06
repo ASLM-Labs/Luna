@@ -1,0 +1,27 @@
+{
+  "phase": 9,
+  "checks": {
+    "required_files_present": true,
+    "sqlite_wal_enabled": true,
+    "schema_version_one": true,
+    "verified_candidate_committed": true,
+    "model_inference_rejected": true,
+    "one_off_preference_rejected": true,
+    "secret_reference_committed": true,
+    "plaintext_secret_absent": true,
+    "retrieval_scope_isolated": true,
+    "source_time_and_confidence_preserved": true,
+    "superseded_record_inactive": true,
+    "user_forget_removes_record": true,
+    "expiry_excludes_record": true,
+    "memory_integrity_valid": true,
+    "memory_candidate_audited": true,
+    "memory_decision_audited": true,
+    "memory_commit_audited": true,
+    "memory_retrieval_audited": true,
+    "memory_forget_audited": true,
+    "audit_integrity_valid": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

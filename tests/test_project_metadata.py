@@ -21,12 +21,19 @@ def test_governance_constitution_is_present() -> None:
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_eight_opens_continuity_without_future_runtime_packages() -> None:
+def test_phase_nine_opens_verified_memory_without_network_package() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
 
-    assert {"workspace", "shell", "audit", "verification", "continuity"}.issubset(present)
-    assert {"memory", "network"}.isdisjoint(present)
+    assert {
+        "workspace",
+        "shell",
+        "audit",
+        "verification",
+        "continuity",
+        "memory",
+    }.issubset(present)
+    assert "network" not in present
 
 
 def test_license_contains_full_apache_terms() -> None:

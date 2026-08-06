@@ -1,6 +1,6 @@
 # Faz 8 — Checkpoint ve Görev Devamlılığı
 
-**Paket hazırlık durumu:** `IMPLEMENTED_UNVERIFIED`
+**Kapanış durumu:** `VERIFIED_PASS`
 
 ## Uygulananlar
 
@@ -56,4 +56,13 @@ Beklenen son satır:
 Windows üzerinde salt-okuma `sqlite3.Connection` nesneleri açık kaldığı için
 `checkpoint-smoke` sonundaki geçici klasör temizliği `WinError 32` veriyordu.
 Bütün read bağlantıları artık `_read_connection()` ile kesin olarak kapatılır.
-Windows dosya-kilidi regresyon testiyle test sayısı `156 passed` oldu.
+Windows dosya-kilidi regresyon testi eklendi. Hedef makinedeki nihai kapı:
+
+```text
+Pytest      155 passed, 1 platform skip
+Ruff        PASS
+mypy strict PASS
+Faz 1–8     PASS
+CLI smoke   PASS
+Exit code   0
+```

@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 8 restart-safe runtime."""
+"""Command-line entry point for the Luna Phase 9 verified-memory runtime."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
-from luna.audit import AuditSession, AuditedToolDispatcher, EvidenceBuilder
+from luna.audit import AuditedToolDispatcher, AuditSession, EvidenceBuilder
 from luna.continuity import ContinuityService, ResumePolicy, SQLiteContinuityStore
 from luna.contracts.enums import (
     EvidenceResult,
@@ -24,6 +24,19 @@ from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
 from luna.intent import DeterministicIntentResolver
+from luna.memory import (
+    MemoryCandidate,
+    MemoryDecisionStatus,
+    MemoryPolicy,
+    MemoryQuery,
+    MemoryRejectionCode,
+    MemoryScope,
+    MemorySensitivity,
+    MemorySourceKind,
+    MemoryType,
+    SQLiteMemoryStore,
+    VerifiedMemoryService,
+)
 from luna.tools import (
     AutonomyLevel,
     ProcessApproval,
@@ -59,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "checkpoint-smoke",
         help="Persist and resume a Phase 8 SQLite WAL checkpoint.",
+    )
+    subparsers.add_parser(
+        "memory-smoke",
+        help="Verify Phase 9 memory policy, safe storage, and scoped retrieval.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -429,13 +446,142 @@ def _run_checkpoint_smoke() -> int:
         ) else 2
 
 
+def _run_memory_smoke() -> int:
+    secret = "phase9-secret-value-123456"
+    with TemporaryDirectory(prefix="luna-phase9-") as directory:
+        root = Path(directory)
+        task_id = uuid4()
+        trace_id = uuid4()
+        audit = AuditSession(root / "audit", explicit_secrets=(secret,))
+        store = SQLiteMemoryStore(root / "memory.sqlite3")
+        service = VerifiedMemoryService(
+            store,
+            audit,
+            explicit_secrets=(secret,),
+        )
+        policy = MemoryPolicy()
+
+        verified = service.commit_candidate(
+            candidate=MemoryCandidate(
+                task_id=task_id,
+                memory_type=MemoryType.PROJECT_DECISION,
+                statement="Luna quality gate keeps the result window open.",
+                source_kind=MemorySourceKind.USER_CONFIRMATION,
+                source_ref="conversation:phase9-smoke",
+                confidence=1.0,
+                scope=MemoryScope.PROJECT,
+            ),
+            policy=policy,
+            trace_id=trace_id,
+        )
+        inferred = service.commit_candidate(
+            candidate=MemoryCandidate(
+                task_id=task_id,
+                memory_type=MemoryType.FACT,
+                statement="The user probably prefers every future interface.",
+                source_kind=MemorySourceKind.MODEL_INFERENCE,
+                source_ref="model:phase9-smoke",
+                confidence=0.9,
+                scope=MemoryScope.PRIVATE_USER,
+            ),
+            policy=policy,
+            trace_id=trace_id,
+        )
+        one_off = service.commit_candidate(
+            candidate=MemoryCandidate(
+                task_id=task_id,
+                memory_type=MemoryType.PREFERENCE,
+                statement="Prefer compact output.",
+                source_kind=MemorySourceKind.USER_STATEMENT,
+                source_ref="conversation:single-mention",
+                confidence=1.0,
+                scope=MemoryScope.PRIVATE_USER,
+            ),
+            policy=policy,
+            trace_id=trace_id,
+        )
+        secret_decision = service.commit_candidate(
+            candidate=MemoryCandidate(
+                task_id=task_id,
+                memory_type=MemoryType.SECRET_REFERENCE,
+                statement=f"api_key={secret}",
+                source_kind=MemorySourceKind.SECRET_REFERENCE,
+                source_ref="owner:secret-registration",
+                confidence=1.0,
+                scope=MemoryScope.PRIVATE_USER,
+                sensitivity=MemorySensitivity.SECRET,
+                explicit_persistence=True,
+                secret_ref="secret://local/phase9-smoke",
+            ),
+            policy=policy,
+            trace_id=trace_id,
+        )
+        retrieval = service.retrieve(
+            query=MemoryQuery(
+                scope=MemoryScope.PROJECT,
+                terms=("quality",),
+                minimum_confidence=0.8,
+            ),
+            task_id=task_id,
+            trace_id=trace_id,
+        )
+        integrity = store.verify_integrity()
+        persisted = b"".join(
+            path.read_bytes()
+            for path in root.glob("memory.sqlite3*")
+            if path.is_file()
+        ) + audit.ledger.path.read_bytes()
+        event_kinds = [
+            event.kind.value for event in audit.events_for_task(task_id)
+        ]
+        payload = {
+            "journal_mode": store.journal_mode(),
+            "schema_version": store.schema_version(),
+            "integrity": integrity.valid,
+            "verified_committed": verified.status.value,
+            "model_inference_rejected": (
+                MemoryRejectionCode.MODEL_INFERENCE_UNVERIFIED.value
+                in {code.value for code in inferred.rejection_codes}
+            ),
+            "one_off_preference_rejected": (
+                MemoryRejectionCode.ONE_OFF_PREFERENCE.value
+                in {code.value for code in one_off.rejection_codes}
+            ),
+            "secret_committed": secret_decision.status.value,
+            "secret_absent_from_persistence": secret.encode("utf-8") not in persisted,
+            "retrieval_count": len(retrieval.records),
+            "retrieved_scope": retrieval.query.scope.value,
+            "source_preserved": (
+                len(retrieval.records) == 1
+                and retrieval.records[0].source_ref == "conversation:phase9-smoke"
+                and retrieval.records[0].confidence == 1.0
+            ),
+            "audit_integrity": audit.verify_integrity().valid,
+            "event_kinds": event_kinds,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if (
+            payload["journal_mode"] == "wal"
+            and payload["schema_version"] == 1
+            and payload["integrity"] is True
+            and payload["verified_committed"] == MemoryDecisionStatus.COMMIT.value
+            and payload["model_inference_rejected"] is True
+            and payload["one_off_preference_rejected"] is True
+            and payload["secret_committed"] == MemoryDecisionStatus.COMMIT.value
+            and payload["secret_absent_from_persistence"] is True
+            and payload["retrieval_count"] == 1
+            and payload["source_preserved"] is True
+            and payload["audit_integrity"] is True
+        ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 8")
-        print("status: CHECKPOINT_CONTINUITY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 9")
+        print("status: VERIFIED_MEMORY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -451,6 +597,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("checkpoint_store: sqlite_wal_atomic")
         print("resume_guard: revision_workspace_environment")
         print("blind_replay: blocked")
+        print("memory_store: sqlite_wal_scoped")
+        print("memory_policy: candidate_verify_commit_or_reject")
+        print("model_inference_as_fact: blocked")
+        print("plaintext_secrets_in_memory: blocked")
+        print("one_off_preference_persistence: blocked")
+        print("memory_expiry_and_supersede: enabled")
         return 0
 
     if args.command == "resolve-intent":
@@ -465,6 +617,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "checkpoint-smoke":
         return _run_checkpoint_smoke()
+
+    if args.command == "memory-smoke":
+        return _run_memory_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

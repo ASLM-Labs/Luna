@@ -21,7 +21,6 @@ from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
 from luna.contracts.state import TaskState
 
-
 SCHEMA_VERSION = 1
 
 

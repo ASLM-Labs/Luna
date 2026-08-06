@@ -15,11 +15,13 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 8" in output
+    assert "phase: 9" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
     assert "network_tools: disabled" in output
+    assert "memory_policy: candidate_verify_commit_or_reject" in output
+    assert "plaintext_secrets_in_memory: blocked" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -153,3 +155,21 @@ def test_checkpoint_smoke_command(
     assert payload["integrity"] is True
     assert "CHECKPOINT_CREATED" in payload["event_kinds"]
     assert "RESUME_DECISION" in payload["event_kinds"]
+
+
+def test_memory_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["memory-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["journal_mode"] == "wal"
+    assert payload["integrity"] is True
+    assert payload["verified_committed"] == "COMMIT"
+    assert payload["model_inference_rejected"] is True
+    assert payload["one_off_preference_rejected"] is True
+    assert payload["secret_absent_from_persistence"] is True
+    assert payload["source_preserved"] is True
+    assert "MEMORY_COMMITTED" in payload["event_kinds"]
+    assert "MEMORY_RETRIEVAL" in payload["event_kinds"]

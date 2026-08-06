@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from luna.audit import (
+    AuditedToolDispatcher,
     AuditEventKind,
     AuditSession,
-    AuditedToolDispatcher,
     EvidenceBuilder,
 )
 from luna.contracts import RiskLevel, TaskContract, TaskScope

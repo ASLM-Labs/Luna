@@ -1,14 +1,21 @@
-Luna Faz 5 toplu düzeltme paketi
+Luna Faz 9 doğrulanmış hafıza paketi
 
-1. ZIP içeriğini mevcut Luna repository köküne çıkarın ve dosyaların üzerine yazılmasına izin verin.
-2. PowerShell'de repository kökünde çalıştırın:
+Gerçek Git repository:
+C:\Users\istem\Projects\Luna
 
-   .\.venv\Scripts\python.exe scripts\clean_generated_artifacts.py
-   .\scripts\check.bat *> .\phase5_check.log
-   $LASTEXITCODE
-   Get-Content .\phase5_check.log -Tail 80
+1. Luna_0.1_Faz_9_Guncelleme_v0.1.zip içeriğini yukarıdaki repository köküne
+   çıkarın ve dosyaların üzerine yazılmasına izin verin.
+2. ZIP'in içinde ek bir Luna klasörü yoktur; paket repository-root overlay'dir.
+3. PowerShell'de çalıştırın:
+
+   cd C:\Users\istem\Projects\Luna
+   .\scripts\check_hold.bat
 
 Nihai kabul:
+- Pytest, Ruff ve mypy strict PASS
+- Faz 1–9 verifier PASS
+- memory-smoke PASS
 - exit code 0
-- 5 faz verifier PASS
-- log sonunda: [PASS] Luna 0.1 Faz 5 workspace, shell ve rollback kapisi gecti.
+- son satır: [PASS] Luna 0.1 Faz 9 dogrulanmis hafiza kapisi gecti.
+
+Tam kapı yeşil olmadan commit yapmayın.

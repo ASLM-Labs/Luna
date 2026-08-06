@@ -27,7 +27,6 @@ from luna.verification.models import (
     VerificationReport,
 )
 
-
 _DIRECT_SOURCE_KINDS = frozenset(
     {
         EvidenceSourceKind.TOOL_OUTPUT,

@@ -30,7 +30,6 @@ from luna.planning.models import (
 )
 from luna.planning.retry import RetryGuard
 
-
 _SAFE_RESUME_PHASES = frozenset(
     {
         TaskPhase.CONTEXT_READY,

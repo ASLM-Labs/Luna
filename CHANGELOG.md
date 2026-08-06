@@ -3,6 +3,28 @@
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
 
+## [0.1.0-phase9] - 2026-08-06
+
+### Added
+
+- SQLite WAL tabanlı, scope ayrımlı verified-memory store.
+- `MemoryCandidate → policy/verification → commit/reject` akışı.
+- Kaynak, zaman, güven, scope, sensitivity, expiry ve supersedes metaverileri.
+- Deterministik scope/type/term/confidence retrieval.
+- Atomik supersede zinciri, expiry ve kullanıcı kontrollü forget işlemi.
+- Append-only memory candidate, decision, commit, retrieval ve forget audit olayları.
+- Faz 9 unit, integration, verifier ve CLI memory smoke testleri.
+- Sonuç penceresini açık tutan `scripts/check_hold.bat`.
+
+### Security
+
+- Model inference kaynağının doğrulanmış gerçek olarak commit edilmesi engellendi.
+- Tek seferlik tercihin açık kalıcılık isteği veya tekrar olmadan saklanması engellendi.
+- Düz metin sırların normal hafızaya yazılması engellendi.
+- Secret kayıtlarında yalnız onaylı opaque reference ve sabit placeholder saklanır.
+- Private user, project, repository, research, community ve behavior scope'ları
+  retrieval sırasında birbirinden ayrıldı.
+
 ## [0.1.0-phase8] - 2026-08-06
 
 ### Added

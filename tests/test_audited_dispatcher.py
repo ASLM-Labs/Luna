@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from luna.audit import AuditEventKind, AuditSession, AuditedToolDispatcher
+from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession
 from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.tools import AutonomyLevel, ToolPolicy, ToolRequest, build_phase4_registry
 

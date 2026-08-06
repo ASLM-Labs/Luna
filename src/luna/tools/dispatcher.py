@@ -29,6 +29,7 @@ from luna.tools.registry import (
     ToolRegistry,
 )
 
+
 class CapturedOutputLike(Protocol):
     text: str
     digest: str
@@ -42,7 +43,6 @@ class OutputCapture(Protocol):
     def capture_output(self, *, stream_name: str, text: str) -> CapturedOutputLike:
         """Capture redacted output under a stable content reference."""
         ...
-
 
 
 def _digest(value: str) -> str:
