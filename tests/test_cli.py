@@ -12,10 +12,11 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 4" in output
+    assert "phase: 5" in output
     assert "tool_dispatcher: deny_by_default" in output
-    assert "scripted_test_backend: enabled" in output
-    assert "shell: disabled" in output
+    assert "workspace_writes: snapshot_first_atomic" in output
+    assert "shell_parsing: disabled" in output
+    assert "network_tools: disabled" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -42,7 +43,9 @@ def test_list_tools(capsys: pytest.CaptureFixture[str]) -> None:
     assert exit_code == 0
     assert "core.echo" in output
     assert "filesystem.read_text" in output
-    assert "filesystem.list_directory" in output
+    assert "filesystem.write_text" in output
+    assert "workspace.rollback" in output
+    assert "process.run_argv" in output
 
 
 def test_tool_smoke_runs_through_dispatcher(capsys: pytest.CaptureFixture[str]) -> None:
@@ -53,3 +56,25 @@ def test_tool_smoke_runs_through_dispatcher(capsys: pytest.CaptureFixture[str]) 
     assert payload["result"]["status"] == "SUCCESS"
     assert payload["result"]["stdout_excerpt"] == "hello"
     assert payload["event"]["decision"] == "EXECUTED"
+
+
+def test_workspace_smoke_writes_and_rolls_back(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["workspace-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["write_status"] == "SUCCESS"
+    assert payload["rollback_status"] == "SUCCESS"
+    assert payload["file_exists_after_rollback"] is False
+    assert payload["rollback_verified"] is True
+
+
+def test_process_smoke_uses_shell_false(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["process-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["result"]["status"] == "SUCCESS"
+    assert payload["result"]["metadata"]["shell"] is False

@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from pydantic import Field, model_validator
+from pydantic import model_validator
 
 from luna.context import ContextBudget, ContextBundle, ContextCandidate, ContextCollector
 from luna.contracts.base import LunaContractModel

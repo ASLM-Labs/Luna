@@ -10,6 +10,9 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-[*.{md,yaml,yml,toml,json}]
+[*.{toml,yml,yaml,json,md}]
 indent_style = space
 indent_size = 2
+
+[*.bat]
+end_of_line = crlf

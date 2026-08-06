@@ -1,6 +1,32 @@
 # Changelog
 
+## [0.1.0-phase5-review1] - 2026-08-06
+
+### Fixed
+
+- Windows mypy compatibility for process termination and optional planning state.
+- Numeric tool-argument type narrowing without weakening validation.
+- Missing Apache-2.0 LICENSE and `.editorconfig`.
+- Incomplete shell executable aliases and `py -c` inline-code escape.
+- Repository cache/egg-info pollution and stale integrity records.
+- Quality gate bytecode/temp-folder cleanup.
+
 Tüm önemli değişiklikler bu dosyada belgelenir.
+
+## [0.1.0-phase5] - 2026-08-06
+
+### Added
+
+- Exact owner-approved argv ve cwd kullanan `process.run_argv`.
+- `shell=False`, kapalı stdin, minimal environment, hard timeout ve bounded output.
+- Shell/script-host ve inline interpreter escape engelleri.
+- SHA-256 precondition kullanan atomic `filesystem.write_text`.
+- Exact occurrence kontrollü `filesystem.replace_text`.
+- Content-addressed workspace snapshot manifesti ve blob store.
+- Post-write digest doğrulaması ve otomatik rollback.
+- Owner-approved, task-bound ve hash-verified `workspace.rollback`.
+- Protected descendant ve symlink component koruması.
+- Faz 5 birim, integration, CLI ve verifier testleri.
 
 ## [0.1.0-phase4] - 2026-08-06
 

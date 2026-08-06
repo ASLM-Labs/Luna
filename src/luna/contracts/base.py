@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, field_validator
-
 
 SCHEMA_VERSION = "1.0"
 
 
 def utc_now() -> datetime:
     """Return the current timezone-aware UTC time."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class LunaContractModel(BaseModel):
@@ -49,7 +48,7 @@ def require_utc(value: datetime) -> datetime:
     """Require a timezone-aware datetime and normalize it to UTC."""
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("datetime must be timezone-aware")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 def stable_payload(model: BaseModel) -> dict[str, Any]:

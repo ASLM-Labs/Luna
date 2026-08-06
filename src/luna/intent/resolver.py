@@ -9,7 +9,6 @@ from typing import Protocol
 
 from luna.intent.models import IntentKind, IntentResolution, RequestedAction
 
-
 _SPACE_RE = re.compile(r"\s+")
 _QUOTED_RE = re.compile(r'["\']([^"\']+)["\']')
 _PATH_TOKEN_RE = re.compile(

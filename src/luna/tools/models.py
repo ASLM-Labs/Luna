@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TypeAlias
+from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from pydantic import Field, field_validator, model_validator
@@ -13,9 +13,8 @@ from luna.contracts.base import LunaContractModel, require_utc, utc_now
 from luna.contracts.enums import RiskLevel
 from luna.contracts.observation import Observation
 
-
-ToolScalar: TypeAlias = str | int | float | bool | None
-ToolArgumentValue: TypeAlias = ToolScalar | list[str]
+type ToolScalar = str | int | float | bool | None
+type ToolArgumentValue = ToolScalar | list[str]
 
 
 class ToolCapability(StrEnum):
@@ -229,6 +228,31 @@ class ToolEvent(LunaContractModel):
         return require_utc(value)
 
 
+class ProcessApproval(LunaContractModel):
+    """Exact argv and workspace-relative cwd approved by the runtime owner."""
+
+    argv: tuple[str, ...] = Field(min_length=1, max_length=128)
+    working_directory: str = Field(default=".", min_length=1, max_length=4000)
+
+    @field_validator("argv")
+    @classmethod
+    def validate_argv(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not value or "\x00" in value for value in values):
+            raise ValueError("approved argv entries must be non-empty and NUL-free")
+        return values
+
+    @field_validator("working_directory")
+    @classmethod
+    def validate_working_directory(cls, value: str) -> str:
+        normalized = value.replace("\\", "/").strip()
+        if normalized == ".":
+            return normalized
+        path = PurePosixPath(normalized)
+        if not normalized or path.is_absolute() or ".." in path.parts:
+            raise ValueError("process approval cwd must stay inside the workspace")
+        return path.as_posix()
+
+
 class ToolPolicy(LunaContractModel):
     """Explicit permissions and budgets; an empty allowlist denies all tools."""
 
@@ -236,6 +260,7 @@ class ToolPolicy(LunaContractModel):
     autonomy_level: AutonomyLevel = AutonomyLevel.OBSERVE_ONLY
     max_risk: RiskLevel = RiskLevel.LOW
     owner_approved_tools: tuple[str, ...] = ()
+    process_approvals: tuple[ProcessApproval, ...] = ()
     max_timeout_ms: int = Field(default=15000, ge=1, le=120000)
     max_output_chars: int = Field(default=16000, ge=1, le=1000000)
 
@@ -253,6 +278,12 @@ class ToolPolicy(LunaContractModel):
     def validate_owner_approvals(self) -> ToolPolicy:
         if not set(self.owner_approved_tools).issubset(self.allowed_tools):
             raise ValueError("owner-approved tools must also be explicitly allowed")
+        approval_keys = tuple(
+            (approval.argv, approval.working_directory)
+            for approval in self.process_approvals
+        )
+        if len(approval_keys) != len(set(approval_keys)):
+            raise ValueError("process approvals must be unique")
         return self
 
 

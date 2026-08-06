@@ -48,3 +48,14 @@ def path_is_allowed(relative_path: str, allowed_paths: tuple[str, ...]) -> bool:
         if candidate_parts[: len(allowed_parts)] == allowed_parts:
             return True
     return False
+
+
+def ensure_no_symlink_components(workspace_root: str, relative_path: str) -> None:
+    """Reject existing symlink components before any read or write target is used."""
+    normalized = normalize_relative_path(relative_path)
+    root = Path(workspace_root).expanduser().resolve()
+    current = root
+    for part in PurePosixPath(normalized).parts:
+        current = current / part
+        if current.is_symlink():
+            raise WorkspacePathError("workspace path contains a symlink component")

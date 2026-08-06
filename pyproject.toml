@@ -51,9 +51,11 @@ pythonpath = ["src"]
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = [".pytest_tmp"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+allowed-confusables = ["ı", "İ"]
 
 [tool.mypy]
 python_version = "3.12"

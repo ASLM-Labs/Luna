@@ -19,7 +19,6 @@ from luna.intent import DeterministicIntentResolver
 from luna.preparation import PreparationStatus, TaskPreparer
 from luna.tasking import ContractDraftStatus, TaskContractBuilder
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

@@ -1,0 +1,26 @@
+{
+  "base": "User-uploaded Luna.zip after manual Phase 5 fixes",
+  "apply_to": "repository root",
+  "changed_or_added_files": [
+    ".editorconfig",
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "LICENSE",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "docs/PHASE_5_REVIEW_REPORT.md",
+    "phase_5_verification.json",
+    "scripts/check.bat",
+    "scripts/clean_generated_artifacts.py",
+    "scripts/verify_phase5.py",
+    "scripts/verify_syntax.py",
+    "src/luna/planning/replanner.py",
+    "src/luna/shell/__init__.py",
+    "src/luna/shell/runner.py",
+    "src/luna/tools/arguments.py",
+    "tests/test_process_safety_aliases.py",
+    "tests/test_tool_argument_bounds.py"
+  ],
+  "cleanup_command": ".\\.venv\\Scripts\\python.exe scripts\\clean_generated_artifacts.py",
+  "verification_command": ".\\scripts\\check.bat"
+}

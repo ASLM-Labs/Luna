@@ -13,3 +13,5 @@ runtime_data/
 *.log
 .DS_Store
 Thumbs.db
+.luna/
+.pytest_tmp/

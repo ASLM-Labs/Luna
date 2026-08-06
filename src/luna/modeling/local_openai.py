@@ -135,10 +135,7 @@ def _as_list(value: object, description: str) -> list[object]:
 
 
 def _parse_arguments(value: object) -> dict[str, ToolArgumentValue]:
-    if isinstance(value, str):
-        parsed = json.loads(value)
-    else:
-        parsed = value
+    parsed = json.loads(value) if isinstance(value, str) else value
     if not isinstance(parsed, dict):
         raise ValueError("tool call arguments must be a JSON object")
     result: dict[str, ToolArgumentValue] = {}

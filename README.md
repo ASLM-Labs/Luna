@@ -5,41 +5,45 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 4 — model backend sınırı ve kontrollü araç çalıştırma**
-durumundadır.
+Repository şu anda **Faz 5 — güvenli process çalıştırma, kontrollü dosya değişikliği,
+snapshot ve rollback** durumundadır.
 
-## Faz 4'te çalışan parçalar
+## Faz 5'te çalışan parçalar
 
-- sağlayıcıdan bağımsız `ModelBackend` arayüzü;
-- model erişimi gerektirmeyen deterministik `ScriptedTestBackend`;
-- yalnız loopback adreslerine bağlanan yerel OpenAI-compatible adapter;
-- `ToolSpec`, `ToolRequest`, `ToolResult` ve `ToolEvent` kontratları;
-- kayıtlı olmayan aracı çalıştırmayan deny-by-default registry/dispatcher;
-- açık izin, risk, özerklik, scope, argüman, timeout, çıktı ve cwd kontrolleri;
-- model tool-call önerilerini sıradan ve yetkisiz request olarak ele alan trust boundary;
-- hashli ve sınırlı output ile yapılandırılmış `Observation` üretimi;
-- yan etkisiz `core.echo` ve scope kontrollü iki read-only filesystem aracı.
+- Faz 1–4 kontrat, intent, context, planning, model ve dispatcher katmanları;
+- `shell=False` kullanan exact-argv process runner;
+- her komut için tam argv ve çalışma klasörü owner approval kontrolü;
+- shell/script-host ve inline interpreter kaçışlarının reddi;
+- timeout, stdin kapatma, sınırlı environment ve bounded stdout/stderr;
+- SHA-256 precondition gerektiren atomik UTF-8 dosya yazımı;
+- exact occurrence sayısına bağlı minimal text replacement;
+- her write işleminden önce kalıcı snapshot manifesti ve content blob'u;
+- snapshot ve blob bütünlüğü için SHA-256 doğrulaması;
+- post-write doğrulama başarısızsa otomatik rollback;
+- owner-approved açık rollback aracı;
+- protected path descendant ve symlink bileşeni engeli.
 
-## Henüz kapalı yetenekler
+## Bilinçli olarak kapalı yetenekler
 
-- shell ve process çalıştırma;
-- dosya yazma, snapshot ve rollback;
+- command string, `cmd /c`, PowerShell, Bash veya `shell=True`;
+- keyfî environment/stdio injection;
+- dosya silme ve dizin ağacı değişikliği;
 - internet/web araçları;
-- kalıcı audit, checkpoint ve hafıza;
+- append-only kalıcı audit, checkpoint ve hafıza;
 - deterministic completion verifier;
 - subagent.
 
 ## Kurulum ve kalite kapısı
 
 ```bat
-scriptsootstrap.bat
+scripts\bootstrap.bat
 scripts\check.bat
 ```
 
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 4 model ve tool kapisi gecti.
+[PASS] Luna 0.1 Faz 5 workspace, shell ve rollback kapisi gecti.
 ```
 
 ## CLI
@@ -47,8 +51,10 @@ Beklenen son satır:
 ```bat
 .venv\Scripts\python.exe -m luna status
 .venv\Scripts\python.exe -m luna list-tools
-.venv\Scripts\python.exe -m luna tool-smoke "merhaba"
+.venv\Scripts\python.exe -m luna workspace-smoke
+.venv\Scripts\python.exe -m luna process-smoke
 ```
 
-Model bir araç çağrısı önerebilir; izni model vermez. Son karar her zaman runtime
-tarafındaki `ToolDispatcher` tarafından verilir.
+Process aracı yalnız runtime sahibi tarafından **tam olarak onaylanmış argv** ile
+çalışır. Modelin komut önermesi izin değildir. Dosya yazımı da önce snapshot alır;
+başarı sonrası hash doğrulanmadan değişiklik committed sayılmaz.

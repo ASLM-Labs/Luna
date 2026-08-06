@@ -14,7 +14,6 @@ from luna.contracts.enums import CompletionStatus, TaskPhase
 from luna.contracts.plan import PlanStep
 from luna.contracts.task import TaskContract
 
-
 _ALLOWED_TRANSITIONS_SOURCE: dict[TaskPhase, frozenset[TaskPhase]] = {
     TaskPhase.CREATED: frozenset({TaskPhase.CONTRACTED}),
     TaskPhase.CONTRACTED: frozenset({TaskPhase.CONTEXT_READY, TaskPhase.CHECKPOINTED}),

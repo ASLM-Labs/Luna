@@ -1,33 +1,36 @@
-# Faz 4 Mimari Sınırı
+# Faz 5 Mimari Sınırı
 
-Faz 4, model ile runtime arasındaki güven sınırını ve read-only kontrollü araç
-çalıştırmayı kanıtlar.
+Faz 5, Luna'nın proje üzerinde sınırlı ve geri alınabilir yan etki üretmesini
+kanıtlar. Model hâlâ karar yetkisine sahip değildir; izin, scope ve onay runtime
+katmanındadır.
 
 ## Var
 
 - Faz 1 çekirdek kontratları;
 - Faz 2 intent, contract draft ve context hazırlığı;
 - Faz 3 adaptive planning, expectation ve retry guard;
-- provider-independent `ModelBackend`;
-- deterministik `ScriptedTestBackend`;
-- loopback-only local OpenAI-compatible adapter;
-- deny-by-default `ToolRegistry` ve `ToolDispatcher`;
-- explicit tool allowlist, risk, autonomy, scope, schema, timeout, output ve cwd kontrolü;
-- her denemede `ToolResult`, `ToolEvent` ve `Observation`;
-- bounded output excerpt ve SHA-256 log referansı;
-- `core.echo`, `filesystem.read_text`, `filesystem.list_directory`.
+- Faz 4 model backend sınırı ve deny-by-default dispatcher;
+- `process.run_argv` için exact argv + cwd approval;
+- `shell=False`, kapalı stdin, hard timeout ve bounded output;
+- shell/script-host ve inline-code reddi;
+- `filesystem.write_text` ve `filesystem.replace_text`;
+- write öncesi snapshot, content-addressed blob ve SHA-256 manifest;
+- atomic replace, post-write digest doğrulaması ve otomatik rollback;
+- owner-approved `workspace.rollback`;
+- protected descendant, path traversal, workspace escape ve symlink engeli;
+- her işlemde `ToolResult`, `ToolEvent`, `Observation` ve change hash evidence.
 
 ## Yok
 
-- shell/process tool;
-- write-capable tool;
+- command string veya genel amaçlı interactive shell;
+- dosya/dizin silme aracı;
 - network tool;
-- snapshot ve rollback;
 - append-only kalıcı audit deposu;
-- completion verifier;
-- kalıcı checkpoint veya hafıza;
+- deterministic completion verifier;
+- kalıcı checkpoint veya memory;
 - subagent.
 
-Yerel model adapter'ının endpoint'i yalnız `localhost`, `127.0.0.1` veya `::1`
-olabilir. Bir model tool-call ürettiğinde bu yalnız öneridir; permission, scope veya
-risk kararı değildir.
+Snapshot verileri workspace içindeki runtime-owned `.luna/snapshots` alanında tutulur
+ve `.gitignore` tarafından dışlanır. Task araçları `.luna` altını hedefleyemez.
+Rollback yalnız aynı workspace ve aynı `task_id` için geçerlidir; manifest veya blob
+hash'i uyuşmazsa restore başlamadan reddedilir.

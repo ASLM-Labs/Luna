@@ -24,7 +24,7 @@ def _plan() -> TaskPlan:
 
 def test_out_of_order_activation_is_rejected() -> None:
     plan = _plan()
-    with pytest.raises(ValueError, match="dependencies|earlier"):
+    with pytest.raises(ValueError, match=r"dependencies|earlier"):
         PlanLifecycle().activate(plan, plan.steps[1].step_id)
 
 

@@ -22,8 +22,21 @@ from luna.modeling import (
 from luna.planning import AdaptivePlanner, AdaptiveReplanner, TaskPlan
 from luna.preparation import PreparationStatus, TaskPreparation, TaskPreparer
 from luna.tasking import TaskContractBuilder, TaskContractDraft
-from luna.tools import ToolDispatcher, ToolRegistry, ToolRequest, ToolResult, ToolSpec
+from luna.tools import (
+    ProcessApproval,
+    ToolDispatcher,
+    ToolRegistry,
+    ToolRequest,
+    ToolResult,
+    ToolSpec,
+)
 from luna.version import __version__
+from luna.workspace import (
+    RollbackResult,
+    WorkspaceMutationResult,
+    WorkspaceMutator,
+    WorkspaceSnapshot,
+)
 
 __all__ = [
     "AdaptivePlanner",
@@ -45,6 +58,8 @@ __all__ = [
     "Observation",
     "PlanStep",
     "PreparationStatus",
+    "ProcessApproval",
+    "RollbackResult",
     "ScriptedTestBackend",
     "TaskContract",
     "TaskContractBuilder",
@@ -58,5 +73,8 @@ __all__ = [
     "ToolRequest",
     "ToolResult",
     "ToolSpec",
+    "WorkspaceMutationResult",
+    "WorkspaceMutator",
+    "WorkspaceSnapshot",
     "__version__",
 ]

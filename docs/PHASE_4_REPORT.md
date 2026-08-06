@@ -40,7 +40,7 @@ Shell, process, file write, network tools, rollback ve kalıcı audit bu fazda a
 ## Hedef makinede kapanış
 
 ```bat
-scriptsootstrap.bat
+scripts\bootstrap.bat
 scripts\check.bat
 ```
 

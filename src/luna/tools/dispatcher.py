@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hashlib import sha256
 import time
+from hashlib import sha256
 
 from luna.contracts.enums import ObservationStatus
 from luna.contracts.observation import Observation
@@ -18,6 +18,7 @@ from luna.tools.models import (
     ToolResult,
     ToolResultStatus,
 )
+from luna.tools.paths import WorkspacePathError, path_is_allowed
 from luna.tools.policy import PolicyDecision, evaluate_tool_policy
 from luna.tools.registry import (
     RegisteredTool,
@@ -26,7 +27,6 @@ from luna.tools.registry import (
     ToolExecutionOutput,
     ToolRegistry,
 )
-
 
 _EMPTY_DIGEST = sha256(b"").hexdigest()
 
@@ -47,8 +47,14 @@ def _protected_changes(
     changed_files: tuple[str, ...],
     protected_paths: tuple[str, ...],
 ) -> tuple[str, ...]:
-    protected = set(protected_paths)
-    return tuple(path for path in changed_files if path in protected)
+    protected: list[str] = []
+    for path in changed_files:
+        try:
+            if protected_paths and path_is_allowed(path, protected_paths):
+                protected.append(path)
+        except WorkspacePathError:
+            protected.append(path)
+    return tuple(protected)
 
 
 class ToolDispatcher:
@@ -123,11 +129,11 @@ class ToolDispatcher:
         except ToolExecutionDenied as exc:
             return self._blocked(
                 request=request,
-                checks=decision.checks + ("handler_boundary:FAIL",),
+                checks=(*decision.checks, "handler_boundary:FAIL"),
                 reason=str(exc),
                 error_class=type(exc).__name__,
             )
-        except Exception as exc:  # noqa: BLE001 - runtime converts handler faults to evidence
+        except Exception as exc:
             output = ToolExecutionOutput(
                 exit_code=1,
                 stderr=str(exc),
@@ -179,7 +185,7 @@ class ToolDispatcher:
             trace_id=request.trace_id,
             tool_name=request.tool_name,
             decision=event_decision,
-            policy_checks=decision.checks + ("handler_boundary:PASS",),
+            policy_checks=(*decision.checks, "handler_boundary:PASS"),
             reason=reason,
         )
         errors: tuple[str, ...] = ()
@@ -250,14 +256,14 @@ class ToolDispatcher:
         if not decision.allowed:
             return self._blocked(
                 request=request,
-                checks=("registration:PASS", "argument_schema:PASS") + decision.checks,
+                checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
                 reason=decision.reason,
                 error_class="ToolPolicyDenied",
             )
 
         decision = PolicyDecision(
             allowed=True,
-            checks=("registration:PASS", "argument_schema:PASS") + decision.checks,
+            checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
             reason=decision.reason,
             timeout_ms=decision.timeout_ms,
             max_output_chars=decision.max_output_chars,

@@ -194,7 +194,7 @@ class AdaptiveReplanner:
             )
 
         significant_ids = list(plan.significant_step_ids)
-        if recovery_expectation.high_impact:
+        if recovery_expectation is not None and recovery_expectation.high_impact:
             significant_ids.append(recovery_step.step_id)
 
         return TaskPlan(

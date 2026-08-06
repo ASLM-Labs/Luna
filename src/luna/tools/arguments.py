@@ -45,7 +45,7 @@ def _validate_one(name: str, value: ToolArgumentValue, rule: ToolArgumentRule) -
         if rule.max_length is not None and len(value) > rule.max_length:
             raise ToolArgumentError(f"argument '{name}' has too many items")
 
-    if _is_number(value):
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         numeric = float(value)
         if rule.minimum is not None and numeric < rule.minimum:
             raise ToolArgumentError(f"argument '{name}' is below minimum")

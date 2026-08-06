@@ -3,7 +3,6 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -22,12 +21,12 @@ def test_governance_constitution_is_present() -> None:
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_four_keeps_dangerous_runtime_capabilities_closed() -> None:
+def test_phase_five_opens_only_bounded_workspace_and_shell_packages() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
-    forbidden = {"memory", "workspace", "checkpoint", "verification", "shell"}
-
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
-    assert forbidden.isdisjoint(present)
+
+    assert {"workspace", "shell"}.issubset(present)
+    assert {"memory", "checkpoint", "verification", "network"}.isdisjoint(present)
 
 
 def test_license_contains_full_apache_terms() -> None:

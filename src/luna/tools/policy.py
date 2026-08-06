@@ -15,7 +15,6 @@ from luna.tools.models import (
 )
 from luna.tools.paths import WorkspacePathError, canonical_workspace_path
 
-
 _RISK_ORDER = {
     RiskLevel.LOW: 0,
     RiskLevel.MEDIUM: 1,
@@ -109,6 +108,10 @@ def evaluate_tool_policy(
         return _denied(checks, "network_scope", "task scope does not allow network")
     checks.append("network_scope:PASS")
 
+    if ToolCapability.PROCESS in capabilities and not task_contract.scope.process_allowed:
+        return _denied(checks, "process_scope", "task scope does not allow processes")
+    checks.append("process_scope:PASS")
+
     timeout_ms = request.timeout_ms or spec.default_timeout_ms
     timeout_ceiling = min(spec.max_timeout_ms, policy.max_timeout_ms)
     if timeout_ms > timeout_ceiling:
@@ -142,6 +145,35 @@ def evaluate_tool_policy(
         except WorkspacePathError as exc:
             return _denied(checks, "working_directory", str(exc))
     checks.append("working_directory:PASS")
+
+    if ToolCapability.PROCESS in capabilities and "argv" in spec.argument_schema:
+        argv_value = request.arguments.get("argv")
+        if not isinstance(argv_value, list) or not all(
+            isinstance(item, str) for item in argv_value
+        ):
+            return _denied(checks, "process_approval", "process argv is not valid")
+        requested_argv = tuple(argv_value)
+        approved = False
+        for approval in policy.process_approvals:
+            try:
+                approved_cwd = str(
+                    canonical_workspace_path(
+                        task_contract.scope.workspace_root,
+                        approval.working_directory,
+                    )
+                )
+            except WorkspacePathError:
+                continue
+            if approval.argv == requested_argv and approved_cwd == working_directory:
+                approved = True
+                break
+        if not approved:
+            return _denied(
+                checks,
+                "process_approval",
+                "exact argv and working directory were not owner-approved",
+            )
+    checks.append("process_approval:PASS")
 
     return PolicyDecision(
         allowed=True,

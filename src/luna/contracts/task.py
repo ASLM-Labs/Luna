@@ -28,6 +28,7 @@ class TaskScope(LunaContractModel):
     protected_paths: tuple[str, ...] = ()
     write_allowed: bool = False
     network_allowed: bool = False
+    process_allowed: bool = False
 
     @field_validator("allowed_paths", "protected_paths")
     @classmethod

@@ -31,7 +31,12 @@ class ProcessLikeTool:
         return ToolExecutionOutput(stdout="executed")
 
 
-def contract(*, write_allowed: bool = False, network_allowed: bool = False) -> TaskContract:
+def contract(
+    *,
+    write_allowed: bool = False,
+    network_allowed: bool = False,
+    process_allowed: bool = False,
+) -> TaskContract:
     task_id = uuid4()
     return TaskContract(
         task_id=task_id,
@@ -43,6 +48,7 @@ def contract(*, write_allowed: bool = False, network_allowed: bool = False) -> T
             allowed_paths=("README.md",),
             write_allowed=write_allowed,
             network_allowed=network_allowed,
+            process_allowed=process_allowed,
         ),
         risk_level=RiskLevel.LOW,
     )
@@ -144,7 +150,7 @@ def test_high_impact_tool_requires_expected_observation() -> None:
         ),
         ProcessLikeTool(),
     )
-    task = contract()
+    task = contract(process_allowed=True)
     dispatcher = ToolDispatcher(registry)
     policy = ToolPolicy(
         allowed_tools=("process.verify",),

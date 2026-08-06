@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
@@ -23,7 +23,6 @@ from luna.planning import (
     TaskComplexity,
 )
 from luna.preparation import TaskPreparer
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

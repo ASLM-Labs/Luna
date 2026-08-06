@@ -1,10 +1,11 @@
 """Deny-by-default tool registry, policy, dispatcher, and safe built-ins."""
 
-from luna.tools.builtins import build_phase4_registry
+from luna.tools.builtins import build_phase4_registry, build_phase5_registry
 from luna.tools.dispatcher import ToolDispatcher
 from luna.tools.models import (
     AutonomyLevel,
     DispatchOutcome,
+    ProcessApproval,
     ToolArgumentRule,
     ToolArgumentType,
     ToolCapability,
@@ -22,6 +23,7 @@ from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolR
 __all__ = [
     "AutonomyLevel",
     "DispatchOutcome",
+    "ProcessApproval",
     "ToolArgumentRule",
     "ToolArgumentType",
     "ToolCapability",
@@ -38,4 +40,5 @@ __all__ = [
     "ToolResultStatus",
     "ToolSpec",
     "build_phase4_registry",
+    "build_phase5_registry",
 ]

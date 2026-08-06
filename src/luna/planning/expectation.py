@@ -26,12 +26,14 @@ class ExpectationEvaluator:
                 f"{expectation.expected_status.value},actual={observation.status.value}"
             )
 
-        if expectation.expected_exit_codes:
-            if observation.exit_code not in expectation.expected_exit_codes:
-                mismatches.append(
-                    f"exit_code:expected={expectation.expected_exit_codes},"
-                    f"actual={observation.exit_code}"
-                )
+        if (
+            expectation.expected_exit_codes
+            and observation.exit_code not in expectation.expected_exit_codes
+        ):
+            mismatches.append(
+                f"exit_code:expected={expectation.expected_exit_codes},"
+                f"actual={observation.exit_code}"
+            )
 
         changed_paths = set(observation.changed_files)
         missing_paths = [

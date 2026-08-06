@@ -5,15 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
-from typing import TypeAlias
 from uuid import UUID, uuid4
 
 from pydantic import Field, field_validator, model_validator
 
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 
-
-JsonScalar: TypeAlias = str | int | float | bool | None
+type JsonScalar = str | int | float | bool | None
 
 
 class ContextSourceKind(StrEnum):
