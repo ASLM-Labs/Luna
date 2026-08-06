@@ -5,24 +5,22 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 7 — deterministik verifier ve completion gate**
-durumundadır.
+Repository şu anda **Faz 8 — checkpoint ve görev devamlılığı** durumundadır.
 
-## Faz 7'de çalışan zincir
+## Çalışan zincir
 
 ```text
 intent → context → contract → plan → expected observation
 → controlled tool use → snapshot/rollback
 → append-only observation/evidence
-→ deterministic verification → audited completion decision
+→ deterministic verification → audited completion
+→ SQLite WAL checkpoint → guarded restart/resume
 ```
 
-Luna artık yalnızca bütün required condition ve forbidden-outcome absence
-claim'leri güncel, doğrudan ve yeterli kanıtla PASS olduğunda
-`VERIFIED_COMPLETE` üretebilir.
-
-Eski revision, yanlış environment, stale kanıt, model çıkarımı, çelişen kanıt
-veya eksik evidence requirement otomatik başarıya çevrilmez.
+Luna artık task state ve checkpoint'i aynı SQLite transaction içinde saklar.
+Runtime revision, workspace veya environment değişmişse otomatik devam etmez.
+Aktifken kesilmiş bir eylemi körlemesine yeniden çalıştırmaz ve tamamlanmış
+adımları replay-prohibited olarak taşır.
 
 ## Kurulum
 
@@ -39,11 +37,11 @@ scripts\check.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Faz 7 verifier ve completion gate kapisi gecti.
+[PASS] Luna 0.1 Faz 8 checkpoint ve continuity kapisi gecti.
 ```
 
-## Görünür smoke
+## Görünür restart testi
 
 ```bat
-.venv\Scripts\python.exe -m luna verify-smoke
+.venv\Scripts\python.exe -m luna checkpoint-smoke
 ```

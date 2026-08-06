@@ -33,6 +33,7 @@ jobs:
       - run: python scripts/verify_phase5.py
       - run: python scripts/verify_phase6.py
       - run: python scripts/verify_phase7.py
+      - run: python scripts/verify_phase8.py
       - run: python -m luna --version
       - run: python -m luna status
-      - run: python -m luna verify-smoke
+      - run: python -m luna checkpoint-smoke

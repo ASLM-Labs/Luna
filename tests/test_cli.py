@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 7" in output
+    assert "phase: 8" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -137,3 +137,19 @@ def test_verify_smoke_command(
     assert payload["audit_integrity"] is True
     assert "VERIFICATION_REPORT" in payload["event_kinds"]
     assert "COMPLETION_DECISION" in payload["event_kinds"]
+
+
+
+def test_checkpoint_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["checkpoint-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["resume_status"] == "READY"
+    assert payload["resumed_phase"] == "PLANNED"
+    assert payload["journal_mode"] == "wal"
+    assert payload["integrity"] is True
+    assert "CHECKPOINT_CREATED" in payload["event_kinds"]
+    assert "RESUME_DECISION" in payload["event_kinds"]

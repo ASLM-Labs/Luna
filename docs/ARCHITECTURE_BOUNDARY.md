@@ -1,29 +1,31 @@
-# Faz 7 Mimari Sınırı
+# Faz 8 Mimari Sınırı
 
-Faz 7, Faz 6 evidence kayıtlarını deterministik biçimde değerlendirir ve
-completion statüsünü yalnız kontrollü gate üzerinden üretir.
+Faz 8, görev durumunu ve checkpoint zincirini SQLite WAL içinde atomik ve
+restart-safe biçimde saklar.
 
 ## Var
 
-- Faz 1–6 yetenekleri;
-- kontrattan deterministik claim kimliği;
-- revision, environment, freshness ve clock kontrolleri;
-- requirement→evidence eşleme;
-- PASS/FAIL/BLOCKED/INCONCLUSIVE/UNVERIFIED/CONFLICTING claim sonucu;
-- altı resmi completion status;
-- append-only VerificationReport ve CompletionDecision audit olayları;
-- VERIFYING → REPORTING state uygulaması;
-- modelden bağımsız completion gate.
+- Faz 1–7 yetenekleri;
+- SQLite schema migration v1;
+- task state + checkpoint atomik transaction;
+- immutable checkpoint zinciri;
+- SHA-256 payload bütünlüğü;
+- optimistic revision kontrolü;
+- terminal checkpoint değişmezliği;
+- runtime revision, workspace ve environment resume guard;
+- aktif eylem reconciliation blokajı;
+- persist edilmiş blind-retry geçmişi;
+- checkpoint/resume audit olayları;
+- gerçek restart simülasyonu.
 
 ## Yok
 
-- kalıcı checkpoint/restart-resume;
-- uzun dönem hafıza;
-- kimlik paketi ve final kullanıcı raporu;
+- doğrulanmış uzun dönem hafıza;
+- kullanıcı profili yönetimi;
+- final kimlik ve kullanıcı raporu;
 - sabit eval suite ve release gate;
 - ağ araçları;
 - subagent.
 
-CompletionGate, modelin “bitti” beyanını kabul etmez. VERIFIED_COMPLETE yalnız
-bütün zorunlu claim'ler ve evidence requirement'lar güncel qualifying kanıtla
-PASS olduğunda üretilebilir.
+Resume bir önceki eylemi otomatik tekrarlamaz. Kesilmiş aktif adım varsa
+görev BLOCKED kalır ve yeni gözlem/reconciliation gerekir.

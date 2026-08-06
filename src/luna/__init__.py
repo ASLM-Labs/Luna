@@ -7,6 +7,11 @@ from luna.audit import (
     EvidenceBuilder,
 )
 from luna.context import ContextBudget, ContextBundle, ContextCollector, ContextSource
+from luna.continuity import (
+    ContinuityService,
+    ResumePolicy,
+    SQLiteContinuityStore,
+)
 from luna.contracts import (
     Checkpoint,
     CompletionStatus,
@@ -61,6 +66,7 @@ __all__ = [
     "ContextBundle",
     "ContextCollector",
     "ContextSource",
+    "ContinuityService",
     "CompletionGate",
     "DeterministicVerifier",
     "DeterministicIntentResolver",
@@ -76,6 +82,7 @@ __all__ = [
     "PlanStep",
     "PreparationStatus",
     "ProcessApproval",
+    "ResumePolicy",
     "RollbackResult",
     "ScriptedTestBackend",
     "TaskContract",
@@ -84,6 +91,7 @@ __all__ = [
     "TaskPlan",
     "TaskPreparation",
     "TaskPreparer",
+    "SQLiteContinuityStore",
     "TaskState",
     "ToolDispatcher",
     "ToolRegistry",

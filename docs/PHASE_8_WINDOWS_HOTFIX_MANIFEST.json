@@ -1,0 +1,16 @@
+{
+  "phase": 8,
+  "hotfix": "windows-sqlite-file-handle-1",
+  "apply_to_repository_root": true,
+  "changed_or_added_files": [
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "docs/PHASE_8_REPORT.md",
+    "docs/PHASE_8_WINDOWS_HOTFIX_MANIFEST.json",
+    "docs/PHASE_8_WINDOWS_SQLITE_HOTFIX.md",
+    "phase_8_verification.json",
+    "src/luna/continuity/store.py",
+    "tests/test_phase8_continuity_store.py"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "phase": 8,
+  "hotfix": "windows-sqlite-file-handle-1",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "generated_utc": "2026-08-06T11:44:41.403427+00:00",
+  "package_environment": {
+    "syntax": "115 Python files parsed",
+    "pytest": "156 passed",
+    "phase_verifiers": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "4": "PASS",
+      "5": "PASS",
+      "6": "PASS",
+      "7": "PASS",
+      "8": "PASS"
+    },
+    "checkpoint_smoke": "PASS",
+    "windows_regression": "read connections explicitly closed; target Windows gate required",
+    "ruff": "NOT_RUN",
+    "mypy": "NOT_RUN"
+  },
+  "target_gate": "Run .\\scripts\\check.bat and require exit code 0 plus the Phase 8 PASS line."
+}

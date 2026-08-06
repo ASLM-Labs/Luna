@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 7 verified runtime."""
+"""Command-line entry point for the Luna Phase 8 restart-safe runtime."""
 
 from __future__ import annotations
 
@@ -11,8 +11,17 @@ from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
 from luna.audit import AuditSession, AuditedToolDispatcher, EvidenceBuilder
-from luna.contracts.enums import EvidenceResult, EvidenceSourceKind, RiskLevel
+from luna.continuity import ContinuityService, ResumePolicy, SQLiteContinuityStore
+from luna.contracts.enums import (
+    EvidenceResult,
+    EvidenceSourceKind,
+    PlanStepStatus,
+    RiskLevel,
+    TaskPhase,
+)
 from luna.contracts.evidence import Evidence
+from luna.contracts.plan import PlanStep
+from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
 from luna.intent import DeterministicIntentResolver
 from luna.tools import (
@@ -46,6 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "verify-smoke",
         help="Run the deterministic Phase 7 completion gate.",
+    )
+    subparsers.add_parser(
+        "checkpoint-smoke",
+        help="Persist and resume a Phase 8 SQLite WAL checkpoint.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -339,13 +352,90 @@ def _run_verify_smoke() -> int:
         ) else 2
 
 
+
+def _run_checkpoint_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase8-") as directory:
+        root = Path(directory)
+        task_id = uuid4()
+        trace_id = uuid4()
+        contract = TaskContract(
+            task_id=task_id,
+            objective="Verify restart-safe checkpoint continuity.",
+            required_conditions=("Task resumes from the persisted plan.",),
+            evidence_required=("checkpoint hash evidence",),
+            scope=TaskScope(workspace_root=str(root)),
+            risk_level=RiskLevel.LOW,
+            owner="user",
+        )
+        state = TaskState(
+            task_id=task_id,
+            contract=contract,
+            phase=TaskPhase.PLANNED,
+            plan=(
+                PlanStep(
+                    sequence=1,
+                    description="Continue after restart.",
+                    status=PlanStepStatus.PENDING,
+                ),
+            ),
+            revision=4,
+        )
+        audit = AuditSession(root / "audit")
+        audit.record_task_contract(contract=contract, trace_id=trace_id)
+        store = SQLiteContinuityStore(root / "runtime.sqlite3")
+        service = ContinuityService(store, audit)
+        stored = service.create_checkpoint(
+            state=state,
+            workspace_fingerprint="workspace-phase8",
+            environment_fingerprint="environment-phase8",
+            runtime_revision="phase8",
+            next_step="Activate the first pending step.",
+            trace_id=trace_id,
+        )
+
+        restarted = ContinuityService(
+            SQLiteContinuityStore(root / "runtime.sqlite3"),
+            audit,
+        )
+        decision = restarted.resume_latest(
+            task_id=task_id,
+            policy=ResumePolicy(
+                runtime_revision="phase8",
+                workspace_fingerprint="workspace-phase8",
+                environment_fingerprint="environment-phase8",
+            ),
+            trace_id=trace_id,
+        )
+        payload = {
+            "checkpoint_id": str(stored.envelope.checkpoint.checkpoint_id),
+            "resume_status": decision.status.value,
+            "resumed_phase": (
+                decision.resumed_state.phase.value
+                if decision.resumed_state is not None
+                else None
+            ),
+            "journal_mode": store.journal_mode(),
+            "integrity": store.verify_integrity().valid,
+            "event_kinds": [
+                event.kind.value for event in audit.events_for_task(task_id)
+            ],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if (
+            payload["resume_status"] == "READY"
+            and payload["resumed_phase"] == "PLANNED"
+            and payload["journal_mode"] == "wal"
+            and payload["integrity"] is True
+        ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 7")
-        print("status: DETERMINISTIC_VERIFICATION_IMPLEMENTED_UNVERIFIED")
+        print("phase: 8")
+        print("status: CHECKPOINT_CONTINUITY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -358,6 +448,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("output_logs: redacted_content_addressed")
         print("completion_verifier: deterministic_requirement_evidence_gate")
         print("verified_complete: gate_only")
+        print("checkpoint_store: sqlite_wal_atomic")
+        print("resume_guard: revision_workspace_environment")
+        print("blind_replay: blocked")
         return 0
 
     if args.command == "resolve-intent":
@@ -369,6 +462,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "verify-smoke":
         return _run_verify_smoke()
+
+    if args.command == "checkpoint-smoke":
+        return _run_checkpoint_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)
