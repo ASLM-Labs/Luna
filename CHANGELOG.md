@@ -2,6 +2,32 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12b] - 2026-08-07
+
+### Added
+
+- Canonical `ACTIVE`, `TASK`, `RUNTIME_CONTINUITY`, `WORKSPACE`, and
+  `VERIFIED_MEMORY` context layers.
+- Runtime-owned `LayeredContextComposer` with deterministic ordering and hard
+  per-layer plus overall budgets.
+- `CONTROL` versus `DATA_ONLY` interpretation boundary.
+- Explicit freshness windows, future/stale rejection, required-context gap tracking,
+  and deterministic bundle fingerprinting.
+- Verified-memory relevance requirement and compatibility bridge from Phase 2
+  `ContextCandidate`.
+- Secret-safe model rendering using the existing deterministic redactor.
+- RFC-012B, Phase 12B verifier, unit tests, CLI smoke, and quality-gate integration.
+
+### Security
+
+- Unseen or content-unavailable sources cannot enter model context.
+- Workspace and memory content cannot be promoted to runtime control instructions.
+- Unverified memory blocking and secret redaction cannot be disabled.
+- Secret-classified candidates are excluded before model rendering.
+- Future/stale sources can be rejected before model use.
+- Bulk workspace/memory context cannot crowd out active/task/runtime control context.
+- The composer performs no hidden filesystem, process, database, or network I/O.
+
 ## [0.1.0-phase12a] - 2026-08-06
 
 ### Added

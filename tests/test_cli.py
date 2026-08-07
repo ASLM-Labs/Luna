@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12A" in output
+    assert "phase: 12B" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -32,6 +32,12 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "release_gate: runtime_owned_thresholds" in output
     assert "runtime_request: source_actor_scope_budget_bound" in output
     assert "runtime_budget: read_only_default" in output
+    assert "context_layers: active_task_runtime_workspace_verified_memory" in output
+    assert "context_budget: per_layer_and_overall_runtime_enforced" in output
+    assert "context_unobserved: excluded_never_implied" in output
+    assert "context_secrets: blocked_or_redacted_before_model_view" in output
+    assert "context_memory: verified_data_only" in output
+    assert "context_freshness: explicit_and_deterministic" in output
     assert "policy_agent_loop: not_implemented_phase12e" in output
 
 
@@ -236,3 +242,26 @@ def test_phase12a_smoke_command(
     assert payload["outcome_round_trip"] is True
     assert payload["stop_reason"] == "COMPLETED"
     assert payload["completion_status"] == "VERIFIED_COMPLETE"
+
+def test_phase12b_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12b-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["layer_order"] == [
+        "ACTIVE",
+        "TASK",
+        "RUNTIME_CONTINUITY",
+        "WORKSPACE",
+        "VERIFIED_MEMORY",
+    ]
+    assert payload["ready"] is True
+    assert payload["entry_count"] == 4
+    assert payload["secret_absent"] is True
+    assert payload["redactions_applied"] is True
+    assert payload["unverified_memory_blocked"] is True
+    assert payload["memory_data_only"] is True
+    assert payload["fingerprint_length"] == 64
+    assert payload["round_trip"] is True

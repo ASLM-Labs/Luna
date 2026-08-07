@@ -1,50 +1,52 @@
-# Faz 12A Mimari Sınırı
+# Faz 12B Mimari Sınırı
 
-Faz 12A, Luna'nın mevcut Faz 1–11 çekirdek bileşenlerini değiştirmeden gelecekteki
-tek policy-agent loop için açık request, authority, budget, dependency ve outcome
-kontratlarını ekler.
+Faz 12B, Faz 12A'da kilitlenen request/authority/budget/outcome sınırlarının üstüne
+tek policy-agent runtime için katmanlı context hazırlama sınırını ekler.
 
 ```text
-authenticated RequestSource + verified RuntimeActor
-→ RuntimeRequest
-→ future single policy-agent runtime
-→ RuntimeOutcome bound to TaskState and completion gate
+authenticated RuntimeRequest
+→ explicit observed context candidates
+→ LayeredContextComposer
+→ ACTIVE / TASK / RUNTIME_CONTINUITY / WORKSPACE / VERIFIED_MEMORY
+→ sanitized + budgeted LayeredContextBundle
+→ future single policy-agent loop
 ```
 
 ## Var
 
-- Faz 1–11 yetenekleri ve kilitli acceptance suite;
-- `RequestSource`, `ActorRole`, `ActorVerificationSource`, `RuntimeActor`;
-- read-only default `RuntimeBudget`;
-- task/trace/scope/autonomy/context/budget bağlı `RuntimeRequest`;
-- `DRY_RUN`, `EXECUTE`, `RESUME` modları;
-- açık `RuntimeStopReason` kümesi;
-- transient ID'leri dışarıda bırakan versioned `TaskFingerprint`;
-- mevcut çekirdek servisler için explicit `RuntimeDependencies`;
-- serializable dependency readiness manifest;
-- gözlenebilir `RuntimeUsage`;
-- `TaskState` ile birebir bağlantılı `RuntimeOutcome`;
-- Faz 12A RFC, baseline, evidence map, verifier, unit test ve CLI smoke.
+- Faz 1–12A çekirdek yetenekleri ve kilitli Faz 11 acceptance suite;
+- canonical beş context layer;
+- `CONTROL` ve `DATA_ONLY` yorumlama ayrımı;
+- explicit required/missing context takibi;
+- per-layer ve overall context budget;
+- freshness (`max_age_seconds`) ve future timestamp reddi;
+- verified-memory için açık `relevance_basis` zorunluluğu;
+- workspace/memory control escalation engeli;
+- secret candidate bloklama ve model-view öncesi deterministic redaction;
+- deterministic selection ve bundle fingerprint;
+- yalnız admitted/sanitized içerik üreten model render;
+- eski Phase 2 `ContextCandidate` için explicit compatibility bridge;
+- Faz 12B RFC, verifier, unit test ve CLI smoke.
 
 ## Zorlanan kurallar
 
-- privileged actor runtime doğrulaması ister;
-- model actor authority veya autonomy grant kaynağı olamaz;
-- read-only scope write/network bütçesi taşıyamaz;
-- write scope açık change budget olmadan oluşturulamaz;
-- dry-run workspace write açamaz;
-- resume task ID uyuşmazlığı kabul edilmez;
-- completed outcome yalnız CLOSED + VERIFIED_COMPLETE + final report ile oluşur;
-- dependency eksikliği açık hata üretir; global fallback yoktur.
+- context composer gizli file/process/database/network I/O yapamaz;
+- `MISSING` veya `DECLARED_NOT_OBSERVED` kaynak model context'e giremez;
+- gözlendi denilen ama model-visible content taşımayan kaynak admitted olamaz;
+- lower-value workspace/memory, active/task/runtime context'i budget ile ezemez;
+- workspace ve memory `CONTROL` olamaz;
+- unverified memory verified-memory layer'a giremez;
+- verified memory task relevance gerekçesi olmadan eklenemez;
+- secret bloklama ve redaction policy ile kapatılamaz;
+- future veya freshness sınırını aşan kaynak context'e giremez;
+- excluded required source açık context gap üretir.
 
 ## Yok
 
-- `LunaRuntime.run()` veya `resume()` orchestrator;
-- layered context composer;
-- action proposal/tool selection policy;
+- `LunaRuntime.run()` / `resume()` orchestrator;
+- model action proposal veya tool selection policy;
 - ortak failure taxonomy;
 - minimal-change enforcement;
-- end-to-end agent loop;
 - gerçek model rollout;
 - ağ, GitHub, MCP/plugin, masaüstü, Discord veya ses entegrasyonu;
 - subagent veya kontrolsüz self-improvement.
@@ -52,9 +54,8 @@ authenticated RequestSource + verified RuntimeActor
 ## Sonraki kapılar
 
 ```text
-12B context composer
-→ 12C action/tool policy
-→ 12D failure + minimal change
+12C action proposal + tool candidate policy
+→ 12D failure taxonomy + minimal change
 → 12E single policy-agent loop
 → 12F finalization
 → 12G E2E + behavior acceptance
