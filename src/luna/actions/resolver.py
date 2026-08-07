@@ -23,6 +23,11 @@ class ActionResolver:
     def __init__(self, selector: ToolSelector) -> None:
         self._selector = selector
 
+    @property
+    def selector(self) -> ToolSelector:
+        """Expose the read-only selector boundary to the Phase 12E policy adapter."""
+        return self._selector
+
     def resolve(
         self,
         *,

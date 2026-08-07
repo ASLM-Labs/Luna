@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12D — Failure Recovery + Minimal Change + Isolation** durumundadır.
+Repository şu anda **Faz 12E — Single Policy-Agent Loop** durumundadır.
 
 ## Çalışan zincir
 
@@ -39,11 +39,35 @@ intent → explicit context candidates → contract → plan → expected observ
 → minimal-change path + file + line budget
 → observed scope-creep check
 → risk-based NONE / SNAPSHOT / WORKTREE isolation
+→ single Luna policy-agent loop
+→ exactly one model action proposal per iteration
+→ one ToolDispatcher dispatch → durable observation → reevaluation
+→ write-ahead side-effect journal + safe suspend/cancel
+→ actual HIGH/CRITICAL Git worktree lifecycle
+→ effective isolated workspace continuity across later steps/resume
+→ Phase 12F VERIFICATION_PENDING handoff
 ```
 
-Faz 12D, Phase 12C action-selection sonucundan sonra failure/recovery ve workspace
-değişiklik sınırlarını kilitler. Henüz `LunaRuntime.run()` veya agent loop yoktur;
-bu Faz 12E'ye bırakılmıştır.
+Faz 12E, Phase 12A–12D parçalarını tek authoritative `LunaRuntime` loop'unda
+birleştirir. Model yalnız bir sonraki action proposal'ını üretir; runtime permission,
+risk, budget, isolation, execution, recovery, checkpoint ve completion sınırının
+otoritesidir.
+
+## Faz 12E single policy-agent loop sınırları
+
+- tek Luna identity ve tek authoritative `TaskState` kullanılır;
+- role/persona chain veya subagent yoktur;
+- model response en fazla bir tool call taşıyabilir; çoklu call dispatch öncesi reddedilir;
+- her tool sonucu sonraki model kararından önce structured observation olarak görülür;
+- recent dispatch evidence `RUNTIME_CONTINUITY` içinde `DATA_ONLY` olarak modele geri verilir;
+- side effect `PREPARED → STARTED → COMPLETED → OBSERVED → CHECKPOINTED` fence'inden geçer;
+- crash `STARTED` aşamasındaysa otomatik replay yasaktır;
+- `PREPARED` action safe cancel ile execution öncesi `ABORTED` olabilir;
+- suspend/cancel yalnız safe runtime boundary'de acknowledge edilir; in-flight handler force-kill edilmez;
+- HIGH/CRITICAL mutation gerçek Git worktree gerektirir; sessiz snapshot downgrade yoktur;
+- worktree açıldıktan sonra sonraki action/checkpoint/resume aynı effective isolated root'u kullanır;
+- zero-capacity model/tool/network budget capability'yi dispatch öncesi kapatır;
+- Phase 12E `VERIFIED_COMPLETE` üretmez; başarılı son handoff `VERIFICATION_PENDING` olur.
 
 ## Faz 12D recovery ve isolation sınırları
 
@@ -108,7 +132,7 @@ bu Faz 12E'ye bırakılmıştır.
 
 Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
 ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
-Faz 12A–12D bu suite'i değiştirmez.
+Faz 12A–12E bu suite'i değiştirmez.
 
 ## Kurulum
 
@@ -133,22 +157,22 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12D recovery and isolation gate passed.
+[PASS] Luna 0.1 Phase 12E single policy-agent loop gate passed.
 ```
 
-## Görünür Faz 12D testi
+## Görünür Faz 12E testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase12d-smoke
+.venv\Scripts\python.exe -m luna phase12e-smoke
 ```
 
-Başarılı çıktıda structured failure recovery, minimal-change policy ve high-risk
-worktree requirement birlikte doğrulanır; actual execution yine Phase 12E runtime'a
-bırakılır.
+Başarılı çıktıda single policy-agent loop sınırı, durable control journal, write-ahead
+side-effect fence, observation continuity ve Phase 12F verification handoff görünürdür.
 
 ## Bilinen sınırlar
 
-- Tek policy-agent loop henüz uygulanmamıştır.
+- Single policy-agent action/observation loop Faz 12E ile uygulanmıştır.
+- Final deterministic verification/report/evidence/memory finalization Faz 12F'tedir.
 - Action/tool candidate policy Faz 12C ile uygulanmıştır.
 - Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
 - Gerçek model rollout sonraki fazdadır.

@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12D" in output
+    assert "phase: 12E" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -49,7 +49,13 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "scope_creep: observed_change_cannot_expand_approval" in output
     assert "workspace_isolation: snapshot_low_medium_worktree_high_critical" in output
     assert "worktree_downgrade: blocked" in output
-    assert "policy_agent_loop: not_implemented_phase12e" in output
+    assert "policy_agent_loop: single_identity_authoritative_task_state" in output
+    assert "side_effect_journal: write_ahead_sqlite_fence" in output
+    assert "runtime_observations: durable_data_only_context" in output
+    assert "effective_workspace: isolated_root_persists_across_steps" in output
+    assert "safe_control: suspend_cancel_at_runtime_boundaries" in output
+    assert "resume_side_effect_replay: ambiguous_started_action_blocked" in output
+    assert "completion_handoff: phase12f_verification_pending" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -254,6 +260,7 @@ def test_phase12a_smoke_command(
     assert payload["stop_reason"] == "COMPLETED"
     assert payload["completion_status"] == "VERIFIED_COMPLETE"
 
+
 def test_phase12b_smoke_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -307,3 +314,19 @@ def test_phase12d_smoke_command(
     assert payload["isolation_allowed"] is False
     assert payload["worktree_required"] is True
     assert payload["no_silent_downgrade"] is True
+
+
+def test_phase12e_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12e-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["single_policy_agent_loop"] is True
+    assert payload["durable_control"] is True
+    assert payload["journal_integrity"] is True
+    assert payload["journal_schema_version"] == 2
+    assert payload["observation_continuity"] == "durable_data_only"
+    assert payload["side_effect_replay"] == "write_ahead_fenced"
+    assert payload["completion_handoff"] == "VERIFICATION_PENDING"

@@ -111,6 +111,39 @@ class TaskState(LunaContractModel):
             raise ValueError("CHECKPOINTED phase requires checkpoint_id")
         return self
 
+    def revise(
+        self,
+        *,
+        plan: tuple[PlanStep, ...] | None = None,
+        observation_ids: tuple[UUID, ...] | None = None,
+        evidence_ids: tuple[UUID, ...] | None = None,
+        failed_assumptions: tuple[str, ...] | None = None,
+        updated_at: datetime | None = None,
+    ) -> TaskState:
+        """Return the same phase with one validated authoritative-state revision."""
+        payload = stable_payload(self)
+        payload.update(
+            {
+                "plan": plan if plan is not None else self.plan,
+                "observation_ids": (
+                    observation_ids
+                    if observation_ids is not None
+                    else self.observation_ids
+                ),
+                "evidence_ids": (
+                    evidence_ids if evidence_ids is not None else self.evidence_ids
+                ),
+                "failed_assumptions": (
+                    failed_assumptions
+                    if failed_assumptions is not None
+                    else self.failed_assumptions
+                ),
+                "revision": self.revision + 1,
+                "updated_at": updated_at or utc_now(),
+            }
+        )
+        return TaskState.model_validate(payload)
+
     def transition_to(
         self,
         new_phase: TaskPhase,
