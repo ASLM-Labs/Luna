@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 11 eval and acceptance runtime."""
+"""Command-line entry point for the Luna Phase 12A runtime contracts."""
 
 from __future__ import annotations
 
@@ -13,9 +13,10 @@ from uuid import UUID, uuid4
 
 from luna.acceptance import ReleaseStatus, run_core_acceptance
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
-from luna.autonomy import FreeResearchContract
+from luna.autonomy import AutonomyPolicy, FreeResearchContract
 from luna.continuity import ContinuityService, ResumePolicy, SQLiteContinuityStore
 from luna.contracts.enums import (
+    CompletionStatus,
     EvidenceResult,
     EvidenceSourceKind,
     PlanStepStatus,
@@ -42,6 +43,17 @@ from luna.memory import (
     VerifiedMemoryService,
 )
 from luna.reporting import FinalReportComposer
+from luna.runtime import (
+    RequestSource,
+    RuntimeActor,
+    RuntimeBudget,
+    RuntimeMode,
+    RuntimeOutcome,
+    RuntimeRequest,
+    RuntimeStopReason,
+    RuntimeUsage,
+    build_task_fingerprint,
+)
 from luna.tools import (
     AutonomyLevel,
     ProcessApproval,
@@ -94,6 +106,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase11-smoke",
         help="Run the locked Phase 11 eval suite and release gate.",
+    )
+    subparsers.add_parser(
+        "phase12a-smoke",
+        help="Verify Phase 12A runtime request, fingerprint, and outcome contracts.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -762,13 +778,83 @@ def _run_phase11_smoke() -> int:
         return 0 if decision.status is ReleaseStatus.PASS else 2
 
 
+def _run_phase12a_smoke() -> int:
+    task_id = uuid4()
+    actor = RuntimeActor.verified_owner("local-owner")
+    request = RuntimeRequest(
+        task_id=task_id,
+        raw_request="Verify the Phase 12A runtime contracts.",
+        source=RequestSource.TEST,
+        actor=actor,
+        scope=TaskScope(workspace_root=str(Path.cwd())),
+        autonomy=AutonomyPolicy(
+            task_id=task_id,
+            level=AutonomyLevel.LEVEL_1_READ_ONLY,
+        ),
+        runtime_budget=RuntimeBudget(),
+        mode=RuntimeMode.DRY_RUN,
+        required_conditions=("Runtime contracts round-trip deterministically.",),
+        evidence_required=("Phase 12A smoke",),
+    )
+    fingerprint = build_task_fingerprint(request)
+    contract = TaskContract(
+        task_id=task_id,
+        objective="Verify the Phase 12A runtime contracts.",
+        required_conditions=("Runtime contracts round-trip deterministically.",),
+        evidence_required=("Phase 12A smoke",),
+        scope=request.scope,
+        owner=actor.actor_id,
+    )
+    state = TaskState(
+        task_id=task_id,
+        contract=contract,
+        phase=TaskPhase.CLOSED,
+        completion_status=CompletionStatus.VERIFIED_COMPLETE,
+    )
+    now = datetime.now(UTC)
+    outcome = RuntimeOutcome(
+        request_id=request.request_id,
+        task_id=task_id,
+        trace_id=request.trace_id,
+        task_fingerprint=fingerprint.digest,
+        state=state,
+        stop_reason=RuntimeStopReason.COMPLETED,
+        completion_status=CompletionStatus.VERIFIED_COMPLETE,
+        final_report_id=uuid4(),
+        usage=RuntimeUsage(budget=request.runtime_budget),
+        started_at=now,
+        finished_at=now,
+    )
+    assert outcome.completion_status is not None
+    payload = {
+        "source": request.source.value,
+        "actor_role": request.actor.role.value,
+        "actor_verified": request.actor.verified,
+        "read_only_default": request.runtime_budget.max_changed_files == 0,
+        "task_fingerprint": fingerprint.digest,
+        "request_round_trip": RuntimeRequest.from_json(request.to_json()) == request,
+        "outcome_round_trip": RuntimeOutcome.from_json(outcome.to_json()) == outcome,
+        "stop_reason": outcome.stop_reason.value,
+        "completion_status": outcome.completion_status.value,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if all(
+        (
+            payload["actor_verified"],
+            payload["read_only_default"],
+            payload["request_round_trip"],
+            payload["outcome_round_trip"],
+        )
+    ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 11")
-        print("status: EVAL_ACCEPTANCE_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12A")
+        print("status: RUNTIME_CONTRACTS_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -801,6 +887,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("release_gate: runtime_owned_thresholds")
         print("critical_false_success: zero_required")
         print("known_limitations: publication_required")
+        print("runtime_request: source_actor_scope_budget_bound")
+        print("actor_authority: runtime_verified_model_cannot_grant")
+        print("runtime_budget: read_only_default")
+        print("task_fingerprint: deterministic_duplicate_candidate")
+        print("runtime_outcome: task_state_and_completion_gate_bound")
+        print("policy_agent_loop: not_implemented_phase12e")
         return 0
 
     if args.command == "resolve-intent":
@@ -824,6 +916,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase11-smoke":
         return _run_phase11_smoke()
+
+    if args.command == "phase12a-smoke":
+        return _run_phase12a_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

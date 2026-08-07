@@ -1,0 +1,16 @@
+{
+  "phase": "12A",
+  "checks": {
+    "required_files_present": true,
+    "request_round_trip": true,
+    "fingerprint_deterministic": true,
+    "transient_ids_excluded_from_fingerprint": true,
+    "privileged_actor_requires_verification": true,
+    "read_only_budget_default": true,
+    "write_requires_explicit_budget": true,
+    "completed_outcome_gate_bound": true,
+    "outcome_round_trip": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}
