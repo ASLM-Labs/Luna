@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12B — Layered Context Composer** durumundadır.
+Repository şu anda **Faz 12C — Action Proposal + Tool Selection** durumundadır.
 
 ## Çalışan zincir
 
@@ -28,10 +28,31 @@ intent → explicit context candidates → contract → plan → expected observ
 → layered context composer
 → ACTIVE / TASK / RUNTIME_CONTINUITY / WORKSPACE / VERIFIED_MEMORY
 → sanitized + freshness-aware + budgeted model context
+→ untrusted ActionProposal
+→ Stage 1 ToolFamily selection
+→ Stage 2 registered ToolSpec selection
+→ argument + runtime policy preflight
+→ PREPARED request veya StructuredDenial + BLOCKED Observation
 ```
 
-Faz 12B, gelecekteki tek policy-agent loop'a verilecek context'i kilitler.
-Henüz `LunaRuntime.run()` veya agent loop yoktur; bu Faz 12E'ye bırakılmıştır.
+Faz 12C, gelecekteki tek policy-agent loop'ta model niyeti ile gerçek tool execution
+arasındaki seçim sınırını kilitler. Henüz `LunaRuntime.run()` veya agent loop yoktur;
+bu Faz 12E'ye bırakılmıştır.
+
+## Faz 12C action-selection sınırları
+
+- `ActionProposal` untrusted intent'tir; permission değildir;
+- proposal runtime-owned risk alanı taşımaz;
+- Stage 1 yalnız action kind → tool family seçer;
+- Stage 2 yalnız runtime-owned route ve registered ToolSpec kullanır;
+- uydurulmuş tool adı executable request'e dönüşmez;
+- birden fazla uygun tool varsa tahmin yerine `AMBIGUOUS_TOOL` denial döner;
+- preferred tool policy tarafından reddedilirse başka tool'a sessiz fallback yapılmaz;
+- strict tool argument schema request preparation öncesi çalışır;
+- mevcut autonomy/risk/scope/expectation policy deterministic preflight edilir;
+- denial yapılandırılmış `BLOCKED` Observation üretir;
+- bir iteration en fazla bir side-effect proposal taşıyabilir;
+- selector/resolver handler çalıştırmaz; gerçek execution ToolDispatcher'a aittir.
 
 ## Faz 12B context sınırları
 
@@ -65,7 +86,7 @@ Henüz `LunaRuntime.run()` veya agent loop yoktur; bu Faz 12E'ye bırakılmışt
 
 Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
 ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
-Faz 12A–12B bu suite'i değiştirmez.
+Faz 12A–12C bu suite'i değiştirmez.
 
 ## Kurulum
 
@@ -90,23 +111,23 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12B layered context composer gate passed.
+[PASS] Luna 0.1 Phase 12C action selection gate passed.
 ```
 
-## Görünür Faz 12B testi
+## Görünür Faz 12C testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase12b-smoke
+.venv\Scripts\python.exe -m luna phase12c-smoke
 ```
 
-Başarılı çıktıda canonical layer sırası, secret-safe model view, unverified-memory
-bloklama, data-only memory sınırı, deterministic fingerprint ve JSON round-trip
-görülür.
+Başarılı çıktıda registered read tool PREPARED olur; uydurulmuş tool adı structured
+denial ile BLOCKED observation üretir ve gerçek execution'ın dispatcher'a ait olduğu
+açık kalır.
 
 ## Bilinen sınırlar
 
 - Tek policy-agent loop henüz uygulanmamıştır.
-- Action/tool candidate policy Faz 12C'dedir.
+- Action/tool candidate policy Faz 12C ile uygulanmıştır.
 - Failure taxonomy ve minimal-change enforcement Faz 12D'dedir.
 - Gerçek model rollout sonraki fazdadır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.

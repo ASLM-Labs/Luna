@@ -1,0 +1,31 @@
+{
+  "phase": "12C",
+  "base": "Luna 0.1 Phase 12B merged source baseline",
+  "apply_to_repository_root": true,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "source_package_sha256": "3f3dcc31e33b5e4eb71bf69eebc7e58ae0dfbece9146dfd8a5e66cefed5001f8",
+  "changed_or_added_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_12C_REPORT.md",
+    "docs/PHASE_12C_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-012C_ACTION_PROPOSAL_TOOL_SELECTION.md",
+    "phase_12c_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase12c.py",
+    "src/luna/__init__.py",
+    "src/luna/actions/__init__.py",
+    "src/luna/actions/models.py",
+    "src/luna/actions/resolver.py",
+    "src/luna/actions/selector.py",
+    "src/luna/cli.py",
+    "tests/test_cli.py",
+    "tests/test_phase12c_action_selection.py",
+    "tests/test_project_metadata.py"
+  ]
+}

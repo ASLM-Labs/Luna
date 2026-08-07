@@ -65,3 +65,14 @@ def test_phase_twelve_b_layered_context_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-012B_LAYERED_CONTEXT_COMPOSER.md"
     ).is_file()
+
+
+def test_phase_twelve_c_action_selection_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "actions" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "actions" / "selector.py").is_file()
+    assert (project_root / "src" / "luna" / "actions" / "resolver.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12c.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-012C_ACTION_PROPOSAL_TOOL_SELECTION.md"
+    ).is_file()

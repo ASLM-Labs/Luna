@@ -1,18 +1,17 @@
-Luna Faz 12B Layered Context Composer paketi
+Luna Faz 12C Action Proposal + Two-Stage Tool Selection paketi
 
 Gercek Git repository:
 C:\Users\istem\Projects\Luna
 
 On kosul:
-- Faz 12A PR main dalina merge edilmis olmali.
-- GitHub Desktop main / Fetch origin / Pull origin tamamlanmis olmali.
-- Aktif branch phase-12b-layered-context-composer olmali.
-- Calisma agacinda size ait beklenmeyen degisiklik olmamali.
+- Faz 12B PR main dalina merge edilmis olmali.
+- main / Fetch origin / Pull origin tamamlanmis olmali.
+- Aktif branch phase-12c-action-proposal-tool-selection olmali.
+- Calisma agacinda beklenmeyen degisiklik olmamali.
 
 1. Bu ZIP icerigini repository kokune cikarin ve dosyalarin uzerine yazilmasina
    izin verin.
-2. ZIP repository-root overlay olarak hazirlanmistir; ek bir ic Luna klasoru yoktur.
-3. PowerShell'de calistirin:
+2. PowerShell'de calistirin:
 
    Set-Location "C:\Users\istem\Projects\Luna"
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
@@ -22,13 +21,14 @@ On kosul:
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1-12A verifier PASS
-- Faz 12B verifier PASS
+- Faz 1-12B verifier PASS
+- Faz 12C verifier PASS
 - phase11-smoke PASS
 - phase12a-smoke PASS
 - phase12b-smoke PASS
+- phase12c-smoke PASS
 - sabit Faz 11 eval 11/11 PASS
 - exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12B layered context composer gate passed.
+- son satir: [PASS] Luna 0.1 Phase 12C action selection gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

@@ -1,0 +1,19 @@
+{
+  "phase": "12C",
+  "checks": {
+    "required_files_present": true,
+    "stage_one_family_deterministic": true,
+    "stage_two_registered_tool_only": true,
+    "prepared_action_not_executed": true,
+    "invented_tool_denied": true,
+    "denial_returns_blocked_observation": true,
+    "permission_denial_no_fallback": true,
+    "ambiguous_selection_denied": true,
+    "one_side_effect_per_iteration": true,
+    "model_cannot_supply_risk": true,
+    "selection_has_no_hidden_execution": true,
+    "resolution_round_trip": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}
