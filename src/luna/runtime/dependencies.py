@@ -29,7 +29,8 @@ from luna.runtime.environment import RuntimeFingerprintProvider
 from luna.runtime.isolation import WorkspaceIsolationManager
 from luna.runtime.journal import SQLiteRuntimeJournal
 from luna.tools import ToolDispatcher
-from luna.verification import CompletionGate
+from luna.verification import CompletionGate, VerifiedEvidenceRegistry
+from luna.verification.coordinator import VerificationCoordinator
 
 
 class RuntimeDependencyName(StrEnum):
@@ -116,8 +117,21 @@ class RuntimeDependencies:
 
 
 @dataclass(frozen=True, slots=True)
+class Phase12FServices:
+    """Evidence registry and deterministic finalization services for Phase 12F."""
+
+    evidence_registry: VerifiedEvidenceRegistry
+    verification_coordinator: VerificationCoordinator
+
+    def __post_init__(self) -> None:
+        for item in fields(self):
+            if getattr(self, item.name) is None:
+                raise ValueError(f"Phase 12F service cannot be None: {item.name}")
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeLoopDependencies:
-    """Phase 12E services required by the single policy-agent loop."""
+    """Phase 12E loop services plus optional Phase 12F finalization services."""
 
     core: RuntimeDependencies
     context_composer: LayeredContextComposer
@@ -130,8 +144,11 @@ class RuntimeLoopDependencies:
     runtime_journal: SQLiteRuntimeJournal
     isolation_manager: WorkspaceIsolationManager
     fingerprint_provider: RuntimeFingerprintProvider
+    phase12f: Phase12FServices | None = None
 
     def __post_init__(self) -> None:
         for item in fields(self):
+            if item.name == "phase12f":
+                continue
             if getattr(self, item.name) is None:
                 raise ValueError(f"runtime loop dependency cannot be None: {item.name}")

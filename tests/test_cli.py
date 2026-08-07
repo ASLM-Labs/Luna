@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12E" in output
+    assert "phase: 12F" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -55,7 +55,12 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "effective_workspace: isolated_root_persists_across_steps" in output
     assert "safe_control: suspend_cancel_at_runtime_boundaries" in output
     assert "resume_side_effect_replay: ambiguous_started_action_blocked" in output
-    assert "completion_handoff: phase12f_verification_pending" in output
+    assert "completion_handoff: phase12f_gate_bound" in output
+    assert "evidence_strength: runtime_owned_weak_moderate_strong_deterministic" in output
+    assert "evidence_disagreement: unresolved_conflict_blocks_success" in output
+    assert "evidence_store: sqlite_wal_hash_checked" in output
+    assert "finalization: gate_report_terminal_checkpoint" in output
+    assert "learning_candidates: review_required_no_auto_commit" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -330,3 +335,20 @@ def test_phase12e_smoke_command(
     assert payload["observation_continuity"] == "durable_data_only"
     assert payload["side_effect_replay"] == "write_ahead_fenced"
     assert payload["completion_handoff"] == "VERIFICATION_PENDING"
+
+def test_phase12f_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12f-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["strong_status"] == "VERIFIED_COMPLETE"
+    assert payload["strong_strength"] == "DETERMINISTIC"
+    assert payload["weak_status"] == "INCONCLUSIVE"
+    assert payload["weak_qualifying"] is False
+    assert payload["conflict_status"] == "CONFLICTING_EVIDENCE"
+    assert payload["disagreement_count"] == 1
+    assert payload["evidence_store_integrity"] is True
+    assert payload["learning_review_required"] is True
+    assert payload["learning_auto_commit"] is False

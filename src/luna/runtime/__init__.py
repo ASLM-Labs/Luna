@@ -1,8 +1,9 @@
-"""Runtime contracts, continuity fences, and the Phase 12E policy-agent loop."""
+"""Runtime contracts, Phase 12E policy loop, and Phase 12F finalization services."""
 
 from luna.runtime.budgets import RuntimeBudget
 from luna.runtime.change_inspector import ChangeInspectionError, WorkspaceChangeInspector
 from luna.runtime.dependencies import (
+    Phase12FServices,
     RuntimeDependencies,
     RuntimeDependencyManifest,
     RuntimeDependencyName,
@@ -58,6 +59,7 @@ __all__ = [
     "IsolationLease",
     "LunaRuntime",
     "ModelPolicyAgent",
+    "Phase12FServices",
     "PolicyTurn",
     "PolicyTurnStatus",
     "RequestSource",

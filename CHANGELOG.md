@@ -2,6 +2,29 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12f] - 2026-08-07
+
+### Added
+
+- Runtime-owned WEAK/MODERATE/STRONG/DETERMINISTIC evidence-strength assessment.
+- Current revision/environment/freshness qualification and explicit evidence rejection.
+- Unresolved evidence disagreement records that block false verified completion.
+- SQLite WAL immutable evidence store with canonical payload SHA-256 integrity.
+- VerificationCoordinator joining deterministic gate, final report, TaskState and learning.
+- Review-required learning candidates for failed assumptions, conflicts and verification gaps.
+- LunaRuntime evidence recording, verified finalization and terminal continuity checkpoint.
+- Phase 12F RFC, verifier, tests, CLI smoke and quality-gate integration.
+
+### Security
+
+- Model inference cannot promote itself into completion evidence.
+- Generic tool output alone cannot satisfy the default strong-evidence completion threshold.
+- Stale revision/environment evidence cannot verify current state.
+- Conflicting qualifying PASS/FAIL evidence cannot be silently collapsed into success.
+- Evidence IDs cannot be overwritten with a different payload.
+- Final report remains bound to CompletionGate status.
+- Learning candidates always require review and cannot auto-commit to policy or memory.
+
 ## [0.1.0-phase12e] - 2026-08-07
 
 ### Added

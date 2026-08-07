@@ -11,8 +11,7 @@ from luna.contracts.enums import CompletionStatus
 from luna.contracts.task import TaskContract
 from luna.identity import IdentityProfile
 from luna.reporting.models import FinalReport, ReportRisk
-from luna.verification import CompletionGateResult
-from luna.verification.models import ClaimStatus
+from luna.verification.models import ClaimStatus, CompletionGateResult
 
 
 class FinalReportComposerError(RuntimeError):
@@ -73,9 +72,19 @@ class FinalReportComposer:
         unverified_items.extend(
             f"UNMATCHED_REQUIREMENT: {item}" for item in report.unmatched_requirement_ids
         )
+        unverified_items.extend(
+            "EVIDENCE_DISAGREEMENT: "
+            f"{item.claim_id} support={item.strongest_support.value} "
+            f"contradiction={item.strongest_contradiction.value}"
+            for item in report.disagreements
+        )
         if decision.status is not CompletionStatus.VERIFIED_COMPLETE and not unverified_items:
             unverified_items.extend(decision.reasons)
 
+        strength_by_id = {
+            item.evidence_id: item.strength.value
+            for item in report.evidence_strength_assessments
+        }
         final = FinalReport(
             task_id=contract.task_id,
             verification_report_id=report.report_id,
@@ -90,7 +99,8 @@ class FinalReportComposer:
             unverified=tuple(dict.fromkeys(unverified_items)),
             risks=risks,
             evidence_refs=tuple(
-                f"evidence:{evidence_id}" for evidence_id in report.accepted_evidence_ids
+                f"evidence:{evidence_id} strength:{strength_by_id.get(evidence_id, 'UNKNOWN')}"
+                for evidence_id in report.accepted_evidence_ids
             ),
         )
         if self._audit is not None:
