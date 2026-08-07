@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12G" in output
+    assert "phase: 13" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -65,6 +65,14 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "runtime_e2e_cases: 11_critical" in output
     assert "scope_path_preflight: deny_before_dispatch" in output
     assert "phase12_acceptance: component_plus_runtime_e2e" in output
+    assert "model_compatibility: required_text_single_tool_json_args" in output
+    assert "model_backend_failures: structured_provider_neutral" in output
+    assert "model_failure_retry: never_blind" in output
+    assert "model_rollout: blocked_shadow_canary_active_runtime_owned" in output
+    assert "shadow_authority: none" in output
+    assert "canary_allocation: deterministic_task_bucket" in output
+    assert "rollout_tripwires: false_success_authority_backend_invalid_turn" in output
+    assert "live_probe: loopback_only_no_rollout_authority" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -376,3 +384,19 @@ def test_phase12g_smoke_command(
     assert payload["scope_denial_tool_calls"] == 0
     assert payload["worktree_cleanup"] is True
     assert payload["stale_evidence_status"] == "UNVERIFIED"
+
+
+def test_phase13_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase13-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["required_compatibility_pass"] is True
+    assert payload["eligible_for_rollout"] is True
+    assert len(payload["compatibility_fingerprint"]) == 64
+    assert payload["shadow_authorized"] is False
+    assert payload["active_authorized"] is True
+    assert payload["tripwire_authorized"] is False
+    assert payload["live_probe_authority"] == "none"

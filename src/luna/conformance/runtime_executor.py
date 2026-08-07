@@ -22,6 +22,7 @@ from luna.identity import IdentityProfile
 from luna.learning import LearningCandidateBuilder
 from luna.memory import VerifiedMemoryService
 from luna.modeling import (
+    ModelBackend,
     ModelFinishReason,
     ModelRequest,
     ModelResponse,
@@ -131,7 +132,7 @@ def _build_runtime(
     *,
     workspace: Path,
     state_root: Path,
-    backend: ScriptedTestBackend,
+    backend: ModelBackend,
     dispatcher: ToolDispatcher | None = None,
     fingerprint_provider: RuntimeFingerprintProvider | None = None,
 ) -> _Harness:

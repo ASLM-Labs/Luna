@@ -1,3 +1,73 @@
+# Faz 13 Mimari Sınırı
+
+Faz 13, Faz 12'nin integrated runtime foundation'ı üzerine gerçek-model
+compatibility ve runtime-owned controlled rollout kapısı ekler.
+
+```text
+real/local model adapter
+→ provider-neutral ModelRequest
+→ compatibility probe
+→ required capability PASS
+→ compatibility fingerprint
+→ runtime-owned rollout policy + health snapshot
+→ BLOCKED / SHADOW / CANARY / ACTIVE
+→ ModelPolicyAgent
+→ existing Phase 12 runtime authorization / tool / evidence / verification chain
+```
+
+## Var
+
+- provider-neutral structured model backend failure taxonomy;
+- timeout, rate limit, auth, unavailable, malformed response, response-too-large,
+  protocol ve rollout-blocked kategorileri;
+- live compatibility probe ve immutable result report;
+- required text/single-tool/JSON-argument capability gate;
+- optional usage-accounting capability;
+- deterministic compatibility fingerprint;
+- runtime-owned `ModelRolloutPolicy`, `ModelRolloutHealth`, `ModelRolloutGate`;
+- `BLOCKED / SHADOW / CANARY / ACTIVE` rollout stage'leri;
+- deterministic task-based canary bucket;
+- false-success, authority violation, backend failure ve invalid-turn tripwire'ları;
+- rollout-gated `ControlledModelBackend`;
+- retryable backend failure için resumable `RESOURCE_SUSPENDED`, no blind retry;
+- non-retryable / rollout-blocked backend failure için fail-closed `BLOCKED`;
+- loopback-only OpenAI-compatible live probe;
+- Phase 13 verifier, tests, CLI smoke ve quality-gate integration.
+
+## Zorlanan kurallar
+
+- compatibility PASS tek başına rollout stage yükseltemez;
+- model kendi compatibility fingerprint'ini onaylayamaz;
+- model rollout stage veya health snapshot yazamaz;
+- SHADOW output authoritative runtime kararı olamaz;
+- CANARY tahsisi model seçimine bırakılamaz;
+- critical false-success veya authority violation ACTIVE rollout'u bile bloklar;
+- retryable provider error aynı call'u otomatik tekrar çalıştıramaz;
+- provider raw error detail'i runtime-visible safe reason olmak zorunda değildir;
+- controlled backend denied olduğunda inner model sessizce çağrılmaz;
+- live probe rollout authority vermez;
+- cloud secret/provider entegrasyonu bu fazda otomatik açılmaz.
+
+## Yok
+
+- autonomous rollout stage promotion;
+- provider credential store / secret distribution;
+- external cloud provider-specific production adapter;
+- network research veya evidence RAG;
+- GitHub veya diğer harici integrations;
+- subagent/persona chain;
+- desktop, Discord veya voice gateway.
+
+## Sonraki kapılar
+
+```text
+14 research gateway / evidence RAG
+→ 15 resource manager / queue / scheduler / notifications
+→ 16 desktop product shell
+```
+
+---
+
 # Faz 12G Mimari Sınırı
 
 Faz 12G, Faz 12A–12F runtime temelini tek sistem olarak locked real-runtime E2E

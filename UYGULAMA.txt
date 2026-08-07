@@ -1,28 +1,34 @@
-LUNA 0.1 - FAZ 12G UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 13 UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-12g-runtime-e2e-behavior-conformance
-Baseline: merged Faz 12F
+Hedef branch: phase-13-real-model-compatibility-rollout
+Baseline: merged Faz 12G
 
-Bu faz Phase 12 runtime temelini 11 kritik real-runtime E2E davranis senaryosu ile
-sinir. Component testlerinin yesil olmasi tek basina kabul sayilmaz.
+Bu faz gerçek model adapter davranisini scripted backend'den ayirir ve
+compatibility + controlled rollout kapilarini runtime authority sinirinda uygular.
 
-Ana conformance davranislari:
-- verified completion ancak current qualifying evidence sonrasinda
-- no/weak/conflicting/stale evidence false complete uretmez
-- multi-action dispatch oncesi bloklanir
-- cancel safe boundary'de model/tool'dan once kazanabilir
-- STARTED side effect restart sonrasinda blind replay edilmez
-- out-of-scope path dispatcher'a ulasmadan permission denial alir
-- HIGH-risk mutation gercek Git worktree icinde kalir
-- zero tool budget dispatch oncesi bloklanir
-- locked Phase 11 acceptance 11/11 PASS kalir
+Ana davranislar:
+- required compatibility: text response + single tool call + exact JSON arguments
+- usage accounting optional capability olarak raporlanir
+- compatibility report deterministic SHA-256 fingerprint uretir
+- live probe yalniz loopback OpenAI-compatible endpoint kullanir
+- live probe rollout authority vermez
+- backend timeout/rate-limit/unavailable/malformed/rollout failure structured'dir
+- retryable model failure blind retry yerine RESOURCE_SUSPENDED uretir
+- BLOCKED ve SHADOW authoritative model output calistiramaz
+- CANARY task_id + backend_id deterministic bucket kullanir
+- ACTIVE compatibility fingerprint + health tripwire ister
+- false-success / authority-violation tripwire rollout'u bloklar
+- silent provider fallback yoktur
 
-Gorunur Phase 12G smoke:
-.venv\Scripts\python.exe -m luna phase12g-smoke
+Gorunur Phase 13 smoke:
+.venv\Scripts\python.exe -m luna phase13-smoke
+
+Opsiyonel local real-model probe:
+.venv\Scripts\python.exe -m luna phase13-live-probe --model MODEL_ADI
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase12g.py
+.venv\Scripts\python.exe scripts\verify_phase13.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -32,10 +38,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-12F deterministic gates PASS
-- Faz 12G locked suite 11/11 PASS
-- Phase 11 locked acceptance 11/11 PASS
+- Faz 1-12G deterministic gates PASS
+- Faz 13 compatibility / rollout verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 12G runtime E2E and behavior conformance gate passed.
+- son satir: [PASS] Luna 0.1 Phase 13 real-model compatibility and controlled rollout gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

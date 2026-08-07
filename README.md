@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12G — Runtime E2E & Behavior Conformance** durumundadır.
+Repository şu anda **Faz 13 — Real Model Compatibility & Controlled Rollout** durumundadır.
 
 ## Çalışan zincir
 
@@ -53,12 +53,52 @@ intent → explicit context candidates → contract → plan → expected observ
 → 11 critical real-runtime E2E scenarios
 → exact oracle comparison + repeatable semantic signature
 → Phase 12 runtime foundation conformance gate
+→ real-model compatibility probe
+→ structured backend failure normalization
+→ runtime-owned BLOCKED / SHADOW / CANARY / ACTIVE rollout gate
+→ deterministic canary allocation + rollback tripwires
 ```
 
 Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
 Component testlerinin yeşil olması tek başına yeterli değildir; completion truth,
 evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
+
+
+## Faz 13 real-model compatibility / controlled rollout sınırları
+
+Faz 13, gerçek model kullanımını scripted test backend'den ayırır ve modelin
+runtime otoritesi olmadığını koruyarak kontrollü rollout kapısı ekler.
+
+- compatibility probe dört provider-neutral capability sonucu üretir:
+  `TEXT_RESPONSE`, `SINGLE_TOOL_CALL`, `JSON_TOOL_ARGUMENTS`, `USAGE_ACCOUNTING`;
+- ilk üç capability rollout için required'dır; usage accounting optional kalır;
+- compatibility report SHA-256 fingerprint ile runtime-approved artefakta bağlanır;
+- live probe yalnız loopback OpenAI-compatible endpoint'e bağlanır ve rollout yetkisi vermez;
+- provider timeout/rate-limit/unavailable/malformed/protocol/rollout failures structured
+  `ModelBackendErrorCode` ile normalize edilir;
+- retryable backend failure runtime'da `RESOURCE_SUSPENDED` olur; otomatik retry yapılmaz;
+- `BLOCKED` ve `SHADOW` authoritative runtime model kararını çalıştıramaz;
+- `CANARY` tahsisi `task_id + backend_id` üzerinden deterministic bucket kullanır;
+- `ACTIVE` bile compatibility fingerprint ve health tripwire'lardan geçmek zorundadır;
+- false-success veya authority-violation tripwire'ı aktif modeli bile bloklar;
+- model output rollout stage, compatibility approval veya health authority olamaz;
+- controlled backend sessiz fallback yapmaz;
+- Phase 12G locked runtime conformance temeli değişmeden korunur.
+
+Görünür deterministic smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase13-smoke
+```
+
+Gerçek yerel model için opsiyonel compatibility probe:
+
+```bat
+.venv\Scripts\python.exe -m luna phase13-live-probe --model MODEL_ADI
+```
+
+Bu probe yalnız compatibility raporu üretir; `ACTIVE` rollout yetkisi üretmez.
 
 ## Faz 12G runtime E2E / behavior conformance sınırları
 
@@ -200,17 +240,17 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12G runtime E2E and behavior conformance gate passed.
+[PASS] Luna 0.1 Phase 13 real-model compatibility and controlled rollout gate passed.
 ```
 
-## Görünür Faz 12G testi
+## Görünür Faz 13 testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase12g-smoke
+.venv\Scripts\python.exe -m luna phase13-smoke
 ```
 
-Başarılı çıktıda 11/11 locked runtime case, verified-completion guard, scope denial
-before dispatch, high-risk worktree cleanup ve stale-evidence rejection görünürdür.
+Başarılı çıktıda required compatibility PASS, SHADOW denial, ACTIVE authorization,
+health tripwire block ve compatibility fingerprint görünürdür.
 
 Faz 12F evidence smoke ayrıca kullanılabilir:
 
@@ -224,7 +264,9 @@ Faz 12F evidence smoke ayrıca kullanılabilir:
 - Deterministic verification/report/evidence finalization Faz 12F ile uygulanmıştır.
 - Action/tool candidate policy Faz 12C ile uygulanmıştır.
 - Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
-- Runtime E2E ve behavior conformance Faz 12G ile uygulanmıştır; gerçek model rollout Faz 13 kapsamındadır.
+- Runtime E2E ve behavior conformance Faz 12G ile uygulanmıştır.
+- Gerçek-model compatibility ve runtime-owned controlled rollout Faz 13 ile uygulanmıştır.
+- Harici cloud-provider adapter/secrets entegrasyonu bu fazda açılmaz; live probe loopback-only kalır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.
 - Ses, Discord, masaüstü ve diğer ürün gateway'leri ayrı faz ister.

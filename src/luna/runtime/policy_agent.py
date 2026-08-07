@@ -16,6 +16,8 @@ from luna.contracts.state import TaskState
 from luna.modeling import (
     MessageRole,
     ModelBackend,
+    ModelBackendError,
+    ModelBackendErrorCode,
     ModelFinishReason,
     ModelMessage,
     ModelRequest,
@@ -37,6 +39,7 @@ class PolicyTurnStatus(StrEnum):
     ACTION = "ACTION"
     YIELD = "YIELD"
     INVALID = "INVALID"
+    BACKEND_FAILURE = "BACKEND_FAILURE"
 
 
 class PolicyTurn(LunaContractModel):
@@ -47,10 +50,12 @@ class PolicyTurn(LunaContractModel):
     status: PolicyTurnStatus
     model_request_id: UUID
     model_request_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    model_response_id: UUID
+    model_response_id: UUID | None = None
     proposal: ActionProposal | None = None
     response_text: str = Field(default="", max_length=200000)
     invalid_reason: str | None = Field(default=None, max_length=4000)
+    backend_error_code: ModelBackendErrorCode | None = None
+    backend_retryable: bool = False
     usage: ModelUsage = Field(default_factory=ModelUsage)
 
     @model_validator(mode="after")
@@ -60,10 +65,25 @@ class PolicyTurn(LunaContractModel):
                 raise ValueError("ACTION policy turn requires exactly one proposal")
         elif self.proposal is not None:
             raise ValueError("non-ACTION policy turn cannot carry a proposal")
+
+        if self.status is PolicyTurnStatus.BACKEND_FAILURE:
+            if self.invalid_reason is None or self.backend_error_code is None:
+                raise ValueError("BACKEND_FAILURE requires structured backend error metadata")
+            if self.model_response_id is not None:
+                raise ValueError("BACKEND_FAILURE cannot claim a model response ID")
+        else:
+            if self.backend_error_code is not None or self.backend_retryable:
+                raise ValueError("backend error metadata is valid only for BACKEND_FAILURE")
+            if self.model_response_id is None:
+                raise ValueError("non-backend-failure turn requires model_response_id")
+
         if self.status is PolicyTurnStatus.INVALID and self.invalid_reason is None:
             raise ValueError("INVALID policy turn requires invalid_reason")
-        if self.status is not PolicyTurnStatus.INVALID and self.invalid_reason is not None:
-            raise ValueError("only INVALID policy turns can carry invalid_reason")
+        if self.status not in {
+            PolicyTurnStatus.INVALID,
+            PolicyTurnStatus.BACKEND_FAILURE,
+        } and self.invalid_reason is not None:
+            raise ValueError("invalid_reason is valid only for INVALID or BACKEND_FAILURE")
         return self
 
 
@@ -178,7 +198,30 @@ class ModelPolicyAgent:
             policy=policy,
             max_output_tokens=max_output_tokens,
         )
-        response = self._backend.generate(request)
+        try:
+            response = self._backend.generate(request)
+        except ModelBackendError as exc:
+            return PolicyTurn(
+                task_id=task_id,
+                trace_id=trace_id,
+                status=PolicyTurnStatus.BACKEND_FAILURE,
+                model_request_id=request.request_id,
+                model_request_fingerprint=request.fingerprint(),
+                invalid_reason=exc.safe_reason,
+                backend_error_code=exc.code,
+                backend_retryable=exc.retryable,
+            )
+        except Exception:
+            return PolicyTurn(
+                task_id=task_id,
+                trace_id=trace_id,
+                status=PolicyTurnStatus.BACKEND_FAILURE,
+                model_request_id=request.request_id,
+                model_request_fingerprint=request.fingerprint(),
+                invalid_reason="model backend raised an unclassified exception",
+                backend_error_code=ModelBackendErrorCode.UNKNOWN,
+                backend_retryable=False,
+            )
         return self._normalize(
             request=request,
             response=response,

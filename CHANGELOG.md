@@ -2,6 +2,32 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase13] - 2026-08-08
+
+### Added
+
+- Provider-neutral structured model-backend failure taxonomy.
+- Real-model compatibility probe for text, single-tool-call, exact JSON arguments, and usage reporting.
+- Stable compatibility-report SHA-256 fingerprint for runtime approval.
+- Runtime-owned `BLOCKED`, `SHADOW`, `CANARY`, and `ACTIVE` rollout policy.
+- Deterministic task-based canary allocation and explicit health tripwires.
+- Rollout-gated model backend wrapper and loopback-only live compatibility probe.
+- Phase 13 verifier, tests, CLI smoke, RFC, report, metadata, and quality-gate integration.
+
+### Changed
+
+- Model policy-agent backend failures are normalized instead of crashing the runtime boundary.
+- Retryable provider failures return `RESOURCE_SUSPENDED` without blind retry.
+- Phase 12G runtime harness accepts the generic `ModelBackend` protocol for compatibility testing.
+
+### Security
+
+- Compatibility success cannot grant rollout authority.
+- `SHADOW` output cannot drive authoritative runtime actions.
+- Critical false-success or authority-violation health signals block even `ACTIVE` rollout.
+- Denied rollout never silently falls back to another model.
+- Live compatibility probing remains loopback-only and grants no rollout authority.
+
 ## [0.1.0-phase12g] - 2026-08-07
 
 ### Added

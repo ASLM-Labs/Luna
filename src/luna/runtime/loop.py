@@ -520,6 +520,36 @@ class LunaRuntime:
                     started_at=started_at,
                 )
 
+            if turn.status is PolicyTurnStatus.BACKEND_FAILURE:
+                assert turn.backend_error_code is not None
+                reason = turn.invalid_reason or "model backend failure"
+                state = self._deactivate_step(state, reason=None)
+                state = state.transition_to(TaskPhase.OBSERVING)
+                stop_reason = (
+                    RuntimeStopReason.RESOURCE_SUSPENDED
+                    if turn.backend_retryable
+                    else RuntimeStopReason.BLOCKED
+                )
+                next_step = (
+                    "resume only after model backend health or availability changes"
+                    if turn.backend_retryable
+                    else "owner model rollout or adapter decision required"
+                )
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    stop_reason=stop_reason,
+                    reasons=(
+                        f"model_backend:{turn.backend_error_code.value}",
+                        reason,
+                        "model backend failures are never blindly retried",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step=next_step,
+                    started_at=started_at,
+                )
+
             if turn.status is PolicyTurnStatus.YIELD:
                 state = self._deactivate_step(state, reason=None)
                 state = state.transition_to(TaskPhase.OBSERVING)
