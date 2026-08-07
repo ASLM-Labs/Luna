@@ -106,11 +106,24 @@ def _recovery_has_no_hidden_execution() -> bool:
 
 
 
+def _canonical_metadata_bytes(path: Path) -> bytes:
+    raw = path.read_bytes()
+    if b"\x00" in raw:
+        return raw
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw
+    return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def _metadata_integrity() -> bool:
     manifest_path = ROOT / "MANIFEST.json"
     sums_path = ROOT / "SHA256SUMS.txt"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("phase") != "12D":
+        return False
+    if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False
     files = manifest.get("files")
     if not isinstance(files, dict):
@@ -129,14 +142,14 @@ def _metadata_integrity() -> bool:
     for relative, metadata in files.items():
         if not isinstance(relative, str) or not isinstance(metadata, dict):
             return False
-        path = ROOT / relative
-        if not path.is_file():
+        target = ROOT / relative
+        if not target.is_file():
             return False
-        raw = path.read_bytes()
-        digest = sha256(raw).hexdigest()
+        canonical = _canonical_metadata_bytes(target)
+        digest = sha256(canonical).hexdigest()
         if metadata.get("sha256") != digest:
             return False
-        if metadata.get("size_bytes") != len(raw):
+        if metadata.get("size_bytes") != len(canonical):
             return False
         if sums.get(relative) != digest:
             return False
