@@ -101,3 +101,17 @@ def test_phase_twelve_e_single_policy_loop_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-012E_SINGLE_POLICY_AGENT_LOOP.md"
     ).is_file()
+
+def test_phase_twelve_f_verification_evidence_learning_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "verification" / "evidence_store.py").is_file()
+    assert (project_root / "src" / "luna" / "verification" / "coordinator.py").is_file()
+    assert (project_root / "src" / "luna" / "learning" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "learning" / "builder.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12f.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-012F_VERIFICATION_EVIDENCE_LEARNING.md"
+    ).is_file()

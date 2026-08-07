@@ -50,6 +50,8 @@ class RuntimeStopReason(StrEnum):
     CANCELLED = "CANCELLED"
     RESOURCE_SUSPENDED = "RESOURCE_SUSPENDED"
     VERIFICATION_PENDING = "VERIFICATION_PENDING"
+    UNVERIFIED = "UNVERIFIED"
+    INCONCLUSIVE = "INCONCLUSIVE"
     INTEGRITY_FAILURE = "INTEGRITY_FAILURE"
 
 
@@ -224,11 +226,13 @@ class RuntimeOutcome(LunaContractModel):
     state: TaskState
     stop_reason: RuntimeStopReason
     completion_status: CompletionStatus | None = None
+    verification_report_id: UUID | None = None
     final_report_id: UUID | None = None
     checkpoint_id: UUID | None = None
     observation_ids: tuple[UUID, ...] = ()
     evidence_ids: tuple[UUID, ...] = ()
     memory_decision_ids: tuple[UUID, ...] = ()
+    learning_candidate_ids: tuple[UUID, ...] = ()
     usage: RuntimeUsage
     reasons: tuple[str, ...] = ()
     unresolved_uncertainty: tuple[str, ...] = ()

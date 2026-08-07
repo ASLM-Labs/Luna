@@ -19,9 +19,12 @@ from luna.verification.claims import claims_from_contract
 from luna.verification.models import (
     ClaimAssessment,
     ClaimStatus,
+    EvidenceDisagreement,
     EvidenceRejection,
     EvidenceRejectionCode,
     EvidenceRequirementAssessment,
+    EvidenceStrength,
+    EvidenceStrengthAssessment,
     VerificationClaim,
     VerificationPolicy,
     VerificationReport,
@@ -36,6 +39,13 @@ _DIRECT_SOURCE_KINDS = frozenset(
         EvidenceSourceKind.MEASUREMENT,
     }
 )
+
+_STRENGTH_RANK = {
+    EvidenceStrength.WEAK: 0,
+    EvidenceStrength.MODERATE: 1,
+    EvidenceStrength.STRONG: 2,
+    EvidenceStrength.DETERMINISTIC: 3,
+}
 
 
 class _EvidenceRule(StrEnum):
@@ -52,10 +62,6 @@ class _EvidenceRule(StrEnum):
 
 def _dedupe_ids(values: Iterable[UUID]) -> tuple[UUID, ...]:
     return tuple(dict.fromkeys(values))
-
-
-def _dedupe_text(values: Iterable[str]) -> tuple[str, ...]:
-    return tuple(dict.fromkeys(value for value in values if value))
 
 
 def _recognized_rules(requirement: str) -> tuple[_EvidenceRule, ...]:
@@ -107,6 +113,10 @@ def _evidence_matches_rule(evidence: Evidence, rule: _EvidenceRule) -> bool:
     return False
 
 
+def _strongest(values: Iterable[EvidenceStrength]) -> EvidenceStrength:
+    return max(values, key=_STRENGTH_RANK.__getitem__)
+
+
 class DeterministicVerifier:
     """Verify current evidence without model judgment or hidden heuristics."""
 
@@ -134,6 +144,13 @@ class DeterministicVerifier:
             else:
                 rejected.append(rejection)
 
+        strength_assessments = tuple(
+            self._assess_strength(item, policy) for item in accepted
+        )
+        strength_by_id = {
+            item.evidence_id: item for item in strength_assessments
+        }
+
         claims = claims_from_contract(contract)
         claim_ids = {claim.claim_id for claim in claims}
         assessments = tuple(
@@ -143,14 +160,31 @@ class DeterministicVerifier:
                     item for item in accepted if item.requirement_id == claim.claim_id
                 ),
                 policy=policy,
+                strength_by_id=strength_by_id,
             )
             for claim in claims
+        )
+        disagreements = tuple(
+            disagreement
+            for claim, assessment in zip(claims, assessments, strict=True)
+            if (
+                disagreement := self._disagreement_for(
+                    claim=claim,
+                    assessment=assessment,
+                    evidence=tuple(
+                        item for item in accepted if item.requirement_id == claim.claim_id
+                    ),
+                    strength_by_id=strength_by_id,
+                )
+            )
+            is not None
         )
         evidence_requirements = tuple(
             self._assess_evidence_requirement(
                 requirement=requirement,
                 evidence=tuple(accepted),
                 policy=policy,
+                strength_by_id=strength_by_id,
             )
             for requirement in contract.evidence_required
         )
@@ -168,12 +202,15 @@ class DeterministicVerifier:
             contract=contract,
             assessments=assessments,
             evidence_requirements=evidence_requirements,
+            disagreements=disagreements,
         )
         return VerificationReport(
             task_id=contract.task_id,
             policy=policy,
             claim_assessments=assessments,
             evidence_requirement_assessments=evidence_requirements,
+            evidence_strength_assessments=strength_assessments,
+            disagreements=disagreements,
             accepted_evidence_ids=_dedupe_ids(item.evidence_id for item in accepted),
             rejected_evidence=tuple(rejected),
             unmatched_requirement_ids=unmatched,
@@ -252,12 +289,77 @@ class DeterministicVerifier:
         return None
 
     @staticmethod
-    def _qualifies(evidence: Evidence, policy: VerificationPolicy) -> bool:
-        if evidence.source_kind not in _DIRECT_SOURCE_KINDS:
-            return False
-        if policy.require_reproducible and not evidence.reproducible:
-            return False
-        return evidence.confidence >= policy.min_confidence
+    def _assess_strength(
+        evidence: Evidence,
+        policy: VerificationPolicy,
+    ) -> EvidenceStrengthAssessment:
+        reasons: list[str] = []
+
+        if evidence.source_kind is EvidenceSourceKind.MODEL_INFERENCE:
+            strength = EvidenceStrength.WEAK
+            reasons.append("model inference is never direct verification evidence")
+        elif evidence.source_kind is EvidenceSourceKind.MEMORY:
+            strength = EvidenceStrength.WEAK
+            reasons.append("memory is contextual provenance, not current direct proof")
+        elif evidence.source_kind is EvidenceSourceKind.DOCUMENT:
+            strength = EvidenceStrength.MODERATE
+            reasons.append("document evidence is indirect unless independently verified")
+        elif evidence.source_kind is EvidenceSourceKind.TOOL_OUTPUT:
+            strength = EvidenceStrength.MODERATE
+            reasons.append("generic tool output is direct observation but not a verifier")
+        elif evidence.source_kind in {
+            EvidenceSourceKind.DIFF,
+            EvidenceSourceKind.MEASUREMENT,
+        }:
+            strength = EvidenceStrength.STRONG
+            reasons.append("structured current-state evidence is strongly machine-checkable")
+        elif evidence.source_kind in {
+            EvidenceSourceKind.TEST_RESULT,
+            EvidenceSourceKind.HASH,
+        }:
+            strength = (
+                EvidenceStrength.DETERMINISTIC
+                if evidence.reproducible and evidence.confidence >= 0.95
+                else EvidenceStrength.STRONG
+            )
+            reasons.append("test/hash evidence has deterministic verification semantics")
+        else:
+            strength = EvidenceStrength.WEAK
+            reasons.append("evidence source has no stronger Phase 12F authority mapping")
+
+        if not evidence.reproducible:
+            reasons.append("evidence is not marked reproducible")
+            if _STRENGTH_RANK[strength] > _STRENGTH_RANK[EvidenceStrength.MODERATE]:
+                strength = EvidenceStrength.MODERATE
+        if evidence.confidence < policy.min_confidence:
+            reasons.append("evidence confidence is below policy threshold")
+            strength = EvidenceStrength.WEAK
+
+        qualifying = (
+            evidence.source_kind in _DIRECT_SOURCE_KINDS
+            and (not policy.require_reproducible or evidence.reproducible)
+            and evidence.confidence >= policy.min_confidence
+            and _STRENGTH_RANK[strength] >= _STRENGTH_RANK[policy.minimum_strength]
+        )
+        if qualifying:
+            reasons.append("evidence meets current minimum strength policy")
+        else:
+            reasons.append("evidence does not meet current minimum strength policy")
+
+        return EvidenceStrengthAssessment(
+            evidence_id=evidence.evidence_id,
+            strength=strength,
+            qualifying=qualifying,
+            reasons=tuple(dict.fromkeys(reasons)),
+        )
+
+    @staticmethod
+    def _qualifies(
+        evidence: Evidence,
+        strength_by_id: dict[UUID, EvidenceStrengthAssessment],
+    ) -> bool:
+        assessment = strength_by_id.get(evidence.evidence_id)
+        return bool(assessment is not None and assessment.qualifying)
 
     def _assess_claim(
         self,
@@ -265,7 +367,9 @@ class DeterministicVerifier:
         claim: VerificationClaim,
         evidence: tuple[Evidence, ...],
         policy: VerificationPolicy,
+        strength_by_id: dict[UUID, EvidenceStrengthAssessment],
     ) -> ClaimAssessment:
+        del policy
         if not evidence:
             return ClaimAssessment(
                 claim=claim,
@@ -274,7 +378,7 @@ class DeterministicVerifier:
             )
 
         qualifying = tuple(
-            item for item in evidence if self._qualifies(item, policy)
+            item for item in evidence if self._qualifies(item, strength_by_id)
         )
         pass_ids = tuple(
             item.evidence_id
@@ -322,7 +426,7 @@ class DeterministicVerifier:
                 status=ClaimStatus.PASS,
                 considered_evidence_ids=considered_ids,
                 qualifying_evidence_ids=qualifying_ids,
-                reasons=("current reproducible direct evidence passes",),
+                reasons=("current strong reproducible direct evidence passes",),
             )
         if blocked_ids:
             return ClaimAssessment(
@@ -345,7 +449,46 @@ class DeterministicVerifier:
             status=ClaimStatus.INCONCLUSIVE,
             considered_evidence_ids=considered_ids,
             reasons=(
-                "evidence exists but is not direct, reproducible, or confident enough",
+                "evidence exists but is below the current direct/reproducible/strength threshold",
+            ),
+        )
+
+    @staticmethod
+    def _disagreement_for(
+        *,
+        claim: VerificationClaim,
+        assessment: ClaimAssessment,
+        evidence: tuple[Evidence, ...],
+        strength_by_id: dict[UUID, EvidenceStrengthAssessment],
+    ) -> EvidenceDisagreement | None:
+        if assessment.status is not ClaimStatus.CONFLICTING:
+            return None
+        qualifying = tuple(
+            item
+            for item in evidence
+            if item.evidence_id in assessment.qualifying_evidence_ids
+        )
+        supporting = tuple(
+            item.evidence_id
+            for item in qualifying
+            if item.result is EvidenceResult.PASS
+        )
+        contradicting = tuple(
+            item.evidence_id
+            for item in qualifying
+            if item.result is EvidenceResult.FAIL
+        )
+        if not supporting or not contradicting:
+            return None
+        return EvidenceDisagreement(
+            claim_id=claim.claim_id,
+            supporting_evidence_ids=supporting,
+            contradicting_evidence_ids=contradicting,
+            strongest_support=_strongest(
+                strength_by_id[item].strength for item in supporting
+            ),
+            strongest_contradiction=_strongest(
+                strength_by_id[item].strength for item in contradicting
             ),
         )
 
@@ -355,17 +498,19 @@ class DeterministicVerifier:
         requirement: str,
         evidence: tuple[Evidence, ...],
         policy: VerificationPolicy,
+        strength_by_id: dict[UUID, EvidenceStrengthAssessment],
     ) -> EvidenceRequirementAssessment:
+        del policy
         rules = _recognized_rules(requirement)
         qualifying = tuple(
-            item for item in evidence if self._qualifies(item, policy)
+            item for item in evidence if self._qualifies(item, strength_by_id)
         )
         if not rules:
             return EvidenceRequirementAssessment(
                 requirement=requirement,
                 status=ClaimStatus.UNVERIFIED,
                 reasons=(
-                    "evidence requirement has no deterministic Phase 7 mapping",
+                    "evidence requirement has no deterministic Phase 12F mapping",
                 ),
             )
 
@@ -389,7 +534,7 @@ class DeterministicVerifier:
                 matched_evidence_ids=_dedupe_ids(matched),
                 recognized_rules=tuple(rule.value for rule in rules),
                 reasons=(
-                    "missing qualifying evidence for: " + ", ".join(missing),
+                    "missing strong qualifying evidence for: " + ", ".join(missing),
                 ),
             )
         return EvidenceRequirementAssessment(
@@ -406,14 +551,15 @@ class DeterministicVerifier:
         contract: TaskContract,
         assessments: tuple[ClaimAssessment, ...],
         evidence_requirements: tuple[EvidenceRequirementAssessment, ...],
+        disagreements: tuple[EvidenceDisagreement, ...],
     ) -> tuple[CompletionStatus, tuple[str, ...]]:
         statuses = tuple(item.status for item in assessments)
         evidence_statuses = tuple(item.status for item in evidence_requirements)
 
-        if ClaimStatus.CONFLICTING in statuses:
+        if disagreements or ClaimStatus.CONFLICTING in statuses:
             return (
                 CompletionStatus.CONFLICTING_EVIDENCE,
-                ("current qualifying evidence contains unresolved conflict",),
+                ("current strong qualifying evidence contains unresolved disagreement",),
             )
         if ClaimStatus.FAIL in statuses:
             return (
@@ -446,8 +592,8 @@ class DeterministicVerifier:
         return (
             CompletionStatus.VERIFIED_COMPLETE,
             (
-                "all required and forbidden-absence claims have current "
-                "qualifying evidence",
+                "all required and forbidden-absence claims have current strong qualifying evidence",
                 "all deterministic evidence requirements are satisfied",
+                "no unresolved evidence disagreement remains",
             ),
         )

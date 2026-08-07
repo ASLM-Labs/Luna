@@ -1,0 +1,22 @@
+{
+  "phase": "12F",
+  "checks": {
+    "required_files_present": true,
+    "strong_evidence_required": true,
+    "weak_tool_output_cannot_complete": true,
+    "old_revision_cannot_verify": true,
+    "explicit_disagreement_blocks_success": true,
+    "evidence_store_integrity": true,
+    "evidence_store_conflict_safe": true,
+    "final_report_strength_visible": true,
+    "learning_review_required": true,
+    "learning_auto_commit_blocked": true,
+    "learning_candidate_audited": true,
+    "learning_contract_rejects_auto_commit": true,
+    "learning_has_no_hidden_mutation": true,
+    "runtime_phase12f_handoff_bound": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

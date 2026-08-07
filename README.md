@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12E — Single Policy-Agent Loop** durumundadır.
+Repository şu anda **Faz 12F — Verification, Evidence & Learning** durumundadır.
 
 ## Çalışan zincir
 
@@ -45,13 +45,33 @@ intent → explicit context candidates → contract → plan → expected observ
 → write-ahead side-effect journal + safe suspend/cancel
 → actual HIGH/CRITICAL Git worktree lifecycle
 → effective isolated workspace continuity across later steps/resume
-→ Phase 12F VERIFICATION_PENDING handoff
+→ Phase 12F deterministic evidence finalization
+→ runtime-owned evidence strength + explicit disagreement
+→ gate-bound final report + terminal checkpoint
+→ review-required learning candidate (no auto-commit)
 ```
 
-Faz 12E, Phase 12A–12D parçalarını tek authoritative `LunaRuntime` loop'unda
-birleştirir. Model yalnız bir sonraki action proposal'ını üretir; runtime permission,
-risk, budget, isolation, execution, recovery, checkpoint ve completion sınırının
-otoritesidir.
+Faz 12F, Phase 12E'nin `VERIFYING` sınırını deterministic evidence assessment,
+completion gate, truthful final report, terminal checkpoint ve review-gated learning
+candidate akışına bağlar. Model completion veya evidence-strength authority değildir.
+
+## Faz 12F verification/evidence/learning sınırları
+
+- evidence strength runtime tarafından `WEAK / MODERATE / STRONG / DETERMINISTIC` olarak atanır;
+- varsayılan completion politikası en az `STRONG` evidence ister;
+- generic `TOOL_OUTPUT` doğrudan observation olsa da tek başına completion kanıtı değildir;
+- revision, environment ve freshness uyuşmayan evidence reddedilir;
+- current qualifying PASS/FAIL çelişkisi explicit disagreement üretir ve success'i engeller;
+- durable evidence store SQLite WAL + canonical payload SHA-256 integrity kullanır;
+- evidence ID aynı payload ile idempotent, farklı payload ile conflict'tir;
+- `CompletionGate` completion status'un tek otoritesidir;
+- final report gate status'undan daha iyimser olamaz ve evidence strength'i görünür kılar;
+- no-evidence durumda runtime `VERIFICATION_PENDING` kalır ve resumable checkpoint üretir;
+- `UNVERIFIED / INCONCLUSIVE / BLOCKED / CONFLICTING_EVIDENCE` sonuçları terminal değildir;
+- bu sonuçlar stronger/current evidence için `VERIFYING` resume checkpoint'i bırakır;
+- yalnız terminal completion/failure `REPORTING → CLOSED` sonrası terminal checkpoint yazar;
+- learning candidate yalnız review önerisidir: `review_required=true`;
+- `automatic_commit_allowed=false`; memory/policy/source otomatik değiştirilmez.
 
 ## Faz 12E single policy-agent loop sınırları
 
@@ -157,25 +177,25 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12E single policy-agent loop gate passed.
+[PASS] Luna 0.1 Phase 12F verification, evidence and learning gate passed.
 ```
 
-## Görünür Faz 12E testi
+## Görünür Faz 12F testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase12e-smoke
+.venv\Scripts\python.exe -m luna phase12f-smoke
 ```
 
-Başarılı çıktıda single policy-agent loop sınırı, durable control journal, write-ahead
-side-effect fence, observation continuity ve Phase 12F verification handoff görünürdür.
+Başarılı çıktıda strong evidence verification, weak tool-output rejection, explicit
+disagreement, durable evidence-store integrity ve review-only learning boundary görünürdür.
 
 ## Bilinen sınırlar
 
 - Single policy-agent action/observation loop Faz 12E ile uygulanmıştır.
-- Final deterministic verification/report/evidence/memory finalization Faz 12F'tedir.
+- Deterministic verification/report/evidence finalization Faz 12F ile uygulanmıştır.
 - Action/tool candidate policy Faz 12C ile uygulanmıştır.
 - Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
-- Gerçek model rollout sonraki fazdadır.
+- Runtime E2E ve behavior conformance Faz 12G, gerçek model rollout Faz 13 kapsamındadır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.
 - Ses, Discord, masaüstü ve diğer ürün gateway'leri ayrı faz ister.

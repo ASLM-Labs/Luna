@@ -30,6 +30,15 @@ class ClaimStatus(StrEnum):
     CONFLICTING = "CONFLICTING"
 
 
+class EvidenceStrength(StrEnum):
+    """Runtime-owned confidence class; the model cannot grant evidence authority."""
+
+    WEAK = "WEAK"
+    MODERATE = "MODERATE"
+    STRONG = "STRONG"
+    DETERMINISTIC = "DETERMINISTIC"
+
+
 class EvidenceRejectionCode(StrEnum):
     """Why an evidence record was excluded from current verification."""
 
@@ -60,6 +69,57 @@ class EvidenceRejection(LunaContractModel):
     evidence_id: UUID
     code: EvidenceRejectionCode
     reason: str = Field(min_length=1, max_length=4000)
+
+
+class EvidenceStrengthAssessment(LunaContractModel):
+    """Deterministic runtime assessment of one accepted evidence record."""
+
+    evidence_id: UUID
+    strength: EvidenceStrength
+    qualifying: bool
+    reasons: tuple[str, ...]
+
+    @field_validator("reasons")
+    @classmethod
+    def validate_reasons(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(value.strip() for value in values)
+        if not cleaned or any(not value for value in cleaned):
+            raise ValueError("evidence strength assessment requires reasons")
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("evidence strength reasons must be unique")
+        return cleaned
+
+
+class EvidenceDisagreement(LunaContractModel):
+    """Explicit unresolved support/contradiction for one current claim."""
+
+    claim_id: str = Field(
+        min_length=1,
+        max_length=100,
+        pattern=r"^(required|forbidden_absent):sha256:[0-9a-f]{64}$",
+    )
+    supporting_evidence_ids: tuple[UUID, ...]
+    contradicting_evidence_ids: tuple[UUID, ...]
+    strongest_support: EvidenceStrength
+    strongest_contradiction: EvidenceStrength
+    unresolved: bool = True
+
+    @field_validator("supporting_evidence_ids", "contradicting_evidence_ids")
+    @classmethod
+    def validate_nonempty_unique_ids(cls, values: tuple[UUID, ...]) -> tuple[UUID, ...]:
+        if not values:
+            raise ValueError("evidence disagreement requires evidence on both sides")
+        if len(values) != len(set(values)):
+            raise ValueError("evidence disagreement IDs must be unique")
+        return values
+
+    @model_validator(mode="after")
+    def validate_disjoint_sides(self) -> EvidenceDisagreement:
+        if set(self.supporting_evidence_ids) & set(self.contradicting_evidence_ids):
+            raise ValueError("one evidence record cannot support and contradict simultaneously")
+        if not self.unresolved:
+            raise ValueError("Phase 12F disagreement records represent unresolved conflicts only")
+        return self
 
 
 class ClaimAssessment(LunaContractModel):
@@ -129,6 +189,7 @@ class VerificationPolicy(LunaContractModel):
     )
     max_freshness_seconds: int = Field(default=3600, ge=0)
     min_confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    minimum_strength: EvidenceStrength = EvidenceStrength.STRONG
     require_reproducible: bool = True
     require_revision: bool = True
     require_freshness: bool = True
@@ -143,6 +204,8 @@ class VerificationReport(LunaContractModel):
     policy: VerificationPolicy
     claim_assessments: tuple[ClaimAssessment, ...]
     evidence_requirement_assessments: tuple[EvidenceRequirementAssessment, ...]
+    evidence_strength_assessments: tuple[EvidenceStrengthAssessment, ...] = ()
+    disagreements: tuple[EvidenceDisagreement, ...] = ()
     accepted_evidence_ids: tuple[UUID, ...] = ()
     rejected_evidence: tuple[EvidenceRejection, ...] = ()
     unmatched_requirement_ids: tuple[str, ...] = ()
@@ -174,6 +237,16 @@ class VerificationReport(LunaContractModel):
 
     @model_validator(mode="after")
     def validate_verified_complete(self) -> VerificationReport:
+        assessed_ids = tuple(item.evidence_id for item in self.evidence_strength_assessments)
+        if len(assessed_ids) != len(set(assessed_ids)):
+            raise ValueError("evidence strength assessments must be unique per evidence")
+        if not set(assessed_ids).issubset(self.accepted_evidence_ids):
+            raise ValueError("strength assessment may only reference accepted evidence")
+        if (
+            self.completion_status is CompletionStatus.VERIFIED_COMPLETE
+            and any(item.unresolved for item in self.disagreements)
+        ):
+            raise ValueError("VERIFIED_COMPLETE cannot contain unresolved disagreement")
         if self.completion_status is CompletionStatus.VERIFIED_COMPLETE:
             if any(
                 item.status is not ClaimStatus.PASS
@@ -221,6 +294,21 @@ class VerificationReport(LunaContractModel):
                     item.reasons,
                 )
                 for item in self.evidence_requirement_assessments
+            ),
+            tuple(
+                (item.evidence_id, item.strength, item.qualifying, item.reasons)
+                for item in self.evidence_strength_assessments
+            ),
+            tuple(
+                (
+                    item.claim_id,
+                    item.supporting_evidence_ids,
+                    item.contradicting_evidence_ids,
+                    item.strongest_support,
+                    item.strongest_contradiction,
+                    item.unresolved,
+                )
+                for item in self.disagreements
             ),
             self.accepted_evidence_ids,
             tuple(

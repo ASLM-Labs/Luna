@@ -1,9 +1,9 @@
 """Phase 12E single policy-agent runtime loop.
 
-This module is the first Luna runtime that wires task preparation, layered context,
-model policy, action resolution, deterministic tool execution, observation,
-recovery, checkpointing, and side-effect replay protection into one authoritative
-loop.  Completion verification/reporting intentionally remain a Phase 12F handoff.
+This module wires task preparation, layered context, model policy, action resolution,
+deterministic tool execution, observation, recovery, checkpointing, side-effect replay
+protection, and the optional Phase 12F verification/reporting handoff into one
+authoritative loop.
 """
 
 from __future__ import annotations
@@ -26,9 +26,17 @@ from luna.context import (
     LayeredContextPolicy,
 )
 from luna.continuity import ResumeStatus
-from luna.contracts import ObservationStatus, PlanStep, PlanStepStatus, TaskContract, TaskState
+from luna.contracts import (
+    CompletionStatus,
+    ObservationStatus,
+    PlanStep,
+    PlanStepStatus,
+    TaskContract,
+    TaskState,
+)
 from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
+from luna.contracts.evidence import Evidence
 from luna.contracts.plan import ExpectedObservation
 from luna.planning import AttemptBasis, AttemptRecord, ExpectationEvaluator
 from luna.recovery import ChangeEstimate, IsolationMode, RecoveryAction
@@ -52,6 +60,7 @@ from luna.runtime.models import (
 )
 from luna.runtime.policy_agent import ModelPolicyAgent, PolicyTurnStatus
 from luna.tools import ToolCapability, ToolPolicy, ToolRequest, ToolResultStatus
+from luna.verification import VerificationPolicy
 
 _SIDE_EFFECT_CAPABILITIES = {
     ToolCapability.WRITE,
@@ -141,6 +150,22 @@ class LunaRuntime:
             task_id=task_id,
             command=RuntimeControlCommand.CANCEL,
             reason=reason,
+        )
+
+    def record_evidence(
+        self,
+        *,
+        evidence: Evidence,
+        trace_id: UUID | None = None,
+        observation_id: UUID | None = None,
+    ) -> Evidence:
+        """Persist externally produced deterministic evidence for the Phase 12F gate."""
+        if self._deps.phase12f is None:
+            raise RuntimeError("Phase 12F evidence services are not configured")
+        return self._deps.phase12f.evidence_registry.record(
+            evidence=evidence,
+            trace_id=trace_id,
+            observation_id=observation_id,
         )
 
     def run(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
@@ -267,14 +292,10 @@ class LunaRuntime:
 
         state = decision.resumed_state
         if state.phase is TaskPhase.VERIFYING:
-            return self._checkpoint_outcome(
+            return self._phase12f_or_pending(
                 request=request,
                 state=state,
                 usage=usage,
-                stop_reason=RuntimeStopReason.VERIFICATION_PENDING,
-                reasons=("Phase 12F verification/reporting handoff is pending",),
-                resume_phase=TaskPhase.VERIFYING,
-                next_step="Phase 12F deterministic verification",
                 started_at=started_at,
             )
         if state.phase is TaskPhase.CONTEXT_READY and not state.plan:
@@ -375,14 +396,10 @@ class LunaRuntime:
                     state = state.transition_to(TaskPhase.OBSERVING)
                 if state.phase is TaskPhase.OBSERVING:
                     state = state.transition_to(TaskPhase.VERIFYING)
-                return self._checkpoint_outcome(
+                return self._phase12f_or_pending(
                     request=request,
                     state=state,
                     usage=usage,
-                    stop_reason=RuntimeStopReason.VERIFICATION_PENDING,
-                    reasons=("all planned actions observed; Phase 12F verification is required",),
-                    resume_phase=TaskPhase.VERIFYING,
-                    next_step="Phase 12F deterministic verification",
                     started_at=started_at,
                 )
 
@@ -1017,20 +1034,46 @@ class LunaRuntime:
         )
         if self._next_pending_step(state) is None:
             state = state.transition_to(TaskPhase.VERIFYING)
-            return self._checkpoint_and_fence(
+            checkpointed, checkpoint_id = self._checkpoint(
                 request=request,
                 state=state,
-                usage=usage,
-                stop_reason=RuntimeStopReason.VERIFICATION_PENDING,
-                reasons=(
-                    "planned action observations are complete; "
-                    "Phase 12F verification is pending",
-                ),
                 resume_phase=TaskPhase.VERIFYING,
                 next_step="Phase 12F deterministic verification",
+                attempts=(attempt,),
+            )
+            if receipt is not None:
+                current = self._deps.runtime_journal.load(receipt.idempotency_key)
+                if current.stage is SideEffectStage.OBSERVED:
+                    self._deps.runtime_journal.mark_checkpointed(
+                        idempotency_key=current.idempotency_key,
+                        checkpoint_id=checkpoint_id,
+                    )
+            resume_policy = self._deps.fingerprint_provider.resume_policy(
+                task_contract=checkpointed.contract,
+                workspace_root=self._effective_workspace_root(
+                    request.task_id,
+                    fallback_root=checkpointed.contract.scope.workspace_root,
+                ),
+            )
+            decision = self._deps.core.continuity_service.resume_latest(
+                task_id=request.task_id,
+                policy=resume_policy,
+                trace_id=request.trace_id,
+            )
+            if decision.status is not ResumeStatus.READY or decision.resumed_state is None:
+                return self._outcome(
+                    request=request,
+                    state=checkpointed,
+                    usage=usage.snapshot(),
+                    stop_reason=RuntimeStopReason.INTERRUPTED,
+                    reasons=decision.reasons,
+                    started_at=started_at,
+                )
+            return self._phase12f_or_pending(
+                request=request,
+                state=decision.resumed_state,
+                usage=usage,
                 started_at=started_at,
-                receipt=receipt,
-                attempt=attempt,
             )
 
         checkpointed, checkpoint_id = self._checkpoint(
@@ -1432,6 +1475,155 @@ class LunaRuntime:
             scope_fingerprint=sha256(scope_payload.encode("utf-8")).hexdigest(),
         )
 
+    def _phase12f_or_pending(
+        self,
+        *,
+        request: RuntimeRequest,
+        state: TaskState,
+        usage: _UsageCounter,
+        started_at: datetime,
+    ) -> RuntimeOutcome:
+        if state.phase is not TaskPhase.VERIFYING:
+            raise ValueError("Phase 12F handoff requires VERIFYING TaskState")
+        services = self._deps.phase12f
+        if services is None:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.VERIFICATION_PENDING,
+                reasons=("Phase 12F verification services are not configured",),
+                resume_phase=TaskPhase.VERIFYING,
+                next_step="Phase 12F deterministic verification",
+                started_at=started_at,
+            )
+        if not services.evidence_registry.verify_integrity():
+            return self._integrity_stop(
+                request=request,
+                state=state,
+                usage=usage,
+                reason="Phase 12F evidence registry integrity check failed",
+                started_at=started_at,
+            )
+
+        evidence = services.evidence_registry.list_for_task(request.task_id)
+        if not evidence:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.VERIFICATION_PENDING,
+                reasons=("no durable evidence is available for deterministic verification",),
+                resume_phase=TaskPhase.VERIFYING,
+                next_step="collect runtime-owned evidence for current claims",
+                started_at=started_at,
+            )
+
+        workspace_root = self._effective_workspace_root(
+            request.task_id,
+            fallback_root=state.contract.scope.workspace_root,
+        )
+        workspace_revision = self._deps.fingerprint_provider.workspace_fingerprint(
+            task_contract=state.contract,
+            workspace_root=workspace_root,
+        )
+        environment = self._deps.fingerprint_provider.environment_fingerprint()
+        policy = VerificationPolicy(
+            current_revision=workspace_revision,
+            expected_environment_fingerprint=environment,
+        )
+        observations = self._deps.runtime_journal.list_observations(
+            request.task_id,
+            limit=max(8, request.runtime_budget.max_steps + 4),
+        )
+        performed = tuple(
+            dict.fromkeys(
+                f"{record.outcome.request.tool_name}: {record.outcome.result.status.value}"
+                for record in observations
+            )
+        )
+        changed = tuple(
+            dict.fromkeys(
+                path
+                for record in observations
+                for path in record.outcome.observation.changed_files
+            )
+        )
+        finalization = services.verification_coordinator.finalize(
+            state=state,
+            evidence=evidence,
+            policy=policy,
+            trace_id=request.trace_id,
+            performed=performed,
+            changed=changed,
+        )
+        status = finalization.gate_result.decision.status
+        stop_reason_by_status = {
+            CompletionStatus.VERIFIED_COMPLETE: RuntimeStopReason.COMPLETED,
+            CompletionStatus.UNVERIFIED: RuntimeStopReason.UNVERIFIED,
+            CompletionStatus.INCONCLUSIVE: RuntimeStopReason.INCONCLUSIVE,
+            CompletionStatus.BLOCKED: RuntimeStopReason.BLOCKED,
+            CompletionStatus.FAILED: RuntimeStopReason.FAILED,
+            CompletionStatus.CONFLICTING_EVIDENCE: RuntimeStopReason.CONFLICTING_EVIDENCE,
+        }
+        learning_candidate_ids = tuple(
+            item.candidate_id for item in finalization.learning_candidates.candidates
+        )
+        if status in {
+            CompletionStatus.UNVERIFIED,
+            CompletionStatus.INCONCLUSIVE,
+            CompletionStatus.BLOCKED,
+            CompletionStatus.CONFLICTING_EVIDENCE,
+        }:
+            checkpointed, _ = self._checkpoint(
+                request=request,
+                state=finalization.reporting_state,
+                resume_phase=TaskPhase.VERIFYING,
+                next_step="collect or reconcile stronger current verification evidence",
+            )
+            return self._outcome(
+                request=request,
+                state=checkpointed,
+                usage=usage.snapshot(),
+                stop_reason=stop_reason_by_status[status],
+                reasons=finalization.gate_result.decision.reasons,
+                started_at=started_at,
+                verification_report_id=finalization.gate_result.report.report_id,
+                final_report_id=finalization.final_report.final_report_id,
+                learning_candidate_ids=learning_candidate_ids,
+            )
+
+        closed = finalization.reporting_state.transition_to(
+            TaskPhase.CLOSED,
+            completion_status=status,
+        )
+        workspace = self._deps.fingerprint_provider.workspace_fingerprint(
+            task_contract=closed.contract,
+            workspace_root=workspace_root,
+        )
+        terminal = self._deps.core.continuity_service.create_checkpoint(
+            state=closed,
+            workspace_fingerprint=workspace,
+            environment_fingerprint=environment,
+            runtime_revision=self._deps.fingerprint_provider.runtime_revision,
+            next_step=None,
+            trace_id=request.trace_id,
+        )
+        if not terminal.envelope.terminal:
+            raise RuntimeError("closed Phase 12F state did not produce a terminal checkpoint")
+
+        return self._outcome(
+            request=request,
+            state=closed,
+            usage=usage.snapshot(),
+            stop_reason=stop_reason_by_status[status],
+            reasons=finalization.gate_result.decision.reasons,
+            started_at=started_at,
+            verification_report_id=finalization.gate_result.report.report_id,
+            final_report_id=finalization.final_report.final_report_id,
+            learning_candidate_ids=learning_candidate_ids,
+        )
+
     def _checkpoint(
         self,
         *,
@@ -1656,6 +1848,9 @@ class LunaRuntime:
         stop_reason: RuntimeStopReason,
         reasons: tuple[str, ...],
         started_at: datetime,
+        verification_report_id: UUID | None = None,
+        final_report_id: UUID | None = None,
+        learning_candidate_ids: tuple[UUID, ...] = (),
     ) -> RuntimeOutcome:
         return RuntimeOutcome(
             request_id=request.request_id,
@@ -1665,9 +1860,12 @@ class LunaRuntime:
             state=state,
             stop_reason=stop_reason,
             completion_status=state.completion_status,
+            verification_report_id=verification_report_id,
+            final_report_id=final_report_id,
             checkpoint_id=state.checkpoint_id,
             observation_ids=state.observation_ids,
             evidence_ids=state.evidence_ids,
+            learning_candidate_ids=learning_candidate_ids,
             usage=usage,
             reasons=reasons,
             started_at=started_at,

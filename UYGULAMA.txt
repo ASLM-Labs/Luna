@@ -1,16 +1,15 @@
-Luna Faz 12E Single Policy-Agent Loop paketi
+Luna Faz 12F Verification, Evidence and Review-Gated Learning paketi
 
 Gercek Git repository:
 C:\Users\istem\Projects\Luna
 
 On kosul:
-- Faz 12D PR main dalina merge edilmis olmali.
+- Faz 12E PR main dalina merge edilmis olmali.
 - main / Fetch origin / Pull origin tamamlanmis olmali.
-- Aktif branch phase-12e-single-policy-agent-loop olmali.
+- Aktif branch phase-12f-verification-evidence-learning olmali.
 - Calisma agacinda beklenmeyen degisiklik olmamali.
 
-1. Bu ZIP icerigini repository kokune cikarin ve dosyalarin uzerine yazilmasina
-   izin verin.
+1. Faz 12F update ZIP icerigini repository kokune uygulayin.
 2. PowerShell'de calistirin:
 
    Set-Location "C:\Users\istem\Projects\Luna"
@@ -21,16 +20,21 @@ On kosul:
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1-12D verifier PASS
-- Faz 12E verifier PASS
-- phase11-smoke PASS
-- phase12a-smoke PASS
-- phase12b-smoke PASS
-- phase12c-smoke PASS
-- phase12d-smoke PASS
-- phase12e-smoke PASS
+- Faz 1-12E regression/verifier kapilari PASS
+- Faz 12F verifier PASS
+- phase12f-smoke PASS
+- strong/current evidence VERIFIED_COMPLETE uretebilir
+- generic tool output tek basina VERIFIED_COMPLETE uretemez
+- old revision evidence current revision'i dogrulayamaz
+- unresolved qualifying evidence disagreement success'i engeller
+- durable evidence-store integrity PASS
+- final report gate-owned status ve evidence strength ile uyumlu
+- learning candidate review_required=true
+- learning candidate automatic_commit_allowed=false
+- evidence gap/conflict sonucu resumable VERIFYING checkpoint birakir
+- verified/final failure sonucu terminal Phase 12F checkpoint olusur
 - sabit Faz 11 eval 11/11 PASS
 - exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12E single policy-agent loop gate passed.
+- son satir: [PASS] Luna 0.1 Phase 12F verification, evidence and learning gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12E single policy-agent runtime."""
+"""Command-line entry point for the Luna Phase 12F evidence-aware runtime."""
 
 from __future__ import annotations
 
@@ -49,6 +49,7 @@ from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
 from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
+from luna.learning import LearningCandidateBuilder
 from luna.memory import (
     MemoryCandidate,
     MemoryDecisionStatus,
@@ -100,6 +101,9 @@ from luna.tools import (
 from luna.tools.policy import evaluate_tool_policy
 from luna.verification import (
     CompletionGate,
+    DeterministicVerifier,
+    EvidenceStrength,
+    SQLiteEvidenceStore,
     VerificationPolicy,
     forbidden_absence_claim_id,
     required_condition_claim_id,
@@ -157,6 +161,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12e-smoke",
         help="Verify Phase 12E durable control and single-loop runtime boundary.",
+    )
+    subparsers.add_parser(
+        "phase12f-smoke",
+        help="Verify Phase 12F evidence strength, disagreement, and learning boundary.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -1146,13 +1154,114 @@ def _run_phase12e_smoke() -> int:
         ) else 2
 
 
+def _run_phase12f_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase12f-smoke-") as temp:
+        root = Path(temp)
+        task_id = uuid4()
+        contract = TaskContract(
+            task_id=task_id,
+            objective="Verify evidence-aware finalization boundaries.",
+            required_conditions=("Tests pass.",),
+            evidence_required=("test result",),
+            scope=TaskScope(workspace_root=str(root)),
+            risk_level=RiskLevel.LOW,
+            owner="user",
+        )
+        strong = Evidence(
+            task_id=task_id,
+            requirement_id=required_condition_claim_id("Tests pass."),
+            source_kind=EvidenceSourceKind.TEST_RESULT,
+            source_ref="verification:phase12f-smoke",
+            result=EvidenceResult.PASS,
+            environment_fingerprint="phase12f-smoke",
+            revision="phase12f",
+            freshness_seconds=0,
+            reproducible=True,
+            confidence=1.0,
+        )
+        weak = strong.model_copy(
+            update={
+                "evidence_id": uuid4(),
+                "source_kind": EvidenceSourceKind.TOOL_OUTPUT,
+            }
+        )
+        policy = VerificationPolicy(
+            current_revision="phase12f",
+            expected_environment_fingerprint="phase12f-smoke",
+        )
+        verifier = DeterministicVerifier()
+        strong_report = verifier.verify(
+            contract=contract,
+            evidence=(strong,),
+            policy=policy,
+        )
+        weak_report = verifier.verify(
+            contract=contract,
+            evidence=(weak,),
+            policy=policy,
+        )
+        conflict_report = verifier.verify(
+            contract=contract,
+            evidence=(
+                strong,
+                strong.model_copy(
+                    update={
+                        "evidence_id": uuid4(),
+                        "result": EvidenceResult.FAIL,
+                    }
+                ),
+            ),
+            policy=policy,
+        )
+        store = SQLiteEvidenceStore(root / "evidence.sqlite3")
+        store.save(strong)
+        state = TaskState(
+            task_id=task_id,
+            contract=contract,
+            phase=TaskPhase.VERIFYING,
+            failed_assumptions=("A stale verifier result could prove completion.",),
+        )
+        learning = LearningCandidateBuilder().build(
+            state=state,
+            report=strong_report,
+        )
+        payload = {
+            "strong_status": strong_report.completion_status.value,
+            "strong_strength": strong_report.evidence_strength_assessments[0].strength.value,
+            "weak_status": weak_report.completion_status.value,
+            "weak_qualifying": weak_report.evidence_strength_assessments[0].qualifying,
+            "conflict_status": conflict_report.completion_status.value,
+            "disagreement_count": len(conflict_report.disagreements),
+            "evidence_store_integrity": store.verify_integrity(),
+            "learning_review_required": bool(learning.candidates)
+            and all(item.review_required for item in learning.candidates),
+            "learning_auto_commit": any(
+                item.automatic_commit_allowed for item in learning.candidates
+            ),
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if all(
+            (
+                payload["strong_status"] == "VERIFIED_COMPLETE",
+                payload["strong_strength"] == EvidenceStrength.DETERMINISTIC.value,
+                payload["weak_status"] == "INCONCLUSIVE",
+                payload["weak_qualifying"] is False,
+                payload["conflict_status"] == "CONFLICTING_EVIDENCE",
+                payload["disagreement_count"] == 1,
+                payload["evidence_store_integrity"] is True,
+                payload["learning_review_required"] is True,
+                payload["learning_auto_commit"] is False,
+            )
+        ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12E")
-        print("status: SINGLE_POLICY_AGENT_LOOP_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12F")
+        print("status: VERIFICATION_EVIDENCE_LEARNING_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1213,7 +1322,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("effective_workspace: isolated_root_persists_across_steps")
         print("safe_control: suspend_cancel_at_runtime_boundaries")
         print("resume_side_effect_replay: ambiguous_started_action_blocked")
-        print("completion_handoff: phase12f_verification_pending")
+        print("completion_handoff: phase12f_gate_bound")
+        print("evidence_strength: runtime_owned_weak_moderate_strong_deterministic")
+        print("evidence_disagreement: unresolved_conflict_blocks_success")
+        print("evidence_store: sqlite_wal_hash_checked")
+        print("finalization: gate_report_terminal_checkpoint")
+        print("learning_candidates: review_required_no_auto_commit")
         return 0
 
     if args.command == "resolve-intent":
@@ -1252,6 +1366,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12e-smoke":
         return _run_phase12e_smoke()
+
+    if args.command == "phase12f-smoke":
+        return _run_phase12f_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

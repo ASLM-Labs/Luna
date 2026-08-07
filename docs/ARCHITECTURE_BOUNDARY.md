@@ -1,3 +1,74 @@
+# Faz 12F Mimari Sınırı
+
+Faz 12F, Faz 12E single policy-agent loop'un `VERIFYING` sınırını deterministic
+evidence, completion, reporting, terminal continuity ve review-only learning ile
+kapatır.
+
+```text
+VERIFYING TaskState
+→ durable current evidence registry
+→ revision / environment / freshness validation
+→ runtime-owned evidence strength
+→ claim + evidence requirement assessment
+→ explicit disagreement detection
+→ deterministic CompletionGate
+→ REPORTING
+→ gate-bound FinalReport
+→ review-required LearningCandidate batch
+→ evidence gap/conflict: CHECKPOINTED → VERIFYING resume
+→ terminal completion/failure: CLOSED → terminal checkpoint
+```
+
+## Var
+
+- `WEAK / MODERATE / STRONG / DETERMINISTIC` evidence-strength taxonomy;
+- default minimum `STRONG` completion evidence threshold;
+- direct, reproducible, confidence-aware qualification;
+- stale/wrong-revision/wrong-environment evidence rejection;
+- unresolved qualifying PASS/FAIL disagreement and `CONFLICTING_EVIDENCE`;
+- SQLite WAL immutable evidence store with canonical JSON SHA-256 integrity;
+- `VerificationCoordinator` binding gate, final report, authoritative state, and learning;
+- explicit `record_evidence()` runtime boundary;
+- `VERIFICATION_PENDING` when durable evidence is absent;
+- evidence gap/conflict için non-terminal `REPORTING → CHECKPOINTED → VERIFYING`;
+- terminal completion/failure için `REPORTING → CLOSED` ve terminal continuity checkpoint;
+- review-only failed-assumption/conflict/gap/recovery learning candidates;
+- append-only `LEARNING_CANDIDATE` audit event;
+- Phase 12F verifier, tests, CLI smoke and quality-gate integration.
+
+## Zorlanan kurallar
+
+- model evidence strength veya completion authority değildir;
+- generic successful tool output default policy altında verified completion sağlayamaz;
+- old-revision evidence current revision'ı doğrulayamaz;
+- unresolved qualifying evidence disagreement gizlenemez;
+- evidence ID farklı payload ile overwrite edilemez;
+- evidence-store integrity bozuksa runtime finalization durur;
+- final report completion gate ile çelişemez;
+- learning candidate `review_required=false` olamaz;
+- learning candidate `automatic_commit_allowed=true` olamaz;
+- learning builder memory, process, network veya source mutation yapmaz;
+- terminal task checkpoint resume edilemez.
+
+## Yok
+
+- learning candidate'ın verified memory/policy/source'a otomatik promotion'ı;
+- autonomous self-modification;
+- real-model rollout;
+- network research, GitHub, MCP/plugin veya diğer harici entegrasyonlar;
+- desktop, Discord veya voice gateway;
+- subagent veya persona chain.
+
+## Sonraki kapılar
+
+```text
+12G runtime E2E + behavior conformance
+→ 13 real-model compatibility + controlled rollout
+→ 14 research gateway / evidence RAG
+```
+
+---
+
 # Faz 12E Mimari Sınırı
 
 Faz 12E, Faz 12A–12D runtime contract/context/action/recovery politikalarını tek
