@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12B layered context runtime."""
+"""Command-line entry point for the Luna Phase 12C action-selection runtime."""
 
 from __future__ import annotations
 
@@ -12,6 +12,16 @@ from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
 from luna.acceptance import ReleaseStatus, run_core_acceptance
+from luna.actions import (
+    ActionDenialCode,
+    ActionKind,
+    ActionProposal,
+    ActionResolutionStatus,
+    ActionResolver,
+    ActionTargetKind,
+    ToolSelector,
+    build_phase12c_routes,
+)
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
 from luna.autonomy import AutonomyPolicy, FreeResearchContract
 from luna.context import (
@@ -124,6 +134,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12b-smoke",
         help="Verify Phase 12B layered, budgeted, secret-safe context composition.",
+    )
+    subparsers.add_parser(
+        "phase12c-smoke",
+        help="Verify Phase 12C action proposal, tool selection, and structured denial.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -959,13 +973,74 @@ def _run_phase12b_smoke() -> int:
         )
     ) else 2
 
+def _run_phase12c_smoke() -> int:
+    task = TaskContract(
+        objective="Verify Phase 12C pre-execution action routing.",
+        required_conditions=("Read action is prepared without execution.",),
+        evidence_required=("Structured action resolution",),
+        scope=TaskScope(workspace_root=str(Path.cwd())),
+        risk_level=RiskLevel.LOW,
+        owner="user",
+    )
+    resolver = ActionResolver(
+        ToolSelector(build_phase5_registry(), build_phase12c_routes())
+    )
+    prepared = resolver.resolve(
+        proposal=ActionProposal(
+            task_id=task.task_id,
+            trace_id=uuid4(),
+            kind=ActionKind.READ,
+            target_kind=ActionTargetKind.FILE,
+            summary="Prepare one explicit file read.",
+            arguments={"path": "README.md"},
+            required_capabilities=(ToolCapability.READ,),
+        ),
+        task_contract=task,
+        policy=ToolPolicy(allowed_tools=("filesystem.read_text",)),
+    )
+    denied = resolver.resolve(
+        proposal=ActionProposal(
+            task_id=task.task_id,
+            trace_id=uuid4(),
+            kind=ActionKind.READ,
+            target_kind=ActionTargetKind.FILE,
+            summary="Reject an invented model tool name.",
+            arguments={"path": "README.md"},
+            required_capabilities=(ToolCapability.READ,),
+            preferred_tool_name="filesystem.invented_reader",
+        ),
+        task_contract=task,
+        policy=ToolPolicy(allowed_tools=("filesystem.read_text",)),
+    )
+    payload = {
+        "prepared_status": prepared.status.value,
+        "selected_tool": (
+            prepared.selected_tool.name if prepared.selected_tool is not None else None
+        ),
+        "dispatcher_required": prepared.request_id is not None,
+        "denied_status": denied.status.value,
+        "denial_code": denied.denial.code.value if denied.denial is not None else None,
+        "denial_observation": (
+            denied.observation.status.value if denied.observation is not None else None
+        ),
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if (
+        prepared.status is ActionResolutionStatus.PREPARED
+        and payload["selected_tool"] == "filesystem.read_text"
+        and denied.status is ActionResolutionStatus.DENIED
+        and payload["denial_code"] == ActionDenialCode.UNKNOWN_PREFERRED_TOOL.value
+        and payload["denial_observation"] == "BLOCKED"
+    ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12B")
-        print("status: LAYERED_CONTEXT_COMPOSER_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12C")
+        print("status: ACTION_SELECTION_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1009,6 +1084,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("context_secrets: blocked_or_redacted_before_model_view")
         print("context_memory: verified_data_only")
         print("context_freshness: explicit_and_deterministic")
+        print("action_proposal: untrusted_no_authority")
+        print("tool_selection: two_stage_runtime_owned")
+        print("structured_denial: blocked_observation")
+        print("side_effect_proposals: max_one_per_iteration")
+        print("selection_execution_boundary: dispatcher_required")
         print("policy_agent_loop: not_implemented_phase12e")
         return 0
 
@@ -1039,6 +1119,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12b-smoke":
         return _run_phase12b_smoke()
+
+    if args.command == "phase12c-smoke":
+        return _run_phase12c_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

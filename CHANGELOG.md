@@ -2,6 +2,27 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12c] - 2026-08-07
+
+### Added
+
+- Untrusted `ActionProposal` and one-side-effect-per-iteration batch contract.
+- Runtime-owned Stage 1 tool-family and Stage 2 registered ToolSpec selection.
+- Explicit `ToolRoute` metadata for built-in Phase 5 tools.
+- Strict argument validation and deterministic dispatcher-policy preflight.
+- Structured denial codes/stages/checks normalized into BLOCKED observations.
+- `ActionResolution` PREPARED/DENIED boundary and explicit dispatcher handoff.
+- RFC-012C, verifier, unit tests, CLI smoke, and quality-gate integration.
+
+### Security
+
+- Model proposals cannot set runtime risk or create tool authority.
+- Invented and route-incompatible tool names are denied.
+- Ambiguous tool matches are denied rather than guessed.
+- Permission denial never triggers silent fallback to a different tool.
+- Selector/resolver never execute handlers; ToolDispatcher remains the execution authority.
+- Multiple side-effect proposals in one iteration are rejected.
+
 ## [0.1.0-phase12b] - 2026-08-07
 
 ### Added
