@@ -218,14 +218,6 @@
       "sha256": "eee36d9708cb0354af2d09e74778ee985f19cf14ab8df3633b568f53cd81c7e8",
       "size_bytes": 3328
     },
-    "phase5_check.log": {
-      "sha256": "363300fa05190cbe7a7b7de669e27d2b20be0bdef082efdb860fb297c5b1ce99",
-      "size_bytes": 3109
-    },
-    "phase8_check.log": {
-      "sha256": "620a03912c623948a8ca26e4a43df5a496b2ed09dd7b00a2fdbfdd59aacb0241",
-      "size_bytes": 5072
-    },
     "phase_0_verification.json": {
       "sha256": "3db71600e460533b6180076a6d83e1ecf0aa02286ea29912b8c62e6ea534c244",
       "size_bytes": 919
@@ -1003,5 +995,6 @@
       "size_bytes": 3002
     }
   },
-  "hash_normalization": "utf8_text_lf_v1"
+  "hash_normalization": "utf8_text_lf_v1",
+  "metadata_scope": "git_head_tracked_artifacts_v1"
 }
