@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 11" in output
+    assert "phase: 12A" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -30,6 +30,9 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "fixed_eval_suite: revision_locked_sha256" in output
     assert "regression_runner: deterministic_comparable_metrics" in output
     assert "release_gate: runtime_owned_thresholds" in output
+    assert "runtime_request: source_actor_scope_budget_bound" in output
+    assert "runtime_budget: read_only_default" in output
+    assert "policy_agent_loop: not_implemented_phase12e" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -216,3 +219,20 @@ def test_phase11_smoke_command(
     assert payload["blind_retry_count"] == 0
     assert payload["release_status"] == "PASS"
     assert payload["known_limitations_published"] is True
+
+
+def test_phase12a_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12a-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["source"] == "TEST"
+    assert payload["actor_role"] == "OWNER"
+    assert payload["actor_verified"] is True
+    assert payload["read_only_default"] is True
+    assert payload["request_round_trip"] is True
+    assert payload["outcome_round_trip"] is True
+    assert payload["stop_reason"] == "COMPLETED"
+    assert payload["completion_status"] == "VERIFIED_COMPLETE"

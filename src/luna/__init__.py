@@ -68,6 +68,24 @@ from luna.modeling import (
 from luna.planning import AdaptivePlanner, AdaptiveReplanner, TaskPlan
 from luna.preparation import PreparationStatus, TaskPreparation, TaskPreparer
 from luna.reporting import FinalReport, FinalReportComposer, ReportRisk
+from luna.runtime import (
+    ActorRole,
+    ActorVerificationSource,
+    RequestSource,
+    RuntimeActor,
+    RuntimeBudget,
+    RuntimeDependencies,
+    RuntimeDependencyManifest,
+    RuntimeDependencyName,
+    RuntimeMode,
+    RuntimeOutcome,
+    RuntimePriority,
+    RuntimeRequest,
+    RuntimeStopReason,
+    RuntimeUsage,
+    TaskFingerprint,
+    build_task_fingerprint,
+)
 from luna.tasking import TaskContractBuilder, TaskContractDraft
 from luna.tools import (
     ProcessApproval,
@@ -91,6 +109,8 @@ from luna.workspace import (
 )
 
 __all__ = [
+    "ActorRole",
+    "ActorVerificationSource",
     "AdaptivePlanner",
     "AdaptiveReplanner",
     "AppendOnlyAuditLedger",
@@ -145,14 +165,27 @@ __all__ = [
     "ReleaseStatus",
     "ReleaseThresholds",
     "ReportRisk",
+    "RequestSource",
     "ResumePolicy",
     "RollbackResult",
+    "RuntimeActor",
+    "RuntimeBudget",
+    "RuntimeDependencies",
+    "RuntimeDependencyManifest",
+    "RuntimeDependencyName",
+    "RuntimeMode",
+    "RuntimeOutcome",
+    "RuntimePriority",
+    "RuntimeRequest",
+    "RuntimeStopReason",
+    "RuntimeUsage",
     "SQLiteContinuityStore",
     "SQLiteMemoryStore",
     "ScriptedTestBackend",
     "TaskContract",
     "TaskContractBuilder",
     "TaskContractDraft",
+    "TaskFingerprint",
     "TaskPlan",
     "TaskPreparation",
     "TaskPreparer",
@@ -170,5 +203,6 @@ __all__ = [
     "WorkspaceSnapshot",
     "__version__",
     "build_core_eval_suite",
+    "build_task_fingerprint",
     "run_core_acceptance",
 ]

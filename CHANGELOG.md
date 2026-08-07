@@ -2,6 +2,30 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12a] - 2026-08-06
+
+### Added
+
+- Runtime-owned request source and verified actor/role contracts.
+- Read-only-by-default `RuntimeBudget` and explicit bounded-write budgets.
+- `RuntimeRequest` with task/trace identity, scope, autonomy, context, constraints,
+  priority, mode, and resume coherence.
+- Deterministic SHA-256 task fingerprint excluding transient IDs.
+- Explicit runtime dependency injection manifest.
+- `RuntimeUsage`, explicit stop reasons, and TaskState-bound `RuntimeOutcome`.
+- RFC-012A, Phase 11 source baseline, L01–L21 evidence map, Phase 12A verifier,
+  tests, and CLI smoke.
+
+### Security
+
+- Privileged actor roles without runtime verification are rejected.
+- Read-only scope cannot carry write or network budgets.
+- Write scope requires explicit change budgets; dry-run cannot authorize writes.
+- Resume target mismatch is rejected before execution.
+- `COMPLETED` cannot be emitted without closed state, `VERIFIED_COMPLETE`, and a
+  final-report reference.
+- Future orchestrator dependencies cannot silently resolve from global state.
+
 ## [0.1.0-phase11] - 2026-08-06
 
 ### Added

@@ -21,7 +21,7 @@ def test_governance_constitution_is_present() -> None:
     assert "ONAYLANDI" in constitution.read_text(encoding="utf-8")
 
 
-def test_phase_eleven_adds_eval_and_acceptance_without_network_package() -> None:
+def test_phase_twelve_a_adds_runtime_contracts_without_network_package() -> None:
     package_root = PROJECT_ROOT / "src" / "luna"
     present = {path.name for path in package_root.iterdir() if path.is_dir()}
 
@@ -37,6 +37,7 @@ def test_phase_eleven_adds_eval_and_acceptance_without_network_package() -> None
         "autonomy",
         "evals",
         "acceptance",
+        "runtime",
     }.issubset(present)
     assert "network" not in present
 
@@ -45,3 +46,12 @@ def test_license_contains_full_apache_terms() -> None:
     license_text = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
     assert "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION" in license_text
     assert "END OF TERMS AND CONDITIONS" in license_text
+
+
+def test_phase_twelve_a_rfc_and_source_baseline_are_present() -> None:
+    assert (
+        PROJECT_ROOT / "docs" / "rfcs" / "RFC-012A_SINGLE_POLICY_AGENT_RUNTIME.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "docs" / "baselines" / "PHASE_11_SOURCE_BASELINE.md"
+    ).is_file()
