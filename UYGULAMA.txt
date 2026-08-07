@@ -1,12 +1,12 @@
-Luna Faz 12D Failure Recovery + Minimal Change + Isolation paketi
+Luna Faz 12E Single Policy-Agent Loop paketi
 
 Gercek Git repository:
 C:\Users\istem\Projects\Luna
 
 On kosul:
-- Faz 12C PR main dalina merge edilmis olmali.
+- Faz 12D PR main dalina merge edilmis olmali.
 - main / Fetch origin / Pull origin tamamlanmis olmali.
-- Aktif branch phase-12d-failure-minimal-change-isolation olmali.
+- Aktif branch phase-12e-single-policy-agent-loop olmali.
 - Calisma agacinda beklenmeyen degisiklik olmamali.
 
 1. Bu ZIP icerigini repository kokune cikarin ve dosyalarin uzerine yazilmasina
@@ -21,15 +21,16 @@ On kosul:
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1-12C verifier PASS
-- Faz 12D verifier PASS
+- Faz 1-12D verifier PASS
+- Faz 12E verifier PASS
 - phase11-smoke PASS
 - phase12a-smoke PASS
 - phase12b-smoke PASS
 - phase12c-smoke PASS
 - phase12d-smoke PASS
+- phase12e-smoke PASS
 - sabit Faz 11 eval 11/11 PASS
 - exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12D recovery and isolation gate passed.
+- son satir: [PASS] Luna 0.1 Phase 12E single policy-agent loop gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

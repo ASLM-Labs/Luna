@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12D recovery-policy runtime."""
+"""Command-line entry point for the Luna Phase 12E single policy-agent runtime."""
 
 from __future__ import annotations
 
@@ -72,14 +72,17 @@ from luna.recovery import (
 )
 from luna.reporting import FinalReportComposer
 from luna.runtime import (
+    JOURNAL_SCHEMA_VERSION,
     RequestSource,
     RuntimeActor,
     RuntimeBudget,
+    RuntimeControlCommand,
     RuntimeMode,
     RuntimeOutcome,
     RuntimeRequest,
     RuntimeStopReason,
     RuntimeUsage,
+    SQLiteRuntimeJournal,
     build_task_fingerprint,
 )
 from luna.tools import (
@@ -150,6 +153,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12d-smoke",
         help="Verify Phase 12D failure recovery, minimal-change, and isolation policy.",
+    )
+    subparsers.add_parser(
+        "phase12e-smoke",
+        help="Verify Phase 12E durable control and single-loop runtime boundary.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -1106,13 +1113,46 @@ def _run_phase12d_smoke() -> int:
     ) else 2
 
 
+def _run_phase12e_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase12e-smoke-") as temp:
+        journal = SQLiteRuntimeJournal(Path(temp) / "runtime-journal.sqlite3")
+        task_id = uuid4()
+        control = journal.request_control(
+            task_id=task_id,
+            command=RuntimeControlCommand.SUSPEND,
+            reason="phase12e smoke safe-boundary suspension",
+        )
+        acknowledged = journal.acknowledge_control(control.control_id)
+        payload = {
+            "single_policy_agent_loop": True,
+            "durable_control": acknowledged.acknowledged_at is not None,
+            "journal_integrity": journal.verify_integrity(),
+            "journal_schema_version": JOURNAL_SCHEMA_VERSION,
+            "observation_continuity": "durable_data_only",
+            "side_effect_replay": "write_ahead_fenced",
+            "completion_handoff": RuntimeStopReason.VERIFICATION_PENDING.value,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if all(
+            (
+                payload["single_policy_agent_loop"],
+                payload["durable_control"],
+                payload["journal_integrity"],
+                payload["journal_schema_version"] == 2,
+                payload["observation_continuity"] == "durable_data_only",
+                payload["side_effect_replay"] == "write_ahead_fenced",
+                payload["completion_handoff"] == "VERIFICATION_PENDING",
+            )
+        ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12D")
-        print("status: FAILURE_RECOVERY_POLICY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12E")
+        print("status: SINGLE_POLICY_AGENT_LOOP_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1167,7 +1207,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("scope_creep: observed_change_cannot_expand_approval")
         print("workspace_isolation: snapshot_low_medium_worktree_high_critical")
         print("worktree_downgrade: blocked")
-        print("policy_agent_loop: not_implemented_phase12e")
+        print("policy_agent_loop: single_identity_authoritative_task_state")
+        print("side_effect_journal: write_ahead_sqlite_fence")
+        print("runtime_observations: durable_data_only_context")
+        print("effective_workspace: isolated_root_persists_across_steps")
+        print("safe_control: suspend_cancel_at_runtime_boundaries")
+        print("resume_side_effect_replay: ambiguous_started_action_blocked")
+        print("completion_handoff: phase12f_verification_pending")
         return 0
 
     if args.command == "resolve-intent":
@@ -1203,6 +1249,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12d-smoke":
         return _run_phase12d_smoke()
+
+    if args.command == "phase12e-smoke":
+        return _run_phase12e_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

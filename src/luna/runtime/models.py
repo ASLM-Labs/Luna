@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from pydantic import Field, field_validator, model_validator
 
 from luna.autonomy import AutonomyLevel, AutonomyPolicy
-from luna.context import ContextBudget, ContextCandidate
+from luna.context import ContextBudget, ContextCandidate, LayeredContextCandidate
 from luna.contracts import CompletionStatus, RiskLevel, TaskScope, TaskState
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 from luna.contracts.enums import TaskPhase
@@ -46,8 +46,10 @@ class RuntimeStopReason(StrEnum):
     FAILED = "FAILED"
     CONFLICTING_EVIDENCE = "CONFLICTING_EVIDENCE"
     INTERRUPTED = "INTERRUPTED"
+    SUSPENDED = "SUSPENDED"
     CANCELLED = "CANCELLED"
     RESOURCE_SUSPENDED = "RESOURCE_SUSPENDED"
+    VERIFICATION_PENDING = "VERIFICATION_PENDING"
     INTEGRITY_FAILURE = "INTEGRITY_FAILURE"
 
 
@@ -65,6 +67,7 @@ class RuntimeRequest(LunaContractModel):
     context_budget: ContextBudget = Field(default_factory=ContextBudget)
     runtime_budget: RuntimeBudget = Field(default_factory=RuntimeBudget)
     context_candidates: tuple[ContextCandidate, ...] = ()
+    layered_context_candidates: tuple[LayeredContextCandidate, ...] = ()
     required_conditions: tuple[str, ...] = ()
     forbidden_outcomes: tuple[str, ...] = ()
     evidence_required: tuple[str, ...] = ()

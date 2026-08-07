@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -105,7 +106,6 @@ def _recovery_has_no_hidden_execution() -> bool:
     return True
 
 
-
 def _canonical_metadata_bytes(path: Path) -> bytes:
     raw = path.read_bytes()
     if b"\x00" in raw:
@@ -121,7 +121,15 @@ def _metadata_integrity() -> bool:
     manifest_path = ROOT / "MANIFEST.json"
     sums_path = ROOT / "SHA256SUMS.txt"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("phase") != "12D":
+    phase = manifest.get("phase")
+    if not isinstance(phase, str):
+        return False
+    match = re.fullmatch(r"(\d+)([A-Z]?)", phase)
+    if match is None:
+        return False
+    phase_number = int(match.group(1))
+    phase_suffix = match.group(2)
+    if phase_number < 12 or (phase_number == 12 and phase_suffix < "D"):
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False

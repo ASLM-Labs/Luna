@@ -56,6 +56,19 @@ class ToolSelector:
         if missing:
             raise ValueError("tool routes reference unregistered tools: " + ", ".join(missing))
 
+    def specs(self) -> tuple[ToolSpec, ...]:
+        """Expose immutable registered specs for the policy-agent model boundary."""
+        return self._registry.specs()
+
+    def route_for_tool(self, tool_name: str) -> ToolRoute | None:
+        """Return the unique runtime-owned route for one registered tool name."""
+        return next((route for route in self._routes if route.tool_name == tool_name), None)
+
+    def spec_for_tool(self, tool_name: str) -> ToolSpec | None:
+        """Return a registered ToolSpec without exposing a handler."""
+        registered = self._registry.get(tool_name)
+        return registered.spec if registered is not None else None
+
     def select_family(self, proposal: ActionProposal) -> FamilySelection:
         """Stage one: map semantic action kind to one runtime-owned family."""
         family = _FAMILY_BY_KIND.get(proposal.kind)

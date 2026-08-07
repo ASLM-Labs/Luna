@@ -9,13 +9,25 @@ from types import MappingProxyType
 
 from pydantic import field_validator, model_validator
 
+from luna.actions import ActionResolver
+from luna.context import LayeredContextComposer
 from luna.continuity import ContinuityService
 from luna.contracts.base import LunaContractModel
 from luna.memory import VerifiedMemoryService
 from luna.modeling import ModelBackend
 from luna.planning import AdaptivePlanner
 from luna.preparation import TaskPreparer
+from luna.recovery import (
+    FailureClassifier,
+    MinimalChangePolicy,
+    RecoveryPolicy,
+    WorkspaceIsolationPolicy,
+)
 from luna.reporting import FinalReportComposer
+from luna.runtime.change_inspector import WorkspaceChangeInspector
+from luna.runtime.environment import RuntimeFingerprintProvider
+from luna.runtime.isolation import WorkspaceIsolationManager
+from luna.runtime.journal import SQLiteRuntimeJournal
 from luna.tools import ToolDispatcher
 from luna.verification import CompletionGate
 
@@ -101,3 +113,25 @@ class RuntimeDependencies:
     def manifest(self) -> RuntimeDependencyManifest:
         """Build the serializable readiness manifest."""
         return RuntimeDependencyManifest(available=tuple(self.as_mapping()))
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeLoopDependencies:
+    """Phase 12E services required by the single policy-agent loop."""
+
+    core: RuntimeDependencies
+    context_composer: LayeredContextComposer
+    action_resolver: ActionResolver
+    failure_classifier: FailureClassifier
+    recovery_policy: RecoveryPolicy
+    minimal_change_policy: MinimalChangePolicy
+    isolation_policy: WorkspaceIsolationPolicy
+    change_inspector: WorkspaceChangeInspector
+    runtime_journal: SQLiteRuntimeJournal
+    isolation_manager: WorkspaceIsolationManager
+    fingerprint_provider: RuntimeFingerprintProvider
+
+    def __post_init__(self) -> None:
+        for item in fields(self):
+            if getattr(self, item.name) is None:
+                raise ValueError(f"runtime loop dependency cannot be None: {item.name}")

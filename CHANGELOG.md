@@ -2,6 +2,28 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12e] - 2026-08-07
+
+### Added
+
+- Authoritative `LunaRuntime.run()` / `resume()` single policy-agent loop.
+- Exactly-one-action model boundary with runtime-owned authorization and execution.
+- Durable SQLite write-ahead side-effect receipts and structured observation journal.
+- Tool observations fed into later model turns as DATA_ONLY runtime continuity.
+- Safe suspend/cancel control and crash-stage-specific resume reconciliation.
+- Actual HIGH/CRITICAL Git worktree lifecycle with effective-workspace continuity.
+- Phase 12F completion handoff through `VERIFICATION_PENDING`.
+- RFC-012E, verifier, behavior tests, CLI smoke, and quality-gate integration.
+
+### Security
+
+- Ambiguous STARTED side effects are never automatically replayed.
+- Multiple model tool calls are rejected before dispatch.
+- Tool output cannot become runtime control authority.
+- HIGH/CRITICAL writes cannot silently downgrade from worktree isolation.
+- Safe cancellation can abort PREPARED work and clean an owned task worktree.
+- Phase 12E cannot manufacture `VERIFIED_COMPLETE`.
+
 ## [0.1.0-phase12d] - 2026-08-07
 
 ### Added

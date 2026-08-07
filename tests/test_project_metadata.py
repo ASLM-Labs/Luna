@@ -88,3 +88,16 @@ def test_phase_twelve_d_recovery_policy_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-012D_FAILURE_RECOVERY_MINIMAL_CHANGE.md"
     ).is_file()
+
+
+def test_phase_twelve_e_single_policy_loop_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "runtime" / "loop.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "policy_agent.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "journal.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "isolation.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "environment.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12e.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-012E_SINGLE_POLICY_AGENT_LOOP.md"
+    ).is_file()
