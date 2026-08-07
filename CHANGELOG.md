@@ -2,6 +2,29 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12g] - 2026-08-07
+
+### Added
+
+- Revision-locked Phase 12 runtime behavior-conformance suite with 11 critical real-runtime cases.
+- Cross-layer completion, evidence, policy, control, replay, scope, isolation and budget oracles.
+- Exact fail-closed conformance runner and repeated-run semantic signature checks.
+- Real LunaRuntime conformance executor using durable journal, continuity, evidence and worktree services.
+- Phase 12G verifier, CLI smoke, RFC, report and quality-gate integration.
+
+### Fixed
+
+- Dispatcher preflight now validates schema-backed file `path` against `TaskScope.allowed_paths`.
+- Out-of-scope mutation is denied as an explicit permission/scope decision before tool dispatch.
+
+### Security
+
+- No/weak/conflicting/stale evidence cannot falsely become verified completion.
+- Ambiguous STARTED side effects cannot be blindly replayed after restart.
+- Multi-action and exhausted tool-budget cases remain blocked before dispatch.
+- HIGH-risk mutation remains isolated in a real Git worktree with cleanup verification.
+- The locked Phase 11 core acceptance suite must remain 11/11 PASS.
+
 ## [0.1.0-phase12f] - 2026-08-07
 
 ### Added

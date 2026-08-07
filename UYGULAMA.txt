@@ -1,40 +1,41 @@
-Luna Faz 12F Verification, Evidence and Review-Gated Learning paketi
+LUNA 0.1 - FAZ 12G UYGULAMA / KALITE KAPISI
 
-Gercek Git repository:
-C:\Users\istem\Projects\Luna
+Durum: IMPLEMENTED_UNVERIFIED
+Hedef branch: phase-12g-runtime-e2e-behavior-conformance
+Baseline: merged Faz 12F
 
-On kosul:
-- Faz 12E PR main dalina merge edilmis olmali.
-- main / Fetch origin / Pull origin tamamlanmis olmali.
-- Aktif branch phase-12f-verification-evidence-learning olmali.
-- Calisma agacinda beklenmeyen degisiklik olmamali.
+Bu faz Phase 12 runtime temelini 11 kritik real-runtime E2E davranis senaryosu ile
+sinir. Component testlerinin yesil olmasi tek basina kabul sayilmaz.
 
-1. Faz 12F update ZIP icerigini repository kokune uygulayin.
-2. PowerShell'de calistirin:
+Ana conformance davranislari:
+- verified completion ancak current qualifying evidence sonrasinda
+- no/weak/conflicting/stale evidence false complete uretmez
+- multi-action dispatch oncesi bloklanir
+- cancel safe boundary'de model/tool'dan once kazanabilir
+- STARTED side effect restart sonrasinda blind replay edilmez
+- out-of-scope path dispatcher'a ulasmadan permission denial alir
+- HIGH-risk mutation gercek Git worktree icinde kalir
+- zero tool budget dispatch oncesi bloklanir
+- locked Phase 11 acceptance 11/11 PASS kalir
 
-   Set-Location "C:\Users\istem\Projects\Luna"
-   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-   & ".\.venv\Scripts\Activate.ps1"
-   python -m pip install -e ".[dev]"
-   .\scripts\check_hold.bat
+Gorunur Phase 12G smoke:
+.venv\Scripts\python.exe -m luna phase12g-smoke
 
-Nihai kabul:
-- Pytest, Ruff ve mypy strict PASS
-- Faz 1-12E regression/verifier kapilari PASS
-- Faz 12F verifier PASS
-- phase12f-smoke PASS
-- strong/current evidence VERIFIED_COMPLETE uretebilir
-- generic tool output tek basina VERIFIED_COMPLETE uretemez
-- old revision evidence current revision'i dogrulayamaz
-- unresolved qualifying evidence disagreement success'i engeller
-- durable evidence-store integrity PASS
-- final report gate-owned status ve evidence strength ile uyumlu
-- learning candidate review_required=true
-- learning candidate automatic_commit_allowed=false
-- evidence gap/conflict sonucu resumable VERIFYING checkpoint birakir
-- verified/final failure sonucu terminal Phase 12F checkpoint olusur
-- sabit Faz 11 eval 11/11 PASS
-- exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12F verification, evidence and learning gate passed.
+Deterministic verifier:
+.venv\Scripts\python.exe scripts\verify_phase12g.py
+
+Tam kalite kapisi:
+scripts\check_hold.bat
+
+Beklenen:
+- Python syntax PASS
+- full pytest PASS
+- Ruff PASS
+- mypy strict PASS
+- Faz 1-12F deterministic gates PASS
+- Faz 12G locked suite 11/11 PASS
+- Phase 11 locked acceptance 11/11 PASS
+- metadata integrity PASS
+- son satir: [PASS] Luna 0.1 Phase 12G runtime E2E and behavior conformance gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

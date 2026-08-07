@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12F — Verification, Evidence & Learning** durumundadır.
+Repository şu anda **Faz 12G — Runtime E2E & Behavior Conformance** durumundadır.
 
 ## Çalışan zincir
 
@@ -49,7 +49,30 @@ intent → explicit context candidates → contract → plan → expected observ
 → runtime-owned evidence strength + explicit disagreement
 → gate-bound final report + terminal checkpoint
 → review-required learning candidate (no auto-commit)
+→ revision-locked runtime behavior conformance suite
+→ 11 critical real-runtime E2E scenarios
+→ exact oracle comparison + repeatable semantic signature
+→ Phase 12 runtime foundation conformance gate
 ```
+
+Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
+Component testlerinin yeşil olması tek başına yeterli değildir; completion truth,
+evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
+isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
+
+## Faz 12G runtime E2E / behavior conformance sınırları
+
+- suite revision `1.0.0` ve fixture/oracle içeriği canonical SHA-256 ile kilitlidir;
+- 11 senaryonun tamamı critical'dır;
+- gerçek `LunaRuntime`, durable journal, continuity, evidence ve worktree stack'i çalıştırılır;
+- no-evidence, weak/conflicting/stale evidence false completion üretemez;
+- multi-action, zero tool budget ve out-of-scope path dispatch öncesi bloklanır;
+- `STARTED` side effect restart sonrası kör biçimde replay edilmez;
+- HIGH-risk write gerçek Git worktree içinde kalır ve original checkout korunur;
+- observation sonraki model turn'üne DATA_ONLY continuity olarak ulaşır;
+- conformance executor exception'ı PASS'e çevrilmez, fail-closed `ERROR` olur;
+- bağımsız iki run aynı semantic signature üretmelidir;
+- kilitli Faz 11 acceptance suite ayrıca 11/11 PASS kalmalıdır.
 
 Faz 12F, Phase 12E'nin `VERIFYING` sınırını deterministic evidence assessment,
 completion gate, truthful final report, terminal checkpoint ve review-gated learning
@@ -152,7 +175,7 @@ candidate akışına bağlar. Model completion veya evidence-strength authority 
 
 Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
 ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
-Faz 12A–12E bu suite'i değiştirmez.
+Faz 12A–12G bu suite'i değiştirmez.
 
 ## Kurulum
 
@@ -177,17 +200,23 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12F verification, evidence and learning gate passed.
+[PASS] Luna 0.1 Phase 12G runtime E2E and behavior conformance gate passed.
 ```
 
-## Görünür Faz 12F testi
+## Görünür Faz 12G testi
+
+```bat
+.venv\Scripts\python.exe -m luna phase12g-smoke
+```
+
+Başarılı çıktıda 11/11 locked runtime case, verified-completion guard, scope denial
+before dispatch, high-risk worktree cleanup ve stale-evidence rejection görünürdür.
+
+Faz 12F evidence smoke ayrıca kullanılabilir:
 
 ```bat
 .venv\Scripts\python.exe -m luna phase12f-smoke
 ```
-
-Başarılı çıktıda strong evidence verification, weak tool-output rejection, explicit
-disagreement, durable evidence-store integrity ve review-only learning boundary görünürdür.
 
 ## Bilinen sınırlar
 
@@ -195,7 +224,7 @@ disagreement, durable evidence-store integrity ve review-only learning boundary 
 - Deterministic verification/report/evidence finalization Faz 12F ile uygulanmıştır.
 - Action/tool candidate policy Faz 12C ile uygulanmıştır.
 - Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
-- Runtime E2E ve behavior conformance Faz 12G, gerçek model rollout Faz 13 kapsamındadır.
+- Runtime E2E ve behavior conformance Faz 12G ile uygulanmıştır; gerçek model rollout Faz 13 kapsamındadır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.
 - Ses, Discord, masaüstü ve diğer ürün gateway'leri ayrı faz ister.
