@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 12C — Action Proposal + Tool Selection** durumundadır.
+Repository şu anda **Faz 12D — Failure Recovery + Minimal Change + Isolation** durumundadır.
 
 ## Çalışan zincir
 
@@ -33,11 +33,33 @@ intent → explicit context candidates → contract → plan → expected observ
 → Stage 2 registered ToolSpec selection
 → argument + runtime policy preflight
 → PREPARED request veya StructuredDenial + BLOCKED Observation
+→ structured failure taxonomy
+→ deterministic recovery decision
+→ changed-basis-only retry / replan / reinspect / approval / rollback / suspend / stop
+→ minimal-change path + file + line budget
+→ observed scope-creep check
+→ risk-based NONE / SNAPSHOT / WORKTREE isolation
 ```
 
-Faz 12C, gelecekteki tek policy-agent loop'ta model niyeti ile gerçek tool execution
-arasındaki seçim sınırını kilitler. Henüz `LunaRuntime.run()` veya agent loop yoktur;
+Faz 12D, Phase 12C action-selection sonucundan sonra failure/recovery ve workspace
+değişiklik sınırlarını kilitler. Henüz `LunaRuntime.run()` veya agent loop yoktur;
 bu Faz 12E'ye bırakılmıştır.
+
+## Faz 12D recovery ve isolation sınırları
+
+- failure category yalnız structured runtime evidence üzerinden sınıflandırılır;
+- model prose arbitrary failure'ı transient ilan edemez;
+- transient retry yalnız `RetryDecision(CHANGED_BASIS)` ile mümkündür;
+- permission/scope denial retry yerine explicit approval ister;
+- stale workspace tekrar işlem yerine reinspection ister;
+- mutation sonrası verification failure rollback gerektirir;
+- integrity failure ve hard budget exhaustion safe stop üretir;
+- unavailable resource spin yerine suspension üretir;
+- declared change exact path + file + line bütçesine bağlanır;
+- observed change approved scope/line estimate dışına çıkamaz;
+- LOW/MEDIUM mutation snapshot ister; HIGH/CRITICAL mutation worktree ister;
+- required worktree yoksa snapshot'a sessiz downgrade yapılmaz;
+- Phase 12D policy kodu gerçek tool/worktree/rollback execution yapmaz.
 
 ## Faz 12C action-selection sınırları
 
@@ -86,7 +108,7 @@ bu Faz 12E'ye bırakılmıştır.
 
 Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
 ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
-Faz 12A–12C bu suite'i değiştirmez.
+Faz 12A–12D bu suite'i değiştirmez.
 
 ## Kurulum
 
@@ -111,24 +133,24 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 12C action selection gate passed.
+[PASS] Luna 0.1 Phase 12D recovery and isolation gate passed.
 ```
 
-## Görünür Faz 12C testi
+## Görünür Faz 12D testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase12c-smoke
+.venv\Scripts\python.exe -m luna phase12d-smoke
 ```
 
-Başarılı çıktıda registered read tool PREPARED olur; uydurulmuş tool adı structured
-denial ile BLOCKED observation üretir ve gerçek execution'ın dispatcher'a ait olduğu
-açık kalır.
+Başarılı çıktıda structured failure recovery, minimal-change policy ve high-risk
+worktree requirement birlikte doğrulanır; actual execution yine Phase 12E runtime'a
+bırakılır.
 
 ## Bilinen sınırlar
 
 - Tek policy-agent loop henüz uygulanmamıştır.
 - Action/tool candidate policy Faz 12C ile uygulanmıştır.
-- Failure taxonomy ve minimal-change enforcement Faz 12D'dedir.
+- Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
 - Gerçek model rollout sonraki fazdadır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.

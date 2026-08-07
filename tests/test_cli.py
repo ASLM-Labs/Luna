@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12C" in output
+    assert "phase: 12D" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -43,6 +43,12 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "structured_denial: blocked_observation" in output
     assert "side_effect_proposals: max_one_per_iteration" in output
     assert "selection_execution_boundary: dispatcher_required" in output
+    assert "failure_taxonomy: structured_runtime_owned" in output
+    assert "blind_retry: changed_basis_required" in output
+    assert "minimal_change: path_and_line_budget_enforced" in output
+    assert "scope_creep: observed_change_cannot_expand_approval" in output
+    assert "workspace_isolation: snapshot_low_medium_worktree_high_critical" in output
+    assert "worktree_downgrade: blocked" in output
     assert "policy_agent_loop: not_implemented_phase12e" in output
 
 
@@ -285,3 +291,19 @@ def test_phase12c_smoke_command(
     assert payload["denied_status"] == "DENIED"
     assert payload["denial_code"] == "UNKNOWN_PREFERRED_TOOL"
     assert payload["denial_observation"] == "BLOCKED"
+
+
+def test_phase12d_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12d-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["failure_category"] == "RESOURCE_UNAVAILABLE"
+    assert payload["recovery_action"] == "SUSPEND"
+    assert payload["minimal_change_allowed"] is True
+    assert payload["isolation_mode"] == "WORKTREE"
+    assert payload["isolation_allowed"] is False
+    assert payload["worktree_required"] is True
+    assert payload["no_silent_downgrade"] is True

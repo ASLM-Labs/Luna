@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12C action-selection runtime."""
+"""Command-line entry point for the Luna Phase 12D recovery-policy runtime."""
 
 from __future__ import annotations
 
@@ -61,6 +61,14 @@ from luna.memory import (
     MemoryType,
     SQLiteMemoryStore,
     VerifiedMemoryService,
+)
+from luna.recovery import (
+    ChangeEstimate,
+    FailureClassifier,
+    MinimalChangePolicy,
+    RecoveryAction,
+    RecoveryPolicy,
+    WorkspaceIsolationPolicy,
 )
 from luna.reporting import FinalReportComposer
 from luna.runtime import (
@@ -138,6 +146,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12c-smoke",
         help="Verify Phase 12C action proposal, tool selection, and structured denial.",
+    )
+    subparsers.add_parser(
+        "phase12d-smoke",
+        help="Verify Phase 12D failure recovery, minimal-change, and isolation policy.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -1034,13 +1046,73 @@ def _run_phase12c_smoke() -> int:
     ) else 2
 
 
+
+def _run_phase12d_smoke() -> int:
+    task = TaskContract(
+        objective="Verify Phase 12D recovery and minimal-change boundaries.",
+        required_conditions=("Failure recovery remains runtime-owned.",),
+        evidence_required=("Structured recovery decision",),
+        scope=TaskScope(
+            workspace_root=str(Path.cwd()),
+            allowed_paths=("src", "tests"),
+            write_allowed=True,
+        ),
+        risk_level=RiskLevel.HIGH,
+        owner="user",
+    )
+    classifier = FailureClassifier(transient_error_classes=("TimeoutError",))
+    failure = classifier.resource_unavailable(
+        task_id=task.task_id,
+        trace_id=uuid4(),
+        reason="synthetic unavailable dependency",
+    )
+    recovery = RecoveryPolicy().decide(failure=failure)
+    estimate = ChangeEstimate(
+        touched_paths=("src/luna/recovery/policy.py",),
+        added_lines=8,
+        deleted_lines=2,
+    )
+    minimal = MinimalChangePolicy().evaluate_declared(
+        estimate=estimate,
+        scope=task.scope,
+        budget=RuntimeBudget.controlled_write(
+            max_changed_files=2,
+            max_added_lines=50,
+            max_deleted_lines=20,
+        ),
+    )
+    isolation = WorkspaceIsolationPolicy().plan(
+        task_contract=task,
+        change=estimate,
+        worktree_available=False,
+    )
+    payload = {
+        "failure_category": failure.category.value,
+        "recovery_action": recovery.action.value,
+        "minimal_change_allowed": minimal.allowed,
+        "isolation_mode": isolation.mode.value,
+        "isolation_allowed": isolation.allowed,
+        "worktree_required": isolation.worktree_required,
+        "no_silent_downgrade": (
+            isolation.mode.value == "WORKTREE" and not isolation.allowed
+        ),
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if (
+        recovery.action is RecoveryAction.SUSPEND
+        and minimal.allowed
+        and payload["worktree_required"] is True
+        and payload["no_silent_downgrade"] is True
+    ) else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12C")
-        print("status: ACTION_SELECTION_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12D")
+        print("status: FAILURE_RECOVERY_POLICY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1089,6 +1161,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("structured_denial: blocked_observation")
         print("side_effect_proposals: max_one_per_iteration")
         print("selection_execution_boundary: dispatcher_required")
+        print("failure_taxonomy: structured_runtime_owned")
+        print("blind_retry: changed_basis_required")
+        print("minimal_change: path_and_line_budget_enforced")
+        print("scope_creep: observed_change_cannot_expand_approval")
+        print("workspace_isolation: snapshot_low_medium_worktree_high_critical")
+        print("worktree_downgrade: blocked")
         print("policy_agent_loop: not_implemented_phase12e")
         return 0
 
@@ -1122,6 +1200,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12c-smoke":
         return _run_phase12c_smoke()
+
+    if args.command == "phase12d-smoke":
+        return _run_phase12d_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

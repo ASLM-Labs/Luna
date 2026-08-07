@@ -1,12 +1,12 @@
-Luna Faz 12C Action Proposal + Two-Stage Tool Selection paketi
+Luna Faz 12D Failure Recovery + Minimal Change + Isolation paketi
 
 Gercek Git repository:
 C:\Users\istem\Projects\Luna
 
 On kosul:
-- Faz 12B PR main dalina merge edilmis olmali.
+- Faz 12C PR main dalina merge edilmis olmali.
 - main / Fetch origin / Pull origin tamamlanmis olmali.
-- Aktif branch phase-12c-action-proposal-tool-selection olmali.
+- Aktif branch phase-12d-failure-minimal-change-isolation olmali.
 - Calisma agacinda beklenmeyen degisiklik olmamali.
 
 1. Bu ZIP icerigini repository kokune cikarin ve dosyalarin uzerine yazilmasina
@@ -21,14 +21,15 @@ On kosul:
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1-12B verifier PASS
-- Faz 12C verifier PASS
+- Faz 1-12C verifier PASS
+- Faz 12D verifier PASS
 - phase11-smoke PASS
 - phase12a-smoke PASS
 - phase12b-smoke PASS
 - phase12c-smoke PASS
+- phase12d-smoke PASS
 - sabit Faz 11 eval 11/11 PASS
 - exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12C action selection gate passed.
+- son satir: [PASS] Luna 0.1 Phase 12D recovery and isolation gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

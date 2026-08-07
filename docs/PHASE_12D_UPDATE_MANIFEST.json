@@ -1,0 +1,32 @@
+{
+  "phase": "12D",
+  "base": "Luna 0.1 Phase 12C merged source baseline",
+  "apply_to_repository_root": true,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "source_package_sha256": "05f610cc5195e9647137113266e5fba25da2ce6a06128ca37a19fe9696a29b91",
+  "changed_or_added_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_12D_REPORT.md",
+    "docs/PHASE_12D_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-012D_FAILURE_RECOVERY_MINIMAL_CHANGE.md",
+    "phase_12d_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase12d.py",
+    "src/luna/cli.py",
+    "src/luna/recovery/__init__.py",
+    "src/luna/recovery/classifier.py",
+    "src/luna/recovery/isolation.py",
+    "src/luna/recovery/minimal_change.py",
+    "src/luna/recovery/models.py",
+    "src/luna/recovery/policy.py",
+    "tests/test_cli.py",
+    "tests/test_phase12d_recovery_policy.py",
+    "tests/test_project_metadata.py"
+  ]
+}
