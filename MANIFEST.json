@@ -1,18 +1,18 @@
 {
   "project": "Luna",
   "developer": "Novopic Intelligence",
-  "version": "0.1.0-phase12f",
-  "phase": "12F",
+  "version": "0.1.0-phase12g",
+  "phase": "12G",
   "status": "IMPLEMENTED_UNVERIFIED",
-  "created_utc": "2026-08-07T18:47:00+00:00",
+  "created_utc": "2026-08-07T19:56:00+00:00",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
       "size_bytes": 249
     },
     ".github/workflows/quality.yml": {
-      "sha256": "4c7477cb3dd922127a62f6eaa37a0ad8b0db9c5b8ded70146e191d52318eeecd",
-      "size_bytes": 1936
+      "sha256": "44a6c33640fd8d048e60168a12649a5dfb5f8d68e8f4a73d294e1ed3fe4b4db8",
+      "size_bytes": 2026
     },
     ".gitignore": {
       "sha256": "0cce6bf8eee33fabd00b1ef743433b2b61eb69681a1f5abe1f613d1658e2bb5d",
@@ -23,8 +23,8 @@
       "size_bytes": 243
     },
     "CHANGELOG.md": {
-      "sha256": "7cc3c3ffe73c99cf9f8cb0585369d1149b211af6cb47e7c77b8970b15464cf00",
-      "size_bytes": 11823
+      "sha256": "54118b5ec232a3d73bddd7b241eec86ffdf907b6f97fc11126cf4a6301357d65",
+      "size_bytes": 12943
     },
     "LICENSE": {
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -35,16 +35,16 @@
       "size_bytes": 222
     },
     "README.md": {
-      "sha256": "def831682e7c63fdac7144e487b1be6f70444de9781ab6f2fb7a532c1a378429",
-      "size_bytes": 9896
+      "sha256": "0fc0a1c932f93aeaf00196a84e42e63e664d22bc27f50abd3f3322e122969122",
+      "size_bytes": 11454
     },
     "UYGULAMA.txt": {
-      "sha256": "72b72451e84f0b1998f377704466a01d552ed643b534f27c09c65e6ecd4425e5",
-      "size_bytes": 1553
+      "sha256": "11d90b0c021cafec2fc00cca771f70268aa9b0d1c1c59d18cc74be84e61a03bd",
+      "size_bytes": 1393
     },
     "docs/ARCHITECTURE_BOUNDARY.md": {
-      "sha256": "d3198452f543f0326cfd2b6fe0a95bc4ab193a23b2579f6970508bfd190e3150",
-      "size_bytes": 5506
+      "sha256": "833146901b392e6ec9745812d81b5af2d12fb2a879b2843d71f34fdeae84891f",
+      "size_bytes": 7619
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -113,6 +113,14 @@
     "docs/PHASE_12F_UPDATE_MANIFEST.json": {
       "sha256": "b7b5fda420e96c7fa74677388803b827718e1cf607f89a0b6651c79497aace77",
       "size_bytes": 1386
+    },
+    "docs/PHASE_12G_REPORT.md": {
+      "sha256": "24545dde3b207689c9d04f373f439066af92dacc2fc2f81521dfac7e2266def4",
+      "size_bytes": 2606
+    },
+    "docs/PHASE_12G_UPDATE_MANIFEST.json": {
+      "sha256": "1cc7076c83fb3f1627614537820bc5f742140942027d7333a041e159a2e22e68",
+      "size_bytes": 1128
     },
     "docs/PHASE_1_REPORT.md": {
       "sha256": "01a4a4873f0bf0f90e88fcaf3d49ccf0721b4b8d633566e95d9c69437048efa2",
@@ -242,6 +250,10 @@
       "sha256": "a8f3a9343e2bc1e07fccca2c72b8decff9ade719e10c06643dc19873303bfc84",
       "size_bytes": 7029
     },
+    "docs/rfcs/RFC-012G_RUNTIME_E2E_BEHAVIOR_CONFORMANCE.md": {
+      "sha256": "63f7ebf88ee6490d5e9f1b13f0bf9837d50052a778c03ecbd4edd9c3ef5b74d9",
+      "size_bytes": 5799
+    },
     "phase_0_verification.json": {
       "sha256": "3db71600e460533b6180076a6d83e1ecf0aa02286ea29912b8c62e6ea534c244",
       "size_bytes": 919
@@ -277,6 +289,10 @@
     "phase_12f_verification.json": {
       "sha256": "a7f8208aaae4ec5ad98b46abebe5525b1f427683493ea8bcb18969832cdf9424",
       "size_bytes": 712
+    },
+    "phase_12g_verification.json": {
+      "sha256": "3ce78a0772353a925ebbb8c500dcf78059c22bfb9c2d97939b5eac38cb53f8ff",
+      "size_bytes": 925
     },
     "phase_1_verification.json": {
       "sha256": "4e6792141e329d13a6fd284916e3c447a698e134a468ff2056ecdc08603906dd",
@@ -323,8 +339,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "b7f24182baa2c10b685bd2f404192a49175401b282dd4dba277e7c97d6a673ea",
-      "size_bytes": 4138
+      "sha256": "580e113c6921975f51ebe7e2748cfb284849668a8dbfa6194d5ba2f870bd8ebb",
+      "size_bytes": 4343
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -375,8 +391,12 @@
       "size_bytes": 12426
     },
     "scripts/verify_phase12f.py": {
-      "sha256": "da55f9f85e2f6b5ce6ddf7327c74c03437be048de5b5aa7ef528adc38a812dd6",
-      "size_bytes": 11786
+      "sha256": "550e48d404cfe696754115dbd233b5aa4938becda1c317e4176fdf32f58235ed",
+      "size_bytes": 12086
+    },
+    "scripts/verify_phase12g.py": {
+      "sha256": "ca5655beecce0ae5385e0ddb7b46b56d50896fde90849286f95ecb8c45da05c9",
+      "size_bytes": 8785
     },
     "scripts/verify_phase2.py": {
       "sha256": "2fe6754cc4a2b35d687f0248082a6e65fa2bf125de55684fe7634e9df7c103e2",
@@ -499,8 +519,28 @@
       "size_bytes": 7857
     },
     "src/luna/cli.py": {
-      "sha256": "42c0cecacbd6afeada58ba1616d55166c7206b14584588b2692b0fbfd160e72a",
-      "size_bytes": 53975
+      "sha256": "d0fb7501d2cf5d273591124a18cba4b525512c9271961f1b0f4f83f36f9bce5a",
+      "size_bytes": 55993
+    },
+    "src/luna/conformance/__init__.py": {
+      "sha256": "386b8a4726a9aa1a0c013aba5c9ae63ca6bd783d0bbcc2d5feea906d49b784f8",
+      "size_bytes": 955
+    },
+    "src/luna/conformance/models.py": {
+      "sha256": "4acbac1cadb37e0b92aae0b540216ed7dcd7050b3435745750b57cf9c97db351",
+      "size_bytes": 7659
+    },
+    "src/luna/conformance/runner.py": {
+      "sha256": "c786dd45f2197ee19760e8cb2279cefd4a2c8ecdbccf3469d412ce1e806c3f03",
+      "size_bytes": 4736
+    },
+    "src/luna/conformance/runtime_executor.py": {
+      "sha256": "0ee7a1471adcb1f2f852095515806fc3a9c04acfa6628cd3f40f09ed5c6c62a1",
+      "size_bytes": 32357
+    },
+    "src/luna/conformance/suite.py": {
+      "sha256": "1e2a04a5973013521ab32e83841054f53fc9133a108a45156076016484c9410e",
+      "size_bytes": 7259
     },
     "src/luna/context/__init__.py": {
       "sha256": "ef4286dccda2b7725cf79b302ca1e28beebd5582a20ebb0d81734b1cff9a04d8",
@@ -763,8 +803,8 @@
       "size_bytes": 3443
     },
     "src/luna/runtime/isolation.py": {
-      "sha256": "26ffb343380aaa6721821f4a471a005dbd25e29077714d680cd830453db7f03c",
-      "size_bytes": 9629
+      "sha256": "2b102c046ed5a8ead05c80980daffcedf5c6a2f866b775dbb52afb47b065097a",
+      "size_bytes": 10071
     },
     "src/luna/runtime/journal.py": {
       "sha256": "a2fcee29be18fdf7d3fe742768ba579c656c178d08511938ed5ef1dc78e6342d",
@@ -831,8 +871,8 @@
       "size_bytes": 2640
     },
     "src/luna/tools/policy.py": {
-      "sha256": "d712711637745b14709995e7647a9cfd2961b361a163d6dc27803a300fa465f8",
-      "size_bytes": 8847
+      "sha256": "3ed72b066dedd57071879adcc26af2d7d161fb1e8f85f62756ba4509e82e3cd7",
+      "size_bytes": 9535
     },
     "src/luna/tools/registry.py": {
       "sha256": "c460f696456f61a14e73910e2a8498966b7025eb39622e2dd5e372f049d4b148",
@@ -911,8 +951,8 @@
       "size_bytes": 3481
     },
     "tests/test_cli.py": {
-      "sha256": "3a32451a5a9956674e6fbe3d44005a90e821c721395664fcced2de2395f89a31",
-      "size_bytes": 13331
+      "sha256": "839562ec3b92053dd504f01d3c35d53873d753b9a32f41601a9572b714f122f7",
+      "size_bytes": 14399
     },
     "tests/test_context_collection.py": {
       "sha256": "785dc4b9469eeb8b8877cc3718b05c4d10c01d8bbd0a49565d2b8e0158153648",
@@ -1006,6 +1046,10 @@
       "sha256": "a58dd3f89a1d10678d0fc2109808d7c3dbfeff894423615ac262c6edb81b68c8",
       "size_bytes": 15386
     },
+    "tests/test_phase12g_runtime_e2e_conformance.py": {
+      "sha256": "c6c8251b741cb67f5a16a088f8ee61b0d4a54d9ee3010d7eaea40406ea2cf3b6",
+      "size_bytes": 3358
+    },
     "tests/test_phase5_tools.py": {
       "sha256": "2e33c994fb7212ecfcc0427f018ee1bf482cf0137fb2539e546bb7f0578aa80d",
       "size_bytes": 8948
@@ -1047,8 +1091,8 @@
       "size_bytes": 775
     },
     "tests/test_project_metadata.py": {
-      "sha256": "c4a88f419ff4f6cc190cbb51f421f986593b9e30cb1e825511e9eb178cb90698",
-      "size_bytes": 4795
+      "sha256": "6ffea6360a0d101a6659fc4fb6f1bd139c5303e110401d487d6842ca59238e4b",
+      "size_bytes": 5456
     },
     "tests/test_replanner.py": {
       "sha256": "31703b6feb1f7fa41292d557033b866369fcec67ac2929573db2ec81168123ce",

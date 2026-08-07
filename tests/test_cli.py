@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 12F" in output
+    assert "phase: 12G" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -61,6 +61,10 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "evidence_store: sqlite_wal_hash_checked" in output
     assert "finalization: gate_report_terminal_checkpoint" in output
     assert "learning_candidates: review_required_no_auto_commit" in output
+    assert "runtime_conformance_suite: revision_locked_sha256" in output
+    assert "runtime_e2e_cases: 11_critical" in output
+    assert "scope_path_preflight: deny_before_dispatch" in output
+    assert "phase12_acceptance: component_plus_runtime_e2e" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -352,3 +356,23 @@ def test_phase12f_smoke_command(
     assert payload["evidence_store_integrity"] is True
     assert payload["learning_review_required"] is True
     assert payload["learning_auto_commit"] is False
+
+def test_phase12g_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase12g-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["suite_revision"] == "1.0.0"
+    assert len(payload["suite_sha256"]) == 64
+    assert payload["total_cases"] == 11
+    assert payload["passed_cases"] == 11
+    assert payload["failed_cases"] == 0
+    assert payload["critical_failures"] == 0
+    assert payload["verified_completion"] == "COMPLETED"
+    assert payload["false_complete_guard"] == "VERIFICATION_PENDING"
+    assert payload["scope_denial"] == "PERMISSION_DENIED"
+    assert payload["scope_denial_tool_calls"] == 0
+    assert payload["worktree_cleanup"] is True
+    assert payload["stale_evidence_status"] == "UNVERIFIED"

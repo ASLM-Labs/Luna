@@ -15,7 +15,11 @@ from luna.tools.models import (
     ToolRequest,
     ToolSpec,
 )
-from luna.tools.paths import WorkspacePathError, canonical_workspace_path
+from luna.tools.paths import (
+    WorkspacePathError,
+    canonical_workspace_path,
+    path_is_allowed,
+)
 
 _RISK_ORDER = {
     RiskLevel.LOW: 0,
@@ -175,6 +179,19 @@ def evaluate_tool_policy(
     if ToolCapability.PROCESS in capabilities and not task_contract.scope.process_allowed:
         return _denied(checks, "process_scope", "task scope does not allow processes")
     checks.append("process_scope:PASS")
+
+    if "path" in spec.argument_schema:
+        path_value = request.arguments.get("path")
+        if not isinstance(path_value, str):
+            return _denied(checks, "path_scope", "tool path argument is not a string")
+        try:
+            canonical_workspace_path(task_contract.scope.workspace_root, path_value)
+            allowed = path_is_allowed(path_value, task_contract.scope.allowed_paths)
+        except WorkspacePathError as exc:
+            return _denied(checks, "path_scope", str(exc))
+        if not allowed:
+            return _denied(checks, "path_scope", "tool path is outside allowed_paths")
+    checks.append("path_scope:PASS")
 
     timeout_ms = request.timeout_ms or spec.default_timeout_ms
     timeout_ceiling = min(spec.max_timeout_ms, policy.max_timeout_ms)

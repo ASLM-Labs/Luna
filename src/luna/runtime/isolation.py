@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID
@@ -62,8 +65,16 @@ class WorkspaceIsolationManager(Protocol):
 class GitWorktreeIsolationManager:
     """Use a deterministic detached Git worktree for HIGH/CRITICAL mutations."""
 
-    def __init__(self, *, git_executable: str = "git") -> None:
+    def __init__(
+        self,
+        *,
+        git_executable: str = "git",
+        worktree_base_root: str | None = None,
+    ) -> None:
         self._git = git_executable
+        if worktree_base_root is None:
+            worktree_base_root = str(Path(tempfile.gettempdir()) / "luna-worktrees")
+        self._worktree_base_root = Path(worktree_base_root).expanduser().resolve()
 
     @staticmethod
     def _run(
@@ -98,8 +109,9 @@ class GitWorktreeIsolationManager:
         return root
 
     def _target(self, root: Path, task_id: UUID) -> Path:
-        base = root.parent / f".{root.name}-luna-worktrees"
-        return base / task_id.hex
+        normalized_root = os.path.normcase(str(root.resolve()))
+        repo_key = sha256(normalized_root.encode()).hexdigest()[:24]
+        return self._worktree_base_root / repo_key / task_id.hex
 
     def worktree_available(self, task_contract: TaskContract) -> bool:
         try:

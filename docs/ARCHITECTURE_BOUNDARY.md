@@ -1,3 +1,64 @@
+# Faz 12G Mimari Sınırı
+
+Faz 12G, Faz 12A–12F runtime temelini tek sistem olarak locked real-runtime E2E
+behavior conformance ile doğrular. Component PASS, integrated invariant ihlalini
+gizleyemez.
+
+```text
+locked scenario + oracle
+→ real LunaRuntime stack
+→ model/action/policy/tool boundary
+→ durable observation / recovery / continuity
+→ verification / report / checkpoint
+→ normalized observable result
+→ exact oracle comparison
+→ PASS / FAIL / ERROR
+```
+
+## Var
+
+- revision `1.0.0` locked conformance suite ve canonical SHA-256 fixture/oracle digest;
+- 8 cross-layer domain ve 11 critical runtime scenario;
+- actual LunaRuntime + journal + continuity + evidence + worktree execution;
+- exact fail-closed oracle comparison;
+- independent run semantic-repeatability check;
+- no/weak/conflicting/stale evidence false-completion regressions;
+- multi-action, cancel, budget ve STARTED-side-effect replay regressions;
+- HIGH-risk real Git worktree isolation/cleanup regression;
+- dispatcher preflight `path` → `TaskScope.allowed_paths` scope enforcement;
+- locked Faz 11 core acceptance compatibility 11/11 gate;
+- Faz 12G verifier, tests, CLI smoke ve quality-gate integration.
+
+## Zorlanan kurallar
+
+- component-level PASS integrated behavior PASS yerine geçmez;
+- conformance fixture/oracle hash/revision değiştirilmeden sessizce değişemez;
+- executor exception'ı success'e çevrilemez;
+- no evidence `COMPLETED` olamaz;
+- out-of-scope mutation dispatcher'a ulaşamaz;
+- ambiguous `STARTED` side effect restart sonrası otomatik replay edilemez;
+- HIGH-risk write original checkout'a sızamaz;
+- stale revision evidence current state'i doğrulayamaz;
+- Phase 11 locked acceptance Phase 12G eklenince bozulamaz.
+
+## Yok
+
+- gerçek harici model rollout;
+- network research veya external integration;
+- autonomous self-modification;
+- desktop, Discord veya voice gateway;
+- subagent/persona chain.
+
+## Sonraki kapılar
+
+```text
+13 real-model compatibility + controlled rollout
+→ 14 research gateway / evidence RAG
+→ 15 resource manager / queue / scheduler / notifications
+```
+
+---
+
 # Faz 12F Mimari Sınırı
 
 Faz 12F, Faz 12E single policy-agent loop'un `VERIFYING` sınırını deterministic

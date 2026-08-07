@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12F evidence-aware runtime."""
+"""Command-line entry point for the Luna Phase 12G conformance-checked runtime."""
 
 from __future__ import annotations
 
@@ -24,6 +24,11 @@ from luna.actions import (
 )
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
 from luna.autonomy import AutonomyPolicy, FreeResearchContract
+from luna.conformance import (
+    ConformanceRunner,
+    RuntimeBehaviorExecutor,
+    build_runtime_conformance_suite,
+)
 from luna.context import (
     CONTEXT_LAYER_ORDER,
     ContextExclusionReason,
@@ -165,6 +170,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12f-smoke",
         help="Verify Phase 12F evidence strength, disagreement, and learning boundary.",
+    )
+    subparsers.add_parser(
+        "phase12g-smoke",
+        help="Run the locked Phase 12G runtime E2E behavior-conformance suite.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -1005,7 +1014,10 @@ def _run_phase12c_smoke() -> int:
         objective="Verify Phase 12C pre-execution action routing.",
         required_conditions=("Read action is prepared without execution.",),
         evidence_required=("Structured action resolution",),
-        scope=TaskScope(workspace_root=str(Path.cwd())),
+        scope=TaskScope(
+            workspace_root=str(Path.cwd()),
+            allowed_paths=("README.md",),
+        ),
         risk_level=RiskLevel.LOW,
         owner="user",
     )
@@ -1255,13 +1267,43 @@ def _run_phase12f_smoke() -> int:
         ) else 2
 
 
+def _run_phase12g_smoke() -> int:
+    suite = build_runtime_conformance_suite()
+    with TemporaryDirectory(prefix="luna-phase12g-smoke-") as temp:
+        report = ConformanceRunner().run(
+            suite=suite,
+            executor=RuntimeBehaviorExecutor(),
+            workspace_root=Path(temp),
+        )
+
+    by_id = {item.case_id: item for item in report.results}
+    payload = {
+        "suite_revision": report.suite_revision,
+        "suite_sha256": report.suite_sha256,
+        "total_cases": report.total_cases,
+        "passed_cases": report.passed_cases,
+        "failed_cases": report.failed_cases,
+        "critical_failures": report.critical_failures,
+        "verified_completion": by_id["L12G-01-verified-completion"].actual["final_stop"],
+        "false_complete_guard": by_id["L12G-02-no-false-complete"].actual["stop_reason"],
+        "scope_denial": by_id["L12G-08-scope-denial-no-dispatch"].actual["stop_reason"],
+        "scope_denial_tool_calls": by_id["L12G-08-scope-denial-no-dispatch"].actual["tool_calls"],
+        "worktree_cleanup": by_id["L12G-09-high-risk-worktree"].actual["cleanup_verified"],
+        "stale_evidence_status": by_id["L12G-11-stale-evidence-rejected"].actual[
+            "completion_status"
+        ],
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if report.all_passed else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12F")
-        print("status: VERIFICATION_EVIDENCE_LEARNING_IMPLEMENTED_UNVERIFIED")
+        print("phase: 12G")
+        print("status: RUNTIME_E2E_BEHAVIOR_CONFORMANCE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1328,6 +1370,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("evidence_store: sqlite_wal_hash_checked")
         print("finalization: gate_report_terminal_checkpoint")
         print("learning_candidates: review_required_no_auto_commit")
+        print("runtime_conformance_suite: revision_locked_sha256")
+        print("runtime_e2e_cases: 11_critical")
+        print("scope_path_preflight: deny_before_dispatch")
+        print("phase12_acceptance: component_plus_runtime_e2e")
         return 0
 
     if args.command == "resolve-intent":
@@ -1369,6 +1415,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12f-smoke":
         return _run_phase12f_smoke()
+
+    if args.command == "phase12g-smoke":
+        return _run_phase12g_smoke()
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

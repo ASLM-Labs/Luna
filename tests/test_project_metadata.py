@@ -102,6 +102,7 @@ def test_phase_twelve_e_single_policy_loop_files_are_present() -> None:
         project_root / "docs" / "rfcs" / "RFC-012E_SINGLE_POLICY_AGENT_LOOP.md"
     ).is_file()
 
+
 def test_phase_twelve_f_verification_evidence_learning_files_are_present() -> None:
     project_root = PROJECT_ROOT
     assert (project_root / "src" / "luna" / "verification" / "evidence_store.py").is_file()
@@ -114,4 +115,19 @@ def test_phase_twelve_f_verification_evidence_learning_files_are_present() -> No
         / "docs"
         / "rfcs"
         / "RFC-012F_VERIFICATION_EVIDENCE_LEARNING.md"
+    ).is_file()
+
+
+def test_phase_twelve_g_runtime_conformance_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "conformance" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "conformance" / "runner.py").is_file()
+    assert (project_root / "src" / "luna" / "conformance" / "runtime_executor.py").is_file()
+    assert (project_root / "src" / "luna" / "conformance" / "suite.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12g.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-012G_RUNTIME_E2E_BEHAVIOR_CONFORMANCE.md"
     ).is_file()

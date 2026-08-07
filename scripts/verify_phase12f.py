@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -71,7 +72,15 @@ def _canonical_metadata_bytes(path: Path) -> bytes:
 
 def _metadata_integrity() -> bool:
     manifest = json.loads((ROOT / "MANIFEST.json").read_text(encoding="utf-8"))
-    if manifest.get("phase") != "12F":
+    phase = manifest.get("phase")
+    if not isinstance(phase, str):
+        return False
+    match = re.fullmatch(r"(\d+)([A-Z]?)", phase)
+    if match is None:
+        return False
+    phase_number = int(match.group(1))
+    phase_suffix = match.group(2)
+    if phase_number < 12 or (phase_number == 12 and phase_suffix < "F"):
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False
