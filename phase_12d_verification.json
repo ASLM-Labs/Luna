@@ -1,0 +1,24 @@
+{
+  "phase": "12D",
+  "checks": {
+    "required_files_present": true,
+    "invalid_action_replans": true,
+    "permission_denial_never_retries": true,
+    "transient_label_alone_cannot_retry": true,
+    "changed_basis_allows_transient_retry": true,
+    "stale_state_requires_reinspect": true,
+    "verification_failure_requires_rollback": true,
+    "integrity_failure_stops": true,
+    "minimal_change_budget_passes": true,
+    "protected_path_blocked": true,
+    "scope_creep_blocked": true,
+    "low_risk_uses_snapshot": true,
+    "high_risk_requires_worktree": true,
+    "worktree_has_no_silent_snapshot_downgrade": true,
+    "recovery_has_no_hidden_execution": true,
+    "contracts_round_trip": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

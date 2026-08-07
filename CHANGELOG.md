@@ -2,6 +2,25 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase12d] - 2026-08-07
+
+### Added
+
+- Stable runtime-owned failure taxonomy and structured recovery decisions.
+- Exact transient-error allowlist; model prose cannot grant retry authority.
+- Changed-basis-only transient retry policy with deterministic replan fallback.
+- Minimal-change path/file/line budgets and observed scope-creep detection.
+- Risk-based NONE/SNAPSHOT/WORKTREE isolation planning.
+- RFC-012D, verifier, unit tests, CLI smoke, and quality-gate integration.
+
+### Security
+
+- Permission/scope denial never blind-retries.
+- Stale state requires reinspection and verification failure can require rollback.
+- Integrity failure and hard budget exhaustion stop safely.
+- HIGH/CRITICAL worktree requirement cannot silently downgrade to snapshot-only execution.
+- Recovery policy performs no hidden tool, rollback, process, network, or Git execution.
+
 ## [0.1.0-phase12c] - 2026-08-07
 
 ### Added

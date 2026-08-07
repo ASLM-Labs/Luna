@@ -1,61 +1,61 @@
-# Faz 12C Mimari Sınırı
+# Faz 12D Mimari Sınırı
 
-Faz 12C, Faz 12B'nin layered context sınırının üstüne model intent ile gerçek tool
-execution arasındaki action-selection katmanını ekler.
+Faz 12D, Faz 12C action-selection sınırının üstüne deterministic failure recovery,
+minimal-change enforcement ve risk-based workspace isolation policy ekler.
 
 ```text
 authenticated RuntimeRequest
 → LayeredContextBundle
-→ ActionProposal (untrusted)
-→ Stage 1 ToolFamily
-→ Stage 2 registered ToolSpec
-→ argument validation
+→ ActionProposal
+→ two-stage ToolSpec selection
 → deterministic policy preflight
-→ PREPARED request veya StructuredDenial + BLOCKED Observation
-→ future ToolDispatcher execution in single policy-agent loop
+→ PREPARED request / StructuredDenial
+→ structured failure classification
+→ RecoveryDecision
+→ MinimalChangeDecision
+→ IsolationDecision
+→ future Phase 12E runtime orchestration
 ```
 
 ## Var
 
-- Faz 1–12B çekirdek yetenekleri ve kilitli Faz 11 acceptance suite;
-- `ActionProposal`, action kind/target/capability contract;
-- iteration başına en fazla bir side-effect proposal;
-- runtime-owned `ToolFamily` ve `ToolRoute`;
-- iki aşamalı deterministic tool selection;
-- strict argument-schema preflight;
-- mevcut runtime tool policy'nin execution öncesi deterministic preflight'i;
-- ambiguous/invented/incompatible tool için structured denial;
-- permission denial sonrası silent fallback yasağı;
-- denial → `ObservationStatus.BLOCKED` normalization;
-- `PREPARED` result ile ToolDispatcher arasında açık execution boundary;
-- Faz 12C RFC, verifier, unit test ve CLI smoke.
+- Faz 1–12C çekirdek yetenekleri ve kilitli Faz 11 acceptance suite;
+- stable `FailureCategory` taxonomy;
+- Phase 12C denial ve tool failure classification;
+- runtime-owned transient error-class allowlist;
+- `RETRY / REPLAN / REINSPECT / REQUEST_APPROVAL / ROLLBACK / SUSPEND / STOP`;
+- changed-basis-only retry gate;
+- explicit path/file/added-line/deleted-line minimal-change budget;
+- post-change approved-scope comparison;
+- NONE/SNAPSHOT/WORKTREE isolation planning;
+- HIGH/CRITICAL worktree requirement with no silent downgrade;
+- Faz 12D RFC, verifier, tests, CLI smoke, and quality-gate integration.
 
 ## Zorlanan kurallar
 
-- model proposal permission veya risk veremez;
-- proposal runtime-owned risk alanı taşımaz;
-- route yalnız registered tool'a işaret edebilir;
-- birden fazla compatible tool varsa runtime tahmin yapmaz;
-- preferred tool reddedilirse başka tool sessizce denenmez;
-- high-impact expectation ve scope/autonomy/risk policy preflight'te kontrol edilir;
-- denied action executable request'e dönüştürülemez;
-- selector/resolver handler execute veya dispatcher dispatch çağrısı yapamaz;
-- bir iteration'da birden fazla WRITE/NETWORK/PROCESS proposal olamaz.
+- model free-form text cannot grant retryability;
+- permission/scope denial is never blind-retried;
+- transient failure without changed basis replans instead of retrying;
+- stale state requires fresh inspection;
+- verification failure after mutation requires rollback;
+- integrity failure and hard budget exhaustion stop safely;
+- proposed writes must stay within TaskScope and RuntimeBudget;
+- observed write scope cannot grow beyond approved estimate;
+- high-risk workspace isolation cannot downgrade from WORKTREE to SNAPSHOT;
+- recovery/isolation policy code does not execute tools, rollback, subprocess, network, or Git.
 
 ## Yok
 
-- ortak failure taxonomy ve retry sınıflandırması;
-- minimal-change enforcement ve worktree isolation;
+- actual Git worktree create/resume/cleanup lifecycle;
 - `LunaRuntime.run()` / `resume()` orchestrator;
-- gerçek model rollout;
-- ağ, GitHub, MCP/plugin, masaüstü, Discord veya ses entegrasyonu;
-- subagent veya kontrolsüz self-improvement.
+- real model rollout;
+- network, GitHub, MCP/plugin, desktop, Discord, or voice integration;
+- subagent or uncontrolled self-improvement.
 
 ## Sonraki kapılar
 
 ```text
-12D failure taxonomy + minimal change + risk-based worktree
-→ 12E single policy-agent loop
-→ 12F finalization
-→ 12G E2E + behavior acceptance
+12E single policy-agent loop + run/resume/suspend/cancel + idempotency
+→ 12F finalization + verification/report/checkpoint/memory
+→ 12G runtime E2E + behavior conformance
 ```

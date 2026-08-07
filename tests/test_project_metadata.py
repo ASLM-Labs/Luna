@@ -76,3 +76,15 @@ def test_phase_twelve_c_action_selection_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-012C_ACTION_PROPOSAL_TOOL_SELECTION.md"
     ).is_file()
+
+
+def test_phase_twelve_d_recovery_policy_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "recovery" / "classifier.py").is_file()
+    assert (project_root / "src" / "luna" / "recovery" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "recovery" / "minimal_change.py").is_file()
+    assert (project_root / "src" / "luna" / "recovery" / "isolation.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12d.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-012D_FAILURE_RECOVERY_MINIMAL_CHANGE.md"
+    ).is_file()
