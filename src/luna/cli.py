@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 12G conformance-checked runtime."""
+"""Command-line entry point for the Luna Phase 13 controlled-model runtime."""
 
 from __future__ import annotations
 
@@ -67,6 +67,20 @@ from luna.memory import (
     MemoryType,
     SQLiteMemoryStore,
     VerifiedMemoryService,
+)
+from luna.modeling import (
+    ControlledModelBackend,
+    LocalOpenAICompatibleBackend,
+    ModelCompatibilityProbe,
+    ModelFinishReason,
+    ModelRolloutGate,
+    ModelRolloutHealth,
+    ModelRolloutPolicy,
+    ModelRolloutStage,
+    ModelToolCall,
+    ScriptedModelOutput,
+    ScriptedTestBackend,
+    ScriptedTurn,
 )
 from luna.recovery import (
     ChangeEstimate,
@@ -174,6 +188,30 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase12g-smoke",
         help="Run the locked Phase 12G runtime E2E behavior-conformance suite.",
+    )
+    subparsers.add_parser(
+        "phase13-smoke",
+        help="Verify Phase 13 model compatibility and controlled rollout gates.",
+    )
+    live_probe = subparsers.add_parser(
+        "phase13-live-probe",
+        help="Probe a loopback OpenAI-compatible real model without granting rollout authority.",
+    )
+    live_probe.add_argument(
+        "--endpoint",
+        default="http://127.0.0.1:1234/v1/chat/completions",
+        help="Loopback OpenAI-compatible chat-completions endpoint.",
+    )
+    live_probe.add_argument(
+        "--model",
+        required=True,
+        help="Model identifier exposed by the local server.",
+    )
+    live_probe.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=30.0,
+        help="Per-request compatibility probe timeout.",
     )
     inspect_parser = subparsers.add_parser(
         "audit-inspect",
@@ -1297,13 +1335,119 @@ def _run_phase12g_smoke() -> int:
     return 0 if report.all_passed else 2
 
 
+def _run_phase13_smoke() -> int:
+    backend = ScriptedTestBackend(
+        turns=(
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="LUNA_COMPAT_OK",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="phase13-smoke-tool",
+                            tool_name="compat.echo",
+                            arguments={"message": "LUNA_TOOL_OK"},
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        ),
+        backend_id="phase13-smoke-compatible",
+    )
+    report = ModelCompatibilityProbe().run(backend)
+    fingerprint = report.fingerprint()
+    shadow_policy = ModelRolloutPolicy(
+        backend_id=backend.backend_id,
+        approved_compatibility_fingerprint=fingerprint,
+        stage=ModelRolloutStage.SHADOW,
+    )
+    active_policy = ModelRolloutPolicy(
+        backend_id=backend.backend_id,
+        approved_compatibility_fingerprint=fingerprint,
+        stage=ModelRolloutStage.ACTIVE,
+    )
+    gate = ModelRolloutGate()
+    task_id = uuid4()
+    shadow = gate.decide(
+        task_id=task_id,
+        policy=shadow_policy,
+        compatibility=report,
+        health=ModelRolloutHealth(),
+    )
+    active = gate.decide(
+        task_id=task_id,
+        policy=active_policy,
+        compatibility=report,
+        health=ModelRolloutHealth(),
+    )
+    tripwire = gate.decide(
+        task_id=task_id,
+        policy=active_policy,
+        compatibility=report,
+        health=ModelRolloutHealth(false_successes=1),
+    )
+    controlled = ControlledModelBackend(
+        backend=backend,
+        compatibility=report,
+        policy=active_policy,
+    )
+    payload = {
+        "backend_id": report.backend_id,
+        "required_compatibility_pass": report.required_passed,
+        "eligible_for_rollout": report.eligible_for_rollout,
+        "compatibility_fingerprint": fingerprint,
+        "shadow_authorized": shadow.authorized,
+        "active_authorized": active.authorized,
+        "tripwire_authorized": tripwire.authorized,
+        "controlled_backend_id": controlled.backend_id,
+        "live_probe_authority": "none",
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if all(
+        (
+            payload["required_compatibility_pass"] is True,
+            payload["eligible_for_rollout"] is True,
+            payload["shadow_authorized"] is False,
+            payload["active_authorized"] is True,
+            payload["tripwire_authorized"] is False,
+            payload["live_probe_authority"] == "none",
+        )
+    ) else 2
+
+
+def _run_phase13_live_probe(
+    *,
+    endpoint: str,
+    model: str,
+    timeout_seconds: float,
+) -> int:
+    backend = LocalOpenAICompatibleBackend(
+        endpoint=endpoint,
+        model=model,
+        timeout_seconds=timeout_seconds,
+    )
+    report = ModelCompatibilityProbe().run(backend)
+    payload = report.model_dump(mode="json")
+    payload["required_passed"] = report.required_passed
+    payload["eligible_for_rollout"] = report.eligible_for_rollout
+    payload["compatibility_fingerprint"] = report.fingerprint()
+    payload["rollout_authority_granted"] = False
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if report.eligible_for_rollout else 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 12G")
-        print("status: RUNTIME_E2E_BEHAVIOR_CONFORMANCE_IMPLEMENTED_UNVERIFIED")
+        print("phase: 13")
+        print("status: REAL_MODEL_COMPATIBILITY_CONTROLLED_ROLLOUT_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1374,6 +1518,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("runtime_e2e_cases: 11_critical")
         print("scope_path_preflight: deny_before_dispatch")
         print("phase12_acceptance: component_plus_runtime_e2e")
+        print("model_compatibility: required_text_single_tool_json_args")
+        print("model_backend_failures: structured_provider_neutral")
+        print("model_failure_retry: never_blind")
+        print("model_rollout: blocked_shadow_canary_active_runtime_owned")
+        print("shadow_authority: none")
+        print("canary_allocation: deterministic_task_bucket")
+        print("rollout_tripwires: false_success_authority_backend_invalid_turn")
+        print("live_probe: loopback_only_no_rollout_authority")
         return 0
 
     if args.command == "resolve-intent":
@@ -1418,6 +1570,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase12g-smoke":
         return _run_phase12g_smoke()
+    if args.command == "phase13-smoke":
+        return _run_phase13_smoke()
+
+    if args.command == "phase13-live-probe":
+        return _run_phase13_live_probe(
+            endpoint=args.endpoint,
+            model=args.model,
+            timeout_seconds=args.timeout_seconds,
+        )
 
     if args.command == "audit-inspect":
         task_id = UUID(args.task_id)

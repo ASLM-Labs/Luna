@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Protocol, cast
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -15,6 +16,7 @@ from luna.modeling.contracts import (
     ModelToolCall,
     ModelUsage,
 )
+from luna.modeling.errors import ModelBackendError, ModelBackendErrorCode, http_error_code
 from luna.tools.models import ToolArgumentRule, ToolArgumentType, ToolArgumentValue, ToolSpec
 
 
@@ -29,6 +31,10 @@ class JsonTransport(Protocol):
     ) -> dict[str, object]:
         """POST JSON and return one decoded object."""
         ...
+
+
+class _ResponseTooLargeError(ValueError):
+    pass
 
 
 class UrllibJsonTransport:
@@ -50,7 +56,7 @@ class UrllibJsonTransport:
         with urlopen(request, timeout=timeout_seconds) as response:
             raw = response.read(max_response_bytes + 1)
         if len(raw) > max_response_bytes:
-            raise ValueError("local model response exceeded byte limit")
+            raise _ResponseTooLargeError("local model response exceeded byte limit")
         decoded = json.loads(raw.decode("utf-8"))
         if not isinstance(decoded, dict):
             raise ValueError("local model response must be a JSON object")
@@ -197,62 +203,101 @@ class LocalOpenAICompatibleBackend:
             payload["tools"] = [_tool_payload(spec) for spec in request.available_tools]
             payload["tool_choice"] = "auto"
 
-        raw = self._transport.post_json(
-            url=self._endpoint,
-            payload=payload,
-            timeout_seconds=self._timeout_seconds,
-            max_response_bytes=self._max_response_bytes,
-        )
-        choices = _as_list(raw.get("choices"), "local model response requires choices")
-        if not choices:
-            raise ValueError("local model response returned no choices")
-        choice = _as_dict(choices[0], "local model choice must be an object")
-        message = _as_dict(choice.get("message"), "local model choice requires message")
-        text_value = message.get("content")
-        text = text_value if isinstance(text_value, str) else ""
+        try:
+            raw = self._transport.post_json(
+                url=self._endpoint,
+                payload=payload,
+                timeout_seconds=self._timeout_seconds,
+                max_response_bytes=self._max_response_bytes,
+            )
+            choices = _as_list(raw.get("choices"), "local model response requires choices")
+            if not choices:
+                raise ValueError("local model response returned no choices")
+            choice = _as_dict(choices[0], "local model choice must be an object")
+            message = _as_dict(choice.get("message"), "local model choice requires message")
+            text_value = message.get("content")
+            text = text_value if isinstance(text_value, str) else ""
 
-        tool_calls: list[ModelToolCall] = []
-        raw_calls = message.get("tool_calls", [])
-        for raw_call in _as_list(raw_calls, "tool_calls must be a list"):
-            call = _as_dict(raw_call, "tool call must be an object")
-            function = _as_dict(call.get("function"), "tool call requires function")
-            call_id = call.get("id")
-            name = function.get("name")
-            if not isinstance(call_id, str) or not isinstance(name, str):
-                raise ValueError("tool call id and name must be strings")
-            tool_calls.append(
-                ModelToolCall(
-                    call_id=call_id,
-                    tool_name=name,
-                    arguments=_parse_arguments(function.get("arguments", {})),
+            tool_calls: list[ModelToolCall] = []
+            raw_calls = message.get("tool_calls", [])
+            for raw_call in _as_list(raw_calls, "tool_calls must be a list"):
+                call = _as_dict(raw_call, "tool call must be an object")
+                function = _as_dict(call.get("function"), "tool call requires function")
+                call_id = call.get("id")
+                name = function.get("name")
+                if not isinstance(call_id, str) or not isinstance(name, str):
+                    raise ValueError("tool call id and name must be strings")
+                tool_calls.append(
+                    ModelToolCall(
+                        call_id=call_id,
+                        tool_name=name,
+                        arguments=_parse_arguments(function.get("arguments", {})),
+                    )
                 )
+
+            raw_finish = choice.get("finish_reason")
+            finish_map = {
+                "stop": ModelFinishReason.STOP,
+                "tool_calls": ModelFinishReason.TOOL_CALLS,
+                "length": ModelFinishReason.LENGTH,
+            }
+            finish_reason = (
+                finish_map.get(raw_finish, ModelFinishReason.ERROR)
+                if isinstance(raw_finish, str)
+                else ModelFinishReason.ERROR
             )
 
-        raw_finish = choice.get("finish_reason")
-        finish_map = {
-            "stop": ModelFinishReason.STOP,
-            "tool_calls": ModelFinishReason.TOOL_CALLS,
-            "length": ModelFinishReason.LENGTH,
-        }
-        finish_reason = (
-            finish_map.get(raw_finish, ModelFinishReason.ERROR)
-            if isinstance(raw_finish, str)
-            else ModelFinishReason.ERROR
-        )
-
-        usage_raw = raw.get("usage", {})
-        usage_dict = _as_dict(usage_raw, "usage must be an object")
-        input_tokens = usage_dict.get("prompt_tokens", 0)
-        output_tokens = usage_dict.get("completion_tokens", 0)
-        usage = ModelUsage(
-            input_tokens=input_tokens if isinstance(input_tokens, int) else 0,
-            output_tokens=output_tokens if isinstance(output_tokens, int) else 0,
-        )
-        return ModelResponse(
-            request_id=request.request_id,
-            backend_id=self.backend_id,
-            text=text,
-            tool_calls=tuple(tool_calls),
-            finish_reason=finish_reason,
-            usage=usage,
-        )
+            usage_raw = raw.get("usage", {})
+            usage_dict = _as_dict(usage_raw, "usage must be an object")
+            input_tokens = usage_dict.get("prompt_tokens", 0)
+            output_tokens = usage_dict.get("completion_tokens", 0)
+            usage = ModelUsage(
+                input_tokens=input_tokens if isinstance(input_tokens, int) else 0,
+                output_tokens=output_tokens if isinstance(output_tokens, int) else 0,
+            )
+            return ModelResponse(
+                request_id=request.request_id,
+                backend_id=self.backend_id,
+                text=text,
+                tool_calls=tuple(tool_calls),
+                finish_reason=finish_reason,
+                usage=usage,
+            )
+        except ModelBackendError:
+            raise
+        except _ResponseTooLargeError as exc:
+            raise ModelBackendError(
+                code=ModelBackendErrorCode.RESPONSE_TOO_LARGE,
+                backend_id=self.backend_id,
+                safe_reason="local model response exceeded configured byte limit",
+                retryable=False,
+            ) from exc
+        except TimeoutError as exc:
+            raise ModelBackendError(
+                code=ModelBackendErrorCode.TIMEOUT,
+                backend_id=self.backend_id,
+                safe_reason="local model request timed out",
+                retryable=True,
+            ) from exc
+        except HTTPError as exc:
+            code, retryable = http_error_code(exc.code)
+            raise ModelBackendError(
+                code=code,
+                backend_id=self.backend_id,
+                safe_reason=f"local model HTTP request failed with status {exc.code}",
+                retryable=retryable,
+            ) from exc
+        except URLError as exc:
+            raise ModelBackendError(
+                code=ModelBackendErrorCode.UNAVAILABLE,
+                backend_id=self.backend_id,
+                safe_reason="local model endpoint is unavailable",
+                retryable=True,
+            ) from exc
+        except (ValueError, TypeError) as exc:
+            raise ModelBackendError(
+                code=ModelBackendErrorCode.MALFORMED_RESPONSE,
+                backend_id=self.backend_id,
+                safe_reason="local model response violated the adapter protocol",
+                retryable=False,
+            ) from exc
