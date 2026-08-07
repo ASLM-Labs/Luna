@@ -19,7 +19,20 @@ from luna.autonomy import (
     AutonomyPolicy,
     FreeResearchContract,
 )
-from luna.context import ContextBudget, ContextBundle, ContextCollector, ContextSource
+from luna.context import (
+    CONTEXT_LAYER_ORDER,
+    ContextBudget,
+    ContextBundle,
+    ContextCollector,
+    ContextInterpretation,
+    ContextLayer,
+    ContextSensitivity,
+    ContextSource,
+    LayeredContextBundle,
+    LayeredContextCandidate,
+    LayeredContextComposer,
+    LayeredContextPolicy,
+)
 from luna.continuity import (
     ContinuityService,
     ResumePolicy,
@@ -109,6 +122,7 @@ from luna.workspace import (
 )
 
 __all__ = [
+    "CONTEXT_LAYER_ORDER",
     "ActorRole",
     "ActorVerificationSource",
     "AdaptivePlanner",
@@ -126,6 +140,9 @@ __all__ = [
     "ContextBudget",
     "ContextBundle",
     "ContextCollector",
+    "ContextInterpretation",
+    "ContextLayer",
+    "ContextSensitivity",
     "ContextSource",
     "ContinuityService",
     "DeterministicIntentResolver",
@@ -145,6 +162,10 @@ __all__ = [
     "FreeResearchContract",
     "IdentityProfile",
     "IntentResolution",
+    "LayeredContextBundle",
+    "LayeredContextCandidate",
+    "LayeredContextComposer",
+    "LayeredContextPolicy",
     "LocalOpenAICompatibleBackend",
     "LockedEvalSuite",
     "MemoryCandidate",

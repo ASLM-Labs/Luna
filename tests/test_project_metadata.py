@@ -55,3 +55,13 @@ def test_phase_twelve_a_rfc_and_source_baseline_are_present() -> None:
     assert (
         PROJECT_ROOT / "docs" / "baselines" / "PHASE_11_SOURCE_BASELINE.md"
     ).is_file()
+
+
+def test_phase_twelve_b_layered_context_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "context" / "composer.py").is_file()
+    assert (project_root / "src" / "luna" / "context" / "layered.py").is_file()
+    assert (project_root / "scripts" / "verify_phase12b.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-012B_LAYERED_CONTEXT_COMPOSER.md"
+    ).is_file()

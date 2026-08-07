@@ -1,11 +1,12 @@
-Luna Faz 12A runtime kontratlari paketi
+Luna Faz 12B Layered Context Composer paketi
 
 Gercek Git repository:
 C:\Users\istem\Projects\Luna
 
 On kosul:
-- Faz 11 PR main dalina merge edilmis olmali.
+- Faz 12A PR main dalina merge edilmis olmali.
 - GitHub Desktop main / Fetch origin / Pull origin tamamlanmis olmali.
+- Aktif branch phase-12b-layered-context-composer olmali.
 - Calisma agacinda size ait beklenmeyen degisiklik olmamali.
 
 1. Bu ZIP icerigini repository kokune cikarin ve dosyalarin uzerine yazilmasina
@@ -21,12 +22,13 @@ On kosul:
 
 Nihai kabul:
 - Pytest, Ruff ve mypy strict PASS
-- Faz 1-11 verifier PASS
-- Faz 12A verifier PASS
+- Faz 1-12A verifier PASS
+- Faz 12B verifier PASS
 - phase11-smoke PASS
 - phase12a-smoke PASS
+- phase12b-smoke PASS
 - sabit Faz 11 eval 11/11 PASS
 - exit code 0
-- son satir: [PASS] Luna 0.1 Phase 12A runtime contracts gate passed.
+- son satir: [PASS] Luna 0.1 Phase 12B layered context composer gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

@@ -1,0 +1,31 @@
+{
+  "phase": "12B",
+  "base": "Luna 0.1 Phase 12A merged source baseline",
+  "apply_to_repository_root": true,
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "source_package_sha256": "775a23b65def9b08f05e0b33de6814f029719cdc519a3ab29786560dde8b8919",
+  "changed_or_added_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_12B_REPORT.md",
+    "docs/PHASE_12B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-012B_LAYERED_CONTEXT_COMPOSER.md",
+    "phase_12b_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase12b.py",
+    "src/luna/__init__.py",
+    "src/luna/cli.py",
+    "src/luna/context/__init__.py",
+    "src/luna/context/composer.py",
+    "src/luna/context/layered.py",
+    "src/luna/context/models.py",
+    "tests/test_cli.py",
+    "tests/test_phase12b_context_composer.py",
+    "tests/test_project_metadata.py"
+  ]
+}
