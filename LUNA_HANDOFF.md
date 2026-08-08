@@ -419,3 +419,43 @@ C-012 is QUEUED documentation/design only. This update does not claim that Luna
 currently performs autonomous self-optimization or production self-modification.
 
 <!-- HANDOFF_C012_SELF_OPTIMIZATION_END -->
+
+<!-- HANDOFF_ROADMAP_DEPENDENCY_REVIEW_BEGIN -->
+
+## Roadmap Dependency Review Checkpoint
+
+A dependency-first review of queued capabilities is persisted in:
+
+`docs/ROADMAP_DEPENDENCY_REVIEW.md`
+
+Recommended implementation sequence:
+
+```text
+C-002 -> C-001 -> C-003 -> C-005 -> C-006 -> C-004 -> C-011 -> C-012
+```
+
+Recommended next implementation:
+
+**C-002 — Capability Lineage Mapping**
+
+Reason: later retrieval, experience transfer, parallel cognition, and
+self-optimization all benefit from an explicit map of prerequisites,
+implementation components, evidence, metrics, downstream dependencies, and
+regression blast radius.
+
+Important phase-number guard:
+
+Do not automatically call the next work `Phase 20A` until the repository's
+canonical phase-number roadmap is checked for an existing Phase 20 definition.
+
+Current repository checkpoint when this review is being added:
+
+```text
+main: a74eca8
+Phase 19: CLOSED
+C-011 design/docs: CLOSED, capability QUEUED
+C-012 design/docs: CLOSED, capability QUEUED
+working tree before review branch: clean
+```
+
+<!-- HANDOFF_ROADMAP_DEPENDENCY_REVIEW_END -->

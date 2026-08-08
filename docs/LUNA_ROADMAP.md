@@ -730,3 +730,31 @@ optimization candidates that must still pass an evidence-based gate.
 > A system may propose its own improvement. It may not certify itself improved.
 
 <!-- C012_SELF_OPTIMIZATION_SANDBOX_END -->
+
+<!-- ROADMAP_DEPENDENCY_REVIEW_BEGIN -->
+
+## Roadmap Dependency Review
+
+The queued capability implementation order is now governed by
+`docs/ROADMAP_DEPENDENCY_REVIEW.md`.
+
+Current recommended sequence:
+
+```text
+C-002 Capability Lineage Mapping
+ -> C-001 Adaptive Knowledge Retrieval
+ -> C-003 Experience Distillation
+ -> C-005 Advanced Debugging Transfer
+ -> C-006 Cross-Agent Experience Mining
+ -> C-004 Pre-deployment Inheritance
+ -> C-011 Single-Voice Parallel Cognition
+ -> C-012 Self-Optimization Sandbox
+```
+
+This sequence is a planning recommendation, not an implementation claim.
+
+Before assigning a new numbered phase, reconcile this review with any existing
+canonical Phase 20 contract so the project does not silently reuse a phase
+number for a different purpose.
+
+<!-- ROADMAP_DEPENDENCY_REVIEW_END -->
