@@ -306,4 +306,36 @@ next phase:      Phase 19F - Improvement Gate
 C-011 is documentation/roadmap state only here; this update must not claim the
 parallel-cognition capability is already implemented.
 
+### C-011 completion notes
+
+Three additional design rules are part of the queued capability and must survive
+future implementation work:
+
+1. **Spawn / Admission Policy**
+   - Spawn only when expected benefit exceeds orchestration cost.
+   - Parallelism is optional, not a default reflex.
+   - Admission considers latency, evidence value, I/O wait, token/GPU/KV cost,
+     duplication risk, and mergeability into authoritative state.
+
+2. **Context Hygiene / Result Distillation**
+   - Do not inject a worker's whole working context into Main Luna.
+   - Adopt only distilled result, evidence, assumptions, uncertainty, conflicts,
+     source references/freshness, and recommended next action.
+   - Transient role framing and unverified intermediate claims remain disposable.
+
+3. **Parallel Cognition Evaluation**
+   - Measure quality, latency, evidence value, context growth, and compute/tool
+     cost together.
+   - Track unnecessary spawn, duplicate work, rejection, resume/respawn,
+     stale-result rejection, contradiction handling, and voice consistency.
+   - Worker count is never a success metric by itself.
+
+Canonical completion principles:
+
+> Parallelize when useful, not because possible.
+
+> Distill worker context before state adoption.
+
+> Measure parallelism by quality + latency + compute, not worker count.
+
 <!-- HANDOFF_C011_SINGLE_VOICE_END -->

@@ -496,4 +496,87 @@ The objective is not free compute. It is overlapping independent work,
 especially I/O-bound work, while preserving one coherent Luna policy, state,
 and voice.
 
+### Spawn / admission policy
+
+Workers are not spawned merely because parallelism is available.
+
+Before spawning a worker, Main Luna should estimate whether the task is
+independent enough and whether expected value exceeds orchestration cost.
+
+```text
+candidate subtask
+      |
+      v
+independent enough?
+      |
+      v
+expected benefit > orchestration cost?
+      |
+   +--+--+
+   |     |
+  yes    no
+   |     |
+   v     v
+ SPAWN   Main Luna continues directly
+```
+
+> Parallelize when useful, not because possible.
+
+Admission decisions should consider expected latency reduction, evidence value,
+tool or I/O wait, token cost, GPU/KV pressure, duplication risk, and whether the
+result can be safely merged into the authoritative task state.
+
+### Context hygiene / result distillation
+
+A worker's entire working context must not be copied into Main Luna merely
+because the worker completed successfully.
+
+Before state adoption, worker output should be distilled to the minimum useful
+packet:
+
+```text
+result
+evidence
+assumptions
+uncertainty
+conflicts
+source_refs
+freshness / source_revision
+recommended_next_action
+```
+
+Verbose scratch context, redundant source material, transient role framing, and
+unverified intermediate claims remain outside authoritative state by default.
+
+> Distill worker context before state adoption.
+
+This reduces context growth, persona contamination, duplicated evidence, and
+stale intermediate assumptions.
+
+### Parallel cognition evaluation
+
+Parallel cognition is evaluated by useful system-level outcomes, not by the
+number of workers created.
+
+Minimum evaluation dimensions should include:
+
+- end-to-end task latency;
+- task quality / verification quality;
+- evidence quality and adoption rate;
+- token, tool, wall-clock, GPU, and KV/context cost;
+- unnecessary worker-spawn rate;
+- duplicate-work rate;
+- worker rejection rate;
+- resume vs changed-basis respawn rate;
+- stale-result rejection rate;
+- authoritative-context growth;
+- contradiction resolution quality;
+- user-voice consistency.
+
+> Measure parallelism by quality + latency + compute, not worker count.
+
+A parallel strategy that creates more workers but increases cost, context
+pollution, contradiction, or latency without meaningful quality gain is a
+regression, not an improvement.
+
 <!-- C011_SINGLE_VOICE_PARALLEL_COGNITION_END -->
