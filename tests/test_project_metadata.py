@@ -273,3 +273,15 @@ def test_phase_nineteen_d_counterfactual_analysis_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-019D_COUNTERFACTUAL_ANALYSIS.md"
     ).is_file()
+
+
+def test_phase_nineteen_e_small_controlled_sft_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "sft" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "sft" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "sft" / "corpus.py").is_file()
+    assert (project_root / "src" / "luna" / "sft" / "candidate.py").is_file()
+    assert (project_root / "scripts" / "verify_phase19e.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-019E_SMALL_CONTROLLED_SFT.md"
+    ).is_file()

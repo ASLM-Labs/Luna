@@ -1,0 +1,42 @@
+{
+  "phase": "19E",
+  "scope": "SMALL_CONTROLLED_SFT_GOVERNANCE",
+  "baseline": "merged Phase 19D @ 0ff1196",
+  "target_branch": "phase-19e-small-controlled-sft",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 24,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/LUNA_ROADMAP.md",
+    "docs/PHASE_19E_REPORT.md",
+    "docs/PHASE_19E_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-019E_SMALL_CONTROLLED_SFT.md",
+    "phase_19e_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase19e.py",
+    "src/luna/cli.py",
+    "src/luna/sft/__init__.py",
+    "src/luna/sft/candidate.py",
+    "src/luna/sft/corpus.py",
+    "src/luna/sft/models.py",
+    "src/luna/sft/policy.py",
+    "tests/test_cli.py",
+    "tests/test_phase19e_small_controlled_sft.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Phase 19E audits a normalized train-only corpus and freezes a trainer-neutral SFT candidate specification.",
+    "Cumulative records require target-only loss; validation/held-out rows cannot enter training.",
+    "Canonical Luna tool schema, privacy/context normalization, source derivation, duplicate checks, and conservative subset mixing are enforced.",
+    "Repository governance does not execute a GPU trainer and does not fabricate trained weights.",
+    "A trained candidate may be registered only from a matching successful external training receipt with content-addressed artifact evidence.",
+    "Every Phase 19E trained artifact remains unpromoted and has no runtime authority; Phase 19F owns improvement/promotion evaluation."
+  ]
+}

@@ -746,3 +746,29 @@ runtime tools, acquire network authority, mutate runtime permissions, or promote
 
 Unexecuted alternatives remain hypotheses. An observed sandbox/replay advantage is scoped to the
 specific controlled conditions and cannot become a generalized causal claim without later evidence.
+
+
+## Phase 19E Small Controlled SFT Governance Boundary
+
+Phase 19E is a learning-lab governance component, not a runtime execution component. It may audit a
+normalized corpus, freeze a trainer-neutral SFT specification, and register externally produced training
+evidence. It cannot dispatch runtime tools, start a GPU trainer, acquire new permissions, replace the
+active model, or authorize release promotion.
+
+```text
+normalized governed train corpus
+-> Phase 19E corpus audit
+-> frozen candidate specification
+-> external controlled trainer
+-> execution + artifact receipt
+-> TRAINED_CANDIDATE_UNPROMOTED
+-> Phase 19F held-out/OOD + regression + safety comparison
+```
+
+Validation and held-out rows are evaluation-only and are rejected from Phase 19E training input.
+Cumulative traces must use target-only loss. Raw adapter-specific tool wrappers are not accepted as the
+canonical Luna tool schema, and explicit raw hidden chain-of-thought fields are rejected.
+
+A training request, a frozen config, or a generated filename is not proof that training occurred. Only a
+matching external receipt with successful execution and content-addressed artifact evidence can register a
+trained candidate. Registration still grants no runtime or promotion authority.

@@ -67,6 +67,19 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "phase19d_generalized_causal_authority: none" in output
     assert "phase19d_promotion_authority: none" in output
     assert "phase19d_real_training_run: not_executed_by_counterfactual_foundation" in output
+    assert "phase19e_sft_corpus: normalized_train_only_target_only_loss" in output
+    assert "phase19e_tool_schema: luna_canonical_only" in output
+    assert "phase19e_privacy_normalization: required" in output
+    assert "phase19e_initial_mix: implementation_primary_judge_harness_bounded" in output
+    assert "phase19e_training_spec: base_trainer_corpus_hyperparameters_sha256_locked" in output
+    assert (
+        "phase19e_external_training_receipt: execution_and_artifact_evidence_required"
+        in output
+    )
+    assert "phase19e_trained_candidate: unpromoted" in output
+    assert "phase19e_runtime_authority: none" in output
+    assert "phase19e_promotion_authority: none" in output
+    assert "phase19e_real_training_run: not_executed_by_repository_governance" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -645,3 +658,27 @@ def test_phase19d_smoke_command(
     assert payload["generalized_causal_claim_authorized"] is False
     assert payload["promotion_authorized"] is False
     assert payload["real_training_run_executed"] is False
+
+
+def test_phase19e_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19e-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["policy_locked"] is True
+    assert payload["corpus_ready"] is True
+    assert payload["record_count"] == 2
+    assert payload["target_only_loss"] is True
+    assert payload["train_split_only"] is True
+    assert payload["canonical_tool_schema"] is True
+    assert payload["canonical_normalization"] is True
+    assert payload["source_derivation_present"] is True
+    assert payload["raw_hidden_chain_of_thought_absent"] is True
+    assert payload["candidate_spec_locked"] is True
+    assert payload["held_out_used_for_training"] is False
+    assert payload["real_training_run_executed"] is False
+    assert payload["trained_artifact_registered"] is False
+    assert payload["promotion_authorized"] is False
+    assert payload["runtime_authority"] is False
