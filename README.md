@@ -230,7 +230,7 @@ citation taşıyan untrusted `DATA_ONLY` research evidence olarak alır.
 Görünür Phase 14 smoke:
 
 ```bat
-.venv\Scripts\python.exe -m luna phase14-smoke
+.venv\Scripts\python.exe -m luna phase19-smoke
 ```
 
 Deterministic verifier:
@@ -391,6 +391,41 @@ Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revisio
 ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
 Faz 12A–12G bu suite'i değiştirmez.
 
+
+## Faz 19 trace/dataset governance ve cognitive quality foundation
+
+Faz 19 iki paralel hattı birlikte kurar:
+
+- **Dataset Governance:** trajectory reconstruction, taxonomy, semantic tool normalization,
+  task/repository/trajectory-family grouped leak-free split ve target-only training transformation.
+- **Cognitive Quality:** reasoning, planning, tool selection, failure recovery, evidence usage,
+  uncertainty calibration ve self-correction için frozen pre-training baseline + karşılaştırma.
+
+Canonical trajectory ham hidden chain-of-thought değildir. Yalnız runtime tarafından gözlemlenebilir
+`TASK / PLAN / ACTION / OBSERVATION / REPLAN / EVIDENCE / VERIFICATION / FINAL` olayları, kısa
+decision basis ve evidence referansları tutulur. Raw hidden chain-of-thought sözleşme seviyesinde
+yasaktır.
+
+Failure taxonomy binary PASS/FAIL yerine intent, context, planning, tool selection, tool argument,
+execution, observation interpretation, evidence, verification, uncertainty ve self-correction
+hatalarını ayırır.
+
+Confidence evidence-bound'dur: contradictory evidence her zaman STOP üretir. Self-correction yeni
+evidence + failed assumption + strategy change + changed dimensions ister; blind retry öğrenme
+sayılmaz.
+
+Train/validation/held-out ayrımı training transformation'dan önce yapılır. Explicit held-out task
+families train/validation'a giremez ve held-out trajectory training example'a dönüştürülemez.
+
+Bu repository paketi **foundation** uygular; gerçek büyük trace corpus importu, GPU/SFT koşusu ve
+post-training held-out ölçümü yapılmış sayılmaz.
+
+Görünür smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase19-smoke
+```
+
 ## Kurulum
 
 ```bat
@@ -414,13 +449,13 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 14 research gateway and evidence RAG gate passed.
+[PASS] Luna 0.1 Phase 19 trace/dataset governance and cognitive quality foundation gate passed.
 ```
 
 ## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase14-smoke
+.venv\Scripts\python.exe -m luna phase19-smoke
 ```
 
 Başarılı çıktıda bounded network usage, admitted provenance source, citation-backed claim,

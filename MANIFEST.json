@@ -1,18 +1,18 @@
 {
   "project": "Luna",
   "developer": "Novopic Intelligence",
-  "version": "0.1.0-phase18",
-  "phase": "18",
-  "status": "IMPLEMENTED_UNVERIFIED",
-  "created_utc": "2026-08-08T03:48:00+00:00",
+  "version": "0.1.0-phase19-foundation",
+  "phase": "19",
+  "status": "FOUNDATION_IMPLEMENTED_UNVERIFIED",
+  "created_utc": "2026-08-08T05:01:14+00:00",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
       "size_bytes": 249
     },
     ".github/workflows/quality.yml": {
-      "sha256": "e619a0457b64b2645e3673e2faeb650e4e05b49c86dff5062a9cd97d399f3948",
-      "size_bytes": 2554
+      "sha256": "29ec6b6323df342e5d7bd58764e30185ce6d90765bdb32a672f54f7c01a456a1",
+      "size_bytes": 2642
     },
     ".gitignore": {
       "sha256": "0cce6bf8eee33fabd00b1ef743433b2b61eb69681a1f5abe1f613d1658e2bb5d",
@@ -23,8 +23,8 @@
       "size_bytes": 243
     },
     "CHANGELOG.md": {
-      "sha256": "ea8ab1d1eb6745ffcf35602645aea23c2282dab8224472a984222d9fabf4b094",
-      "size_bytes": 20144
+      "sha256": "606bd446021f220503b6f93854d8f606637d03c649c339604391246e0c640e47",
+      "size_bytes": 21405
     },
     "LICENSE": {
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -35,16 +35,16 @@
       "size_bytes": 222
     },
     "README.md": {
-      "sha256": "fd2ff17c0bac474232bbd48b366083708b08d1cf93f1516e78691d4c8b998024",
-      "size_bytes": 21467
+      "sha256": "18abc65a077b5efb9f602d2e1b27fae0e5756c5f5f3550d811d23566687d184e",
+      "size_bytes": 23174
     },
     "UYGULAMA.txt": {
-      "sha256": "72e46b4d640b90c381b8d195f1c84c34ead576470536fbae29a0829ba40e2bfd",
-      "size_bytes": 1745
+      "sha256": "4e34e9b6ffc2868e94e7d0f9818d3d026292cc927aba39bed8d30c5cb5243a1a",
+      "size_bytes": 2200
     },
     "docs/ARCHITECTURE_BOUNDARY.md": {
-      "sha256": "ec967a7835fbb655826223a235b719e440b4184744033a85f06b6f27eef4a4f4",
-      "size_bytes": 20400
+      "sha256": "dd9d840d7b25a64479a920a695209389f18f968c6d77b36b7eb68b95f86315c4",
+      "size_bytes": 22395
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -419,8 +419,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "1d915ed77ac7380c67c1dc9fa51c6f876820d709f2ec41ca48baddd9218268d1",
-      "size_bytes": 5493
+      "sha256": "15e06779e2b57d761c8543674eb503c1837db1fffe0f6743682a381ba6b8ea27",
+      "size_bytes": 5759
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -619,8 +619,8 @@
       "size_bytes": 7857
     },
     "src/luna/cli.py": {
-      "sha256": "690d9872d99c2d4c6ba642c206a11f0c3074f7b399683c674ae2b02792761227",
-      "size_bytes": 87062
+      "sha256": "1bed90fadeeaa895992a4eb10b96849d1a973a7eba84a1561fec367912630a5e",
+      "size_bytes": 94513
     },
     "src/luna/conformance/__init__.py": {
       "sha256": "386b8a4726a9aa1a0c013aba5c9ae63ca6bd783d0bbcc2d5feea906d49b784f8",
@@ -1183,8 +1183,8 @@
       "size_bytes": 3481
     },
     "tests/test_cli.py": {
-      "sha256": "6b70cc06d66b7437b088b5eda41b2319d1c56804aa9b301683af30542c834325",
-      "size_bytes": 21753
+      "sha256": "ad37e36d3b9fa28900be711240243493dd85160f5949f0fffcb36de3664a4731",
+      "size_bytes": 22902
     },
     "tests/test_context_collection.py": {
       "sha256": "785dc4b9469eeb8b8877cc3718b05c4d10c01d8bbd0a49565d2b8e0158153648",
@@ -1343,8 +1343,8 @@
       "size_bytes": 775
     },
     "tests/test_project_metadata.py": {
-      "sha256": "b20bc34b5134d0282fdeef2174acda8b4dfcdf18b9d83d42bbb54d35697c044f",
-      "size_bytes": 9786
+      "sha256": "c051857c175e895039c567ae54c756c16c26a6f3a90c06547c0b4fb6f257f1cf",
+      "size_bytes": 10734
     },
     "tests/test_replanner.py": {
       "sha256": "31703b6feb1f7fa41292d557033b866369fcec67ac2929573db2ec81168123ce",
@@ -1433,6 +1433,66 @@
     "tests/test_phase18_voice_gateway.py": {
       "sha256": "640dabd508ab931eef0b487a2ee1db5513bd20ded8a63c46f021f64331491860",
       "size_bytes": 12356
+    },
+    "docs/PHASE_19_REPORT.md": {
+      "sha256": "b13dbcd4ae69c55598b15cf972aeb58e97da63755a3e69d1c2c6fafd1476adca",
+      "size_bytes": 2531
+    },
+    "docs/PHASE_19_UPDATE_MANIFEST.json": {
+      "sha256": "1ae9eb49a04230db5c5fefe80de045166fae2e1f1e2869918b506a551eaf71e6",
+      "size_bytes": 1752
+    },
+    "docs/rfcs/RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md": {
+      "sha256": "babfc4dabd281a92d6d43ad2f31f95cefdd0916fde22d6b41e095fc68a8c4a45",
+      "size_bytes": 7348
+    },
+    "phase_19_verification.json": {
+      "sha256": "0844fc0c0d81e1291882e64ab635a9ecb31bdc1a26e076b222107a274bdb3169",
+      "size_bytes": 859
+    },
+    "scripts/verify_phase19.py": {
+      "sha256": "476367b792084546e586c70fd2449e8817971bba1eb9ec886858aff8c7c14ee3",
+      "size_bytes": 12141
+    },
+    "src/luna/cognition/__init__.py": {
+      "sha256": "87d7dacb5498b960790df522df1a95c5ec436eed0bf98828f9ccdff6f57286de",
+      "size_bytes": 835
+    },
+    "src/luna/cognition/evaluator.py": {
+      "sha256": "f745a21066f84b3ba32d4e73ade6051c8b7801b9efdb3dbded006284428639c0",
+      "size_bytes": 2758
+    },
+    "src/luna/cognition/models.py": {
+      "sha256": "5f2609d814ebf3d2b21f47dce824f83b11cfdfc58057672c140851a473602006",
+      "size_bytes": 9354
+    },
+    "src/luna/trajectories/__init__.py": {
+      "sha256": "b602c136054bd2ea0ab2dd2a821659ccbcf85fc957808122807a07a20e2be18c",
+      "size_bytes": 1126
+    },
+    "src/luna/trajectories/models.py": {
+      "sha256": "869c26308bf77650179cbbb3b9f23ce2f21e55a6d51782879cab69ae40d31b90",
+      "size_bytes": 4685
+    },
+    "src/luna/trajectories/normalization.py": {
+      "sha256": "c8384536c98a0879830648a83b50518abdbf617505fe75c5cdd53fb6cfa4440a",
+      "size_bytes": 2733
+    },
+    "src/luna/trajectories/reconstruction.py": {
+      "sha256": "efd2725090f658ea29d9c607560dc089ca0a425edb1b99b08da2af9d98269535",
+      "size_bytes": 3214
+    },
+    "src/luna/trajectories/split.py": {
+      "sha256": "b111d0cd15fbaa0afc470dfe1833939cb6dfcb21f930ae8edff473d9954dc3db",
+      "size_bytes": 4276
+    },
+    "src/luna/trajectories/transform.py": {
+      "sha256": "a38eeef296d9a1e05358940cb6a32245407978074fe0316ae18081b5b3522129",
+      "size_bytes": 3039
+    },
+    "tests/test_phase19_trace_dataset_cognitive_quality.py": {
+      "sha256": "1a255b34775c1bed7b90624fc6845da0b5577e5e2d8e761ba85ebacfc9e9172d",
+      "size_bytes": 13343
     }
   },
   "hash_normalization": "utf8_text_lf_v1",
