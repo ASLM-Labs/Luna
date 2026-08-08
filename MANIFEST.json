@@ -30,6 +30,10 @@
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
       "size_bytes": 11358
     },
+    "LUNA_HANDOFF.md": {
+      "sha256": "5850b553af83c69c3c11e37de4ac210c760e54e1c3c8f84beeb046dd5ebb086c",
+      "size_bytes": 5703
+    },
     "NOTICE": {
       "sha256": "646f0597c250105de5a171ab2d9f5f0271efde0c10c758042af2968718b0a3cd",
       "size_bytes": 222
@@ -45,6 +49,10 @@
     "docs/ARCHITECTURE_BOUNDARY.md": {
       "sha256": "273526919c57b9da15c5dc990be18078db051e1fe97e61c1d146a57708d0d8a4",
       "size_bytes": 26500
+    },
+    "docs/LUNA_ROADMAP.md": {
+      "sha256": "ada4879ab9addc0b7b71e989b3780a47d17d49d93534be5ac88b1fb0a7139f00",
+      "size_bytes": 9433
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -161,6 +169,38 @@
     "docs/PHASE_17_UPDATE_MANIFEST.json": {
       "sha256": "922d6260c80f140d0b46614cfe2bc7e449de7155cc5eb8e8528a51922c133f51",
       "size_bytes": 1430
+    },
+    "docs/PHASE_18_REPORT.md": {
+      "sha256": "ab02ffacb5ec85a6cf9292551acb9b4f3355852c4605a11b74c37fbf8db75ee2",
+      "size_bytes": 2097
+    },
+    "docs/PHASE_18_UPDATE_MANIFEST.json": {
+      "sha256": "427c2820bc30590b78caaa8140de2c445fc27f50240f3bd010a1d22f30e91564",
+      "size_bytes": 1448
+    },
+    "docs/PHASE_19B_REPORT.md": {
+      "sha256": "ed0ec2a5954ad9d0291795b026ac30110df92ba57144ce77aaf5b7b52ad54307",
+      "size_bytes": 1628
+    },
+    "docs/PHASE_19B_UPDATE_MANIFEST.json": {
+      "sha256": "3971a1c78de0a68f8ca956296f539dc2f91953273d7bb5cb233fc830011c8936",
+      "size_bytes": 1534
+    },
+    "docs/PHASE_19C_REPORT.md": {
+      "sha256": "be4334de45ad49dee62421667f0df1679e831c190b98f5dd76c16a9f955d9122",
+      "size_bytes": 2003
+    },
+    "docs/PHASE_19C_UPDATE_MANIFEST.json": {
+      "sha256": "81e35645449c42177ee7ff6601fa160d1caeef304797284395f907d05403d24d",
+      "size_bytes": 1481
+    },
+    "docs/PHASE_19_REPORT.md": {
+      "sha256": "b13dbcd4ae69c55598b15cf972aeb58e97da63755a3e69d1c2c6fafd1476adca",
+      "size_bytes": 2531
+    },
+    "docs/PHASE_19_UPDATE_MANIFEST.json": {
+      "sha256": "1ae9eb49a04230db5c5fefe80de045166fae2e1f1e2869918b506a551eaf71e6",
+      "size_bytes": 1752
     },
     "docs/PHASE_1_REPORT.md": {
       "sha256": "01a4a4873f0bf0f90e88fcaf3d49ccf0721b4b8d633566e95d9c69437048efa2",
@@ -314,6 +354,22 @@
       "sha256": "b4e602d9bbf8679ca2f2bbcc475ff6899755fe8ae2e93a64728662078e493c8b",
       "size_bytes": 4136
     },
+    "docs/rfcs/RFC-018_VOICE_GATEWAY.md": {
+      "sha256": "7877a40a1f1859578c2c22fbff4779a98e65a0f0f332d7dfac8f44d5d51e9d10",
+      "size_bytes": 4029
+    },
+    "docs/rfcs/RFC-019B_EVALUATION_GOVERNANCE.md": {
+      "sha256": "9068ed5ff35b13c22aa38c29ed60cc4d62d31538d8b13b08cb447bf66b9729c7",
+      "size_bytes": 4201
+    },
+    "docs/rfcs/RFC-019C_LEARNING_INTEGRITY.md": {
+      "sha256": "b7540bd55ee61f1f11af47ce1597a09a01f8e1c042c154328e775554187b8947",
+      "size_bytes": 5186
+    },
+    "docs/rfcs/RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md": {
+      "sha256": "babfc4dabd281a92d6d43ad2f31f95cefdd0916fde22d6b41e095fc68a8c4a45",
+      "size_bytes": 7348
+    },
     "phase_0_verification.json": {
       "sha256": "3db71600e460533b6180076a6d83e1ecf0aa02286ea29912b8c62e6ea534c244",
       "size_bytes": 919
@@ -373,6 +429,22 @@
     "phase_17_verification.json": {
       "sha256": "40496a438d19c9d7aec673f47806695d61d980a5923d7f7019dc6faddb862c42",
       "size_bytes": 667
+    },
+    "phase_18_verification.json": {
+      "sha256": "68c7837f6febf0400b5ee1ce053862727b76cbf183784968365d51c2e68e5e34",
+      "size_bytes": 694
+    },
+    "phase_19_verification.json": {
+      "sha256": "0844fc0c0d81e1291882e64ab635a9ecb31bdc1a26e076b222107a274bdb3169",
+      "size_bytes": 859
+    },
+    "phase_19b_verification.json": {
+      "sha256": "689d755cd064f025d410271be43ed53fda2cf3bd0c3b3b59208310a4f841c9f8",
+      "size_bytes": 877
+    },
+    "phase_19c_verification.json": {
+      "sha256": "f553e3bf17a84aaae9c17978cf430ae5dee6fcfe9e9682ddb607a6b4c9af5bcd",
+      "size_bytes": 991
     },
     "phase_1_verification.json": {
       "sha256": "4e6792141e329d13a6fd284916e3c447a698e134a468ff2056ecdc08603906dd",
@@ -498,6 +570,22 @@
       "sha256": "0f5942f27038fa07074b004b672560e19de9581af5a504836ece7b1c79da3192",
       "size_bytes": 10730
     },
+    "scripts/verify_phase18.py": {
+      "sha256": "45b39ce7d7396bb2e6ebf3efacec612325cdf408aee7fda48ac36540810936a7",
+      "size_bytes": 11768
+    },
+    "scripts/verify_phase19.py": {
+      "sha256": "476367b792084546e586c70fd2449e8817971bba1eb9ec886858aff8c7c14ee3",
+      "size_bytes": 12141
+    },
+    "scripts/verify_phase19b.py": {
+      "sha256": "9dc5b9c59ef10d8e03e31ee7e6fbdc8a3bb7d3b78dbe05fd0eeaebd6f4ba80b6",
+      "size_bytes": 12428
+    },
+    "scripts/verify_phase19c.py": {
+      "sha256": "cc9ef7b2e21dac4047692e22c18f471403bb93678ae768971773a1d86b8a3a95",
+      "size_bytes": 14778
+    },
     "scripts/verify_phase2.py": {
       "sha256": "2fe6754cc4a2b35d687f0248082a6e65fa2bf125de55684fe7634e9df7c103e2",
       "size_bytes": 3812
@@ -621,6 +709,18 @@
     "src/luna/cli.py": {
       "sha256": "3ac0f4951143b1beb3bde9b2549e10cbcf2d35dd2d102b00f414bee8ec020658",
       "size_bytes": 110257
+    },
+    "src/luna/cognition/__init__.py": {
+      "sha256": "87d7dacb5498b960790df522df1a95c5ec436eed0bf98828f9ccdff6f57286de",
+      "size_bytes": 835
+    },
+    "src/luna/cognition/evaluator.py": {
+      "sha256": "f745a21066f84b3ba32d4e73ade6051c8b7801b9efdb3dbded006284428639c0",
+      "size_bytes": 2758
+    },
+    "src/luna/cognition/models.py": {
+      "sha256": "5f2609d814ebf3d2b21f47dce824f83b11cfdfc58057672c140851a473602006",
+      "size_bytes": 9354
     },
     "src/luna/conformance/__init__.py": {
       "sha256": "386b8a4726a9aa1a0c013aba5c9ae63ca6bd783d0bbcc2d5feea906d49b784f8",
@@ -790,6 +890,26 @@
       "sha256": "5271933791fc8133261209b2a7a14b65b3529c81d98b4182f68fcdcb1e482536",
       "size_bytes": 4883
     },
+    "src/luna/evaluation_governance/__init__.py": {
+      "sha256": "a499d2cf2d3bf79e972dbef217e525ba7c1f7ea9360a873f04688ed45c1cc587",
+      "size_bytes": 1181
+    },
+    "src/luna/evaluation_governance/comparison.py": {
+      "sha256": "1093b2897498e2f5fa37e48fb543a07213dcd26c59146c5a9ecd8c8a767bba52",
+      "size_bytes": 3928
+    },
+    "src/luna/evaluation_governance/contamination.py": {
+      "sha256": "66013a0c499de00f2befb346d3937c2ff97ecc74bebf89b1df2a84dee537b614",
+      "size_bytes": 2216
+    },
+    "src/luna/evaluation_governance/models.py": {
+      "sha256": "7eeaf621c710304340de4ff0aea2261cfb0398dd2ececd0f04129ecb633be7ff",
+      "size_bytes": 13759
+    },
+    "src/luna/evaluation_governance/suite.py": {
+      "sha256": "2a1acd0ff2246a7c42aa80b1dbe653e0b8e578c3adc35b942a0a7babcd9c715b",
+      "size_bytes": 1585
+    },
     "src/luna/identity/__init__.py": {
       "sha256": "248577d3ee3f6ff43f9cafdcdaaf5511140ba08e68906916946c513c67dea38a",
       "size_bytes": 229
@@ -821,6 +941,22 @@
     "src/luna/learning/models.py": {
       "sha256": "01c6e3d3070905771a1ae5fadae2ccad3283dd77097962dea828539c4062cf60",
       "size_bytes": 3637
+    },
+    "src/luna/learning_integrity/__init__.py": {
+      "sha256": "97570fabc0b39aeac6b10692cb98680342e68ac004aea67dc6525d09e76bc02e",
+      "size_bytes": 1103
+    },
+    "src/luna/learning_integrity/audit.py": {
+      "sha256": "f6f80c444064ee1bff75e72b9b4fc39fa4e0ef795b02ad465c08cc48708ab5af",
+      "size_bytes": 8725
+    },
+    "src/luna/learning_integrity/models.py": {
+      "sha256": "47e4b7207192cbb978048f54c5ecc145fcfd5589968b7dede47cae2fca66e434",
+      "size_bytes": 14313
+    },
+    "src/luna/learning_integrity/policy.py": {
+      "sha256": "5e7d061b997b2a4dce25f6aaa58d9121750f39e74f954dea9da603edd2af3af6",
+      "size_bytes": 755
     },
     "src/luna/memory/__init__.py": {
       "sha256": "5bc8f2e96866d9e300f8e795ee8a3898794c254e3b3aa1fa2c974a1c653de18f",
@@ -1110,6 +1246,30 @@
       "sha256": "c460f696456f61a14e73910e2a8498966b7025eb39622e2dd5e372f049d4b148",
       "size_bytes": 2012
     },
+    "src/luna/trajectories/__init__.py": {
+      "sha256": "b602c136054bd2ea0ab2dd2a821659ccbcf85fc957808122807a07a20e2be18c",
+      "size_bytes": 1126
+    },
+    "src/luna/trajectories/models.py": {
+      "sha256": "869c26308bf77650179cbbb3b9f23ce2f21e55a6d51782879cab69ae40d31b90",
+      "size_bytes": 4685
+    },
+    "src/luna/trajectories/normalization.py": {
+      "sha256": "c8384536c98a0879830648a83b50518abdbf617505fe75c5cdd53fb6cfa4440a",
+      "size_bytes": 2733
+    },
+    "src/luna/trajectories/reconstruction.py": {
+      "sha256": "efd2725090f658ea29d9c607560dc089ca0a425edb1b99b08da2af9d98269535",
+      "size_bytes": 3214
+    },
+    "src/luna/trajectories/split.py": {
+      "sha256": "b111d0cd15fbaa0afc470dfe1833939cb6dfcb21f930ae8edff473d9954dc3db",
+      "size_bytes": 4276
+    },
+    "src/luna/trajectories/transform.py": {
+      "sha256": "a38eeef296d9a1e05358940cb6a32245407978074fe0316ae18081b5b3522129",
+      "size_bytes": 3039
+    },
     "src/luna/verification/__init__.py": {
       "sha256": "49c5ed5ed3415b9c7c4e48ef61f8e3cca7fe56b2d7c5720f4ae95fe0d993b5da",
       "size_bytes": 1523
@@ -1141,6 +1301,34 @@
     "src/luna/version.py": {
       "sha256": "2485236d1615a577b6616bca062776ee59f7df74de118bddc417e2dcfdfc79dd",
       "size_bytes": 56
+    },
+    "src/luna/voice/__init__.py": {
+      "sha256": "4deec1d33372699a7238509e5b9f7be8f97abf9be80b24ea642e4d095b21fb4d",
+      "size_bytes": 1328
+    },
+    "src/luna/voice/adapters.py": {
+      "sha256": "37c0f3e666da70039c8cb791c0113a0186f3502c1758b3aace2ed374028943e5",
+      "size_bytes": 2370
+    },
+    "src/luna/voice/bootstrap.py": {
+      "sha256": "0c2cc8a1f6367b572ca7ab3a90f51fc2ac5ac7e64fa8a27e981ab6fba3892279",
+      "size_bytes": 748
+    },
+    "src/luna/voice/confirmation.py": {
+      "sha256": "ef8daae47345c3755fb52ed04efe95dd9bb5fa97036717aa4ceb0bb8268db7d0",
+      "size_bytes": 2857
+    },
+    "src/luna/voice/gateway.py": {
+      "sha256": "73562cdf0766be69e8cc4d7358d8dc18f38de1a2e604b8c5eca1211b73e729ba",
+      "size_bytes": 17897
+    },
+    "src/luna/voice/models.py": {
+      "sha256": "39a66db4214bbb7d801991044674e89c46d27fb2be950ce43c34a95ba98f7d76",
+      "size_bytes": 9014
+    },
+    "src/luna/voice/session.py": {
+      "sha256": "af66c99cb2ee0691bb0369a44dc8708022b7cc90f2cbab42aaed73bf3465594b",
+      "size_bytes": 4169
     },
     "src/luna/workspace/__init__.py": {
       "sha256": "13f86e83ca329d3552c6c4c9e8d6fb85180d4d8fe50b7adf086fae143eb535fe",
@@ -1302,6 +1490,22 @@
       "sha256": "4b51f11eb5a53785a453151cff0f9c67248840919ae387f64c04a05f2affa068",
       "size_bytes": 10112
     },
+    "tests/test_phase18_voice_gateway.py": {
+      "sha256": "640dabd508ab931eef0b487a2ee1db5513bd20ded8a63c46f021f64331491860",
+      "size_bytes": 12356
+    },
+    "tests/test_phase19_trace_dataset_cognitive_quality.py": {
+      "sha256": "1a255b34775c1bed7b90624fc6845da0b5577e5e2d8e761ba85ebacfc9e9172d",
+      "size_bytes": 13343
+    },
+    "tests/test_phase19b_evaluation_governance.py": {
+      "sha256": "aceafbd45c06a18be6da7daaed4a49212913957cada6ab05dfb2d82901dba0ef",
+      "size_bytes": 12594
+    },
+    "tests/test_phase19c_learning_integrity.py": {
+      "sha256": "14824f3e8f611b15365a99d847bb14af535782cf250d220e79e5798de1151438",
+      "size_bytes": 14233
+    },
     "tests/test_phase5_tools.py": {
       "sha256": "2e33c994fb7212ecfcc0427f018ee1bf482cf0137fb2539e546bb7f0578aa80d",
       "size_bytes": 8948
@@ -1381,202 +1585,6 @@
     "tests/test_workspace_snapshot.py": {
       "sha256": "61e612f69d28f9c7dc2d0a542ba1ae2d50db3495eb63d5b6c1f3d801c001107a",
       "size_bytes": 3002
-    },
-    "docs/PHASE_18_REPORT.md": {
-      "sha256": "ab02ffacb5ec85a6cf9292551acb9b4f3355852c4605a11b74c37fbf8db75ee2",
-      "size_bytes": 2097
-    },
-    "docs/PHASE_18_UPDATE_MANIFEST.json": {
-      "sha256": "427c2820bc30590b78caaa8140de2c445fc27f50240f3bd010a1d22f30e91564",
-      "size_bytes": 1448
-    },
-    "docs/rfcs/RFC-018_VOICE_GATEWAY.md": {
-      "sha256": "7877a40a1f1859578c2c22fbff4779a98e65a0f0f332d7dfac8f44d5d51e9d10",
-      "size_bytes": 4029
-    },
-    "phase_18_verification.json": {
-      "sha256": "68c7837f6febf0400b5ee1ce053862727b76cbf183784968365d51c2e68e5e34",
-      "size_bytes": 694
-    },
-    "scripts/verify_phase18.py": {
-      "sha256": "45b39ce7d7396bb2e6ebf3efacec612325cdf408aee7fda48ac36540810936a7",
-      "size_bytes": 11768
-    },
-    "src/luna/voice/__init__.py": {
-      "sha256": "4deec1d33372699a7238509e5b9f7be8f97abf9be80b24ea642e4d095b21fb4d",
-      "size_bytes": 1328
-    },
-    "src/luna/voice/adapters.py": {
-      "sha256": "37c0f3e666da70039c8cb791c0113a0186f3502c1758b3aace2ed374028943e5",
-      "size_bytes": 2370
-    },
-    "src/luna/voice/bootstrap.py": {
-      "sha256": "0c2cc8a1f6367b572ca7ab3a90f51fc2ac5ac7e64fa8a27e981ab6fba3892279",
-      "size_bytes": 748
-    },
-    "src/luna/voice/confirmation.py": {
-      "sha256": "ef8daae47345c3755fb52ed04efe95dd9bb5fa97036717aa4ceb0bb8268db7d0",
-      "size_bytes": 2857
-    },
-    "src/luna/voice/gateway.py": {
-      "sha256": "73562cdf0766be69e8cc4d7358d8dc18f38de1a2e604b8c5eca1211b73e729ba",
-      "size_bytes": 17897
-    },
-    "src/luna/voice/models.py": {
-      "sha256": "39a66db4214bbb7d801991044674e89c46d27fb2be950ce43c34a95ba98f7d76",
-      "size_bytes": 9014
-    },
-    "src/luna/voice/session.py": {
-      "sha256": "af66c99cb2ee0691bb0369a44dc8708022b7cc90f2cbab42aaed73bf3465594b",
-      "size_bytes": 4169
-    },
-    "tests/test_phase18_voice_gateway.py": {
-      "sha256": "640dabd508ab931eef0b487a2ee1db5513bd20ded8a63c46f021f64331491860",
-      "size_bytes": 12356
-    },
-    "docs/PHASE_19_REPORT.md": {
-      "sha256": "b13dbcd4ae69c55598b15cf972aeb58e97da63755a3e69d1c2c6fafd1476adca",
-      "size_bytes": 2531
-    },
-    "docs/PHASE_19_UPDATE_MANIFEST.json": {
-      "sha256": "1ae9eb49a04230db5c5fefe80de045166fae2e1f1e2869918b506a551eaf71e6",
-      "size_bytes": 1752
-    },
-    "docs/rfcs/RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md": {
-      "sha256": "babfc4dabd281a92d6d43ad2f31f95cefdd0916fde22d6b41e095fc68a8c4a45",
-      "size_bytes": 7348
-    },
-    "phase_19_verification.json": {
-      "sha256": "0844fc0c0d81e1291882e64ab635a9ecb31bdc1a26e076b222107a274bdb3169",
-      "size_bytes": 859
-    },
-    "scripts/verify_phase19.py": {
-      "sha256": "476367b792084546e586c70fd2449e8817971bba1eb9ec886858aff8c7c14ee3",
-      "size_bytes": 12141
-    },
-    "src/luna/cognition/__init__.py": {
-      "sha256": "87d7dacb5498b960790df522df1a95c5ec436eed0bf98828f9ccdff6f57286de",
-      "size_bytes": 835
-    },
-    "src/luna/cognition/evaluator.py": {
-      "sha256": "f745a21066f84b3ba32d4e73ade6051c8b7801b9efdb3dbded006284428639c0",
-      "size_bytes": 2758
-    },
-    "src/luna/cognition/models.py": {
-      "sha256": "5f2609d814ebf3d2b21f47dce824f83b11cfdfc58057672c140851a473602006",
-      "size_bytes": 9354
-    },
-    "src/luna/trajectories/__init__.py": {
-      "sha256": "b602c136054bd2ea0ab2dd2a821659ccbcf85fc957808122807a07a20e2be18c",
-      "size_bytes": 1126
-    },
-    "src/luna/trajectories/models.py": {
-      "sha256": "869c26308bf77650179cbbb3b9f23ce2f21e55a6d51782879cab69ae40d31b90",
-      "size_bytes": 4685
-    },
-    "src/luna/trajectories/normalization.py": {
-      "sha256": "c8384536c98a0879830648a83b50518abdbf617505fe75c5cdd53fb6cfa4440a",
-      "size_bytes": 2733
-    },
-    "src/luna/trajectories/reconstruction.py": {
-      "sha256": "efd2725090f658ea29d9c607560dc089ca0a425edb1b99b08da2af9d98269535",
-      "size_bytes": 3214
-    },
-    "src/luna/trajectories/split.py": {
-      "sha256": "b111d0cd15fbaa0afc470dfe1833939cb6dfcb21f930ae8edff473d9954dc3db",
-      "size_bytes": 4276
-    },
-    "src/luna/trajectories/transform.py": {
-      "sha256": "a38eeef296d9a1e05358940cb6a32245407978074fe0316ae18081b5b3522129",
-      "size_bytes": 3039
-    },
-    "tests/test_phase19_trace_dataset_cognitive_quality.py": {
-      "sha256": "1a255b34775c1bed7b90624fc6845da0b5577e5e2d8e761ba85ebacfc9e9172d",
-      "size_bytes": 13343
-    },
-    "docs/PHASE_19B_REPORT.md": {
-      "sha256": "ed0ec2a5954ad9d0291795b026ac30110df92ba57144ce77aaf5b7b52ad54307",
-      "size_bytes": 1628
-    },
-    "docs/PHASE_19B_UPDATE_MANIFEST.json": {
-      "sha256": "3971a1c78de0a68f8ca956296f539dc2f91953273d7bb5cb233fc830011c8936",
-      "size_bytes": 1534
-    },
-    "docs/rfcs/RFC-019B_EVALUATION_GOVERNANCE.md": {
-      "sha256": "9068ed5ff35b13c22aa38c29ed60cc4d62d31538d8b13b08cb447bf66b9729c7",
-      "size_bytes": 4201
-    },
-    "phase_19b_verification.json": {
-      "sha256": "689d755cd064f025d410271be43ed53fda2cf3bd0c3b3b59208310a4f841c9f8",
-      "size_bytes": 877
-    },
-    "scripts/verify_phase19b.py": {
-      "sha256": "9dc5b9c59ef10d8e03e31ee7e6fbdc8a3bb7d3b78dbe05fd0eeaebd6f4ba80b6",
-      "size_bytes": 12428
-    },
-    "src/luna/evaluation_governance/__init__.py": {
-      "sha256": "a499d2cf2d3bf79e972dbef217e525ba7c1f7ea9360a873f04688ed45c1cc587",
-      "size_bytes": 1181
-    },
-    "src/luna/evaluation_governance/comparison.py": {
-      "sha256": "1093b2897498e2f5fa37e48fb543a07213dcd26c59146c5a9ecd8c8a767bba52",
-      "size_bytes": 3928
-    },
-    "src/luna/evaluation_governance/contamination.py": {
-      "sha256": "66013a0c499de00f2befb346d3937c2ff97ecc74bebf89b1df2a84dee537b614",
-      "size_bytes": 2216
-    },
-    "src/luna/evaluation_governance/models.py": {
-      "sha256": "7eeaf621c710304340de4ff0aea2261cfb0398dd2ececd0f04129ecb633be7ff",
-      "size_bytes": 13759
-    },
-    "src/luna/evaluation_governance/suite.py": {
-      "sha256": "2a1acd0ff2246a7c42aa80b1dbe653e0b8e578c3adc35b942a0a7babcd9c715b",
-      "size_bytes": 1585
-    },
-    "tests/test_phase19b_evaluation_governance.py": {
-      "sha256": "aceafbd45c06a18be6da7daaed4a49212913957cada6ab05dfb2d82901dba0ef",
-      "size_bytes": 12594
-    },
-    "docs/PHASE_19C_REPORT.md": {
-      "sha256": "be4334de45ad49dee62421667f0df1679e831c190b98f5dd76c16a9f955d9122",
-      "size_bytes": 2003
-    },
-    "docs/PHASE_19C_UPDATE_MANIFEST.json": {
-      "sha256": "81e35645449c42177ee7ff6601fa160d1caeef304797284395f907d05403d24d",
-      "size_bytes": 1481
-    },
-    "docs/rfcs/RFC-019C_LEARNING_INTEGRITY.md": {
-      "sha256": "b7540bd55ee61f1f11af47ce1597a09a01f8e1c042c154328e775554187b8947",
-      "size_bytes": 5186
-    },
-    "phase_19c_verification.json": {
-      "sha256": "f553e3bf17a84aaae9c17978cf430ae5dee6fcfe9e9682ddb607a6b4c9af5bcd",
-      "size_bytes": 991
-    },
-    "scripts/verify_phase19c.py": {
-      "sha256": "cc9ef7b2e21dac4047692e22c18f471403bb93678ae768971773a1d86b8a3a95",
-      "size_bytes": 14778
-    },
-    "src/luna/learning_integrity/__init__.py": {
-      "sha256": "97570fabc0b39aeac6b10692cb98680342e68ac004aea67dc6525d09e76bc02e",
-      "size_bytes": 1103
-    },
-    "src/luna/learning_integrity/audit.py": {
-      "sha256": "f6f80c444064ee1bff75e72b9b4fc39fa4e0ef795b02ad465c08cc48708ab5af",
-      "size_bytes": 8725
-    },
-    "src/luna/learning_integrity/models.py": {
-      "sha256": "47e4b7207192cbb978048f54c5ecc145fcfd5589968b7dede47cae2fca66e434",
-      "size_bytes": 14313
-    },
-    "src/luna/learning_integrity/policy.py": {
-      "sha256": "5e7d061b997b2a4dce25f6aaa58d9121750f39e74f954dea9da603edd2af3af6",
-      "size_bytes": 755
-    },
-    "tests/test_phase19c_learning_integrity.py": {
-      "sha256": "14824f3e8f611b15365a99d847bb14af535782cf250d220e79e5798de1151438",
-      "size_bytes": 14233
     }
   },
   "hash_normalization": "utf8_text_lf_v1",
