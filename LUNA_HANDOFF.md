@@ -24,16 +24,24 @@ UNRESOLVED — do not rename Luna while resolving company branding.
 Baseline branch:
 main
 
-Verified Phase 19D merge:
-0ff1196 Merge pull request #19 from Novopic-Intelligence/phase-19d-counterfactual-analysis
+Latest verified main before Phase 19F branch:
+4f0784e Merge pull request #22 from Novopic-Intelligence/docs/c011-orchestration-completion
 
-Phase 19D implementation:
-0a2f793 feat: complete Phase 19D counterfactual analysis
+C-011 completion implementation:
+e66817c docs: complete C-011 orchestration design
 
-Roadmap/handoff merge:
-739feed Merge pull request #18 from Novopic-Intelligence/docs/capability-roadmap-handoff
+C-011 base design merge:
+fc92a3d Merge pull request #21 from Novopic-Intelligence/docs/single-voice-parallel-cognition
+
+Phase 19E merge:
+be3facd Merge pull request #20 from Novopic-Intelligence/phase-19e-small-controlled-sft
+
+Phase 19E implementation:
+a816915 feat: complete Phase 19E small controlled SFT
 
 Previous checkpoints:
+- Phase 19D merge: 0ff1196
+- Phase 19D implementation: 0a2f793
 - Phase 19C merge: ba47e8b
 - Phase 19C implementation: 08cbf00
 - Phase 19B merge: 91a94ad
@@ -58,27 +66,29 @@ Phase 19D — Counterfactual Analysis:
 CLOSED
 
 Phase 19E — Small Controlled SFT:
-IMPLEMENTED_UNVERIFIED / REAL TRAINING PENDING
+CLOSED / GOVERNANCE IMPLEMENTED / REAL TRAINING NOT CLAIMED
 
-Then:
-Phase 19F — Improvement Gate, blocked until a real trained 19E candidate exists.
+Phase 19F — Improvement Gate:
+IMPLEMENTED_UNVERIFIED / REAL CANDIDATE EVALUATION PENDING.
 
 ## Next Engineering Step
 
-Current working branch: `phase-19e-small-controlled-sft`.
-Baseline: merged Phase 19D at `0ff1196`.
+Current working branch: `phase-19f-improvement-gate`.
+Baseline: merged C-011 documentation completion at `4f0784e`.
 
 Before merge:
-1. run the Phase 19E deterministic verifier and targeted tests;
-2. run the full Windows `scripts/check.bat`;
-3. keep exact Phase 19E scope;
-4. commit/push only after the full local gate passes;
-5. merge only after GitHub Actions is green;
-6. sync main and verify the Phase 19E implementation commit is contained in `origin/main`.
+1. apply the exact Phase 19F kit scope;
+2. run `scripts/verify_phase19f.py` and targeted Phase 19F tests;
+3. run the full Windows `scripts/check.bat`;
+4. require Ruff + strict mypy + all deterministic gates green;
+5. commit/push only after the full local gate passes;
+6. require GitHub Actions Python 3.12/3.13 push + PR checks green;
+7. merge, sync main, verify implementation containment and clean status.
 
-Important: repository governance can audit/freeze a corpus and training specification, but it does not
-claim an external GPU/SFT run happened. A real trained artifact requires a matching execution receipt.
-Phase 19F cannot start promotion evaluation until such a candidate exists.
+Important evidence boundary: Phase 19F can implement the promotion/reject/rollback evidence gate before a
+real trained candidate exists, but it must return `INSUFFICIENT_EVIDENCE` when the Phase 19E real
+training receipt/artifact or real governed evaluation snapshots are absent. No Luna improvement claim is
+valid until a real candidate passes the frozen gate.
 
 ## Phase 19 Program Boundaries
 
@@ -339,3 +349,21 @@ Canonical completion principles:
 > Measure parallelism by quality + latency + compute, not worker count.
 
 <!-- HANDOFF_C011_SINGLE_VOICE_END -->
+
+## Phase 19F Improvement Gate Checkpoint
+
+Phase 19F architecture now requires:
+- real Phase 19E spec + training receipt + trained artifact evidence before candidate eligibility;
+- frozen held-out/OOD evaluation suite, regression inventory, and evaluator fingerprint;
+- benchmark contamination and candidate-identity checks;
+- clean learning-integrity disposition;
+- paired baseline/candidate confidence intervals for every cognitive dimension;
+- separate overall, held-out, and OOD evidence slices;
+- meaningful non-critical regression thresholds;
+- critical regression zero tolerance;
+- at least one confidence-supported meaningful improvement for PROMOTE;
+- ROLLBACK only as a recommendation for an already-active candidate with rollback-worthy evidence;
+- runtime authority and release action execution remain outside the improvement gate.
+
+Current repository evidence does not prove a real external training run or a real candidate evaluation.
+The correct current smoke behavior is therefore `INSUFFICIENT_EVIDENCE`.

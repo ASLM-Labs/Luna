@@ -285,3 +285,14 @@ def test_phase_nineteen_e_small_controlled_sft_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-019E_SMALL_CONTROLLED_SFT.md"
     ).is_file()
+
+
+def test_phase_nineteen_f_improvement_gate_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "improvement_gate" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "improvement_gate" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "improvement_gate" / "gate.py").is_file()
+    assert (project_root / "scripts" / "verify_phase19f.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-019F_IMPROVEMENT_GATE.md"
+    ).is_file()

@@ -772,3 +772,25 @@ canonical Luna tool schema, and explicit raw hidden chain-of-thought fields are 
 A training request, a frozen config, or a generated filename is not proof that training occurred. Only a
 matching external receipt with successful execution and content-addressed artifact evidence can register a
 trained candidate. Registration still grants no runtime or promotion authority.
+
+## Phase 19F Improvement Gate Boundary
+
+Phase 19F is a release-evidence governance component. It may verify a Phase 19E trained-candidate
+evidence chain, compare frozen baseline/candidate evaluation snapshots, apply confidence-aware
+meaningful-change thresholds, and emit a release recommendation. It cannot train a model, dispatch
+runtime tools, replace active weights, or execute promotion/rollback.
+
+```text
+verified Phase 19E candidate
++ frozen evaluation + regression identities
++ contamination report
++ learning integrity report
++ paired baseline/candidate scorecards
+-> confidence-aware multi-metric gate
+-> PROMOTE / REJECT / ROLLBACK / INSUFFICIENT_EVIDENCE
+-> runtime action execution: NONE
+```
+
+Critical regressions remain zero-tolerance. Non-critical deltas require frozen thresholds and confidence
+intervals. Missing real candidate evidence is `INSUFFICIENT_EVIDENCE`, not success. A single aggregate
+score cannot authorize promotion.

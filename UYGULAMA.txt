@@ -122,3 +122,48 @@ TARGETED TESTS
 
 TAM KALITE KAPISI
 scripts\check_hold.bat
+
+PHASE 19F — IMPROVEMENT GATE
+
+GERCEK CANDIDATE GEREKSINIMI
+-> Phase 19E frozen training spec
+-> successful external training receipt
+-> registered trained artifact
+-> exact candidate identity
+
+EVALUATION
+-> frozen held-out + OOD suite
+-> frozen regression inventory
+-> independent evaluator fingerprint
+-> contamination clean
+-> learning integrity clean
+-> paired baseline/candidate deltas
+-> 95% confidence intervals
+-> meaningful non-critical thresholds
+-> critical regression zero tolerance
+
+DECISION
+-> PROMOTE
+-> REJECT
+-> ROLLBACK (already-active candidate only)
+-> INSUFFICIENT_EVIDENCE
+
+GATE DOES NOT EXECUTE RUNTIME RELEASE ACTIONS
+-> runtime_authority=false
+-> action_executed=false
+
+GORUNUR SMOKE
+.venv\Scripts\python.exe -m luna phase19f-smoke
+
+DETERMINISTIC VERIFIER
+.venv\Scripts\python.exe scripts\verify_phase19f.py
+
+TARGETED TESTS
+.venv\Scripts\python.exe -m pytest -q tests\test_phase19f_improvement_gate.py
+
+TAM KALITE KAPISI
+scripts\check_hold.bat
+
+CURRENT REAL EVIDENCE
+No real Phase 19E trained candidate / post-training benchmark run is claimed by this repository.
+Expected smoke decision without those artifacts: INSUFFICIENT_EVIDENCE.

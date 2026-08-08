@@ -2,6 +2,25 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase19f-improvement-gate] - 2026-08-09
+
+### Added
+
+- Frozen Phase 19F improvement policy with per-dimension meaningful-change thresholds.
+- Paired baseline/candidate 95% confidence intervals across overall, held-out, and OOD slices.
+- Verified Phase 19E spec/receipt/artifact candidate-chain requirement before promotion evidence.
+- Explicit PROMOTE / REJECT / ROLLBACK / INSUFFICIENT_EVIDENCE gate decisions.
+- Critical-regression zero tolerance and confidence-aware non-critical regression handling.
+- Phase 19F verifier, CLI smoke, tests, and Windows/CI quality-gate integration.
+
+### Security / Governance
+
+- Missing real trained-candidate evidence produces INSUFFICIENT_EVIDENCE, never a fabricated promotion.
+- Benchmark contamination, evaluator drift, case-inventory drift, and blocking learning-integrity findings prevent promotion.
+- A single aggregate score never overrides multi-metric or critical-safety evidence.
+- Phase 19F can recommend release action but cannot execute runtime promotion or rollback.
+- No real GPU/SFT run, post-training benchmark, model improvement, promotion, or rollback is claimed by this repository update.
+
 ## [0.1.0-phase19c-learning-integrity] - 2026-08-08
 
 ### Added

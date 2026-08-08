@@ -1,0 +1,41 @@
+{
+  "phase": "19F",
+  "scope": "IMPROVEMENT_GATE",
+  "baseline": "merged C-011 documentation completion @ 4f0784e",
+  "target_branch": "phase-19f-improvement-gate",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 23,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/LUNA_ROADMAP.md",
+    "docs/PHASE_19F_REPORT.md",
+    "docs/PHASE_19F_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-019F_IMPROVEMENT_GATE.md",
+    "phase_19f_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase19f.py",
+    "src/luna/cli.py",
+    "src/luna/improvement_gate/__init__.py",
+    "src/luna/improvement_gate/gate.py",
+    "src/luna/improvement_gate/models.py",
+    "src/luna/improvement_gate/policy.py",
+    "tests/test_cli.py",
+    "tests/test_phase19f_improvement_gate.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Phase 19F requires verified Phase 19E spec/receipt/artifact evidence before a candidate is eligible for promotion evaluation.",
+    "Paired baseline/candidate deltas are evaluated with frozen confidence intervals and meaningful non-critical thresholds across overall, held-out, and OOD slices.",
+    "Critical regressions remain zero-tolerance and cannot be overridden by aggregate improvement.",
+    "Benchmark contamination, evaluator drift, case inventory drift, and blocking learning-integrity findings prevent promotion.",
+    "The gate can emit PROMOTE, REJECT, ROLLBACK, or INSUFFICIENT_EVIDENCE but cannot execute runtime release actions.",
+    "No real external training run, real candidate evaluation, measured Luna improvement, promotion, or rollback is claimed by this repository update."
+  ]
+}

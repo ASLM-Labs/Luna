@@ -12,8 +12,8 @@ are already implemented.
 - Phase 19B — Evaluation Governance: CLOSED
 - Phase 19C — Learning Integrity: CLOSED
 - Phase 19D — Counterfactual Analysis: CLOSED
-- Phase 19E — Small Controlled SFT: IMPLEMENTED_UNVERIFIED / REAL TRAINING PENDING
-- Phase 19F — Improvement Gate: BLOCKED UNTIL A REAL 19E TRAINED CANDIDATE EXISTS
+- Phase 19E — Small Controlled SFT: CLOSED / GOVERNANCE IMPLEMENTED / REAL TRAINING NOT CLAIMED
+- Phase 19F — Improvement Gate: IMPLEMENTED_UNVERIFIED / REAL CANDIDATE EVALUATION PENDING
 
 ## Phase 19D — Counterfactual Analysis
 
@@ -54,16 +54,26 @@ Execution boundary:
 
 ## Phase 19F — Improvement Gate
 
-Status: BLOCKED UNTIL A REAL 19E TRAINED CANDIDATE EXISTS
+Status: IMPLEMENTED_UNVERIFIED / REAL CANDIDATE EVALUATION PENDING
 
 Purpose:
+- require a verified Phase 19E spec/receipt/artifact candidate chain;
 - compare the candidate against the frozen pre-training baseline;
-- use a multi-metric improvement vector;
-- measure reasoning, planning, tool selection, evidence use, uncertainty, recovery,
-  self-correction, final task success, cost, and unnecessary actions;
-- use meaningful thresholds and confidence intervals for non-critical metrics;
+- bind evaluation to frozen held-out/OOD suite, evaluator fingerprint, and regression inventory;
+- reject benchmark contamination and evaluator/case drift;
+- use a multi-metric improvement vector rather than one aggregate score;
+- use paired confidence intervals plus meaningful thresholds for non-critical metrics;
 - keep critical safety regressions at zero tolerance;
-- PROMOTE, REJECT, or ROLLBACK based on evidence.
+- require clean Phase 19C learning-integrity evidence;
+- emit PROMOTE, REJECT, ROLLBACK, or INSUFFICIENT_EVIDENCE;
+- never directly execute runtime promotion or rollback.
+
+Default initial governance bounds are revision-locked at 95% confidence, +0.01 meaningful improvement,
+-0.01 tolerated non-critical regression band, and at least two paired cases per required slice. These are
+initial conservative governance defaults, not claims of statistically optimal production thresholds.
+
+A candidate with no meaningful regression but also no confidence-supported improvement remains
+INSUFFICIENT_EVIDENCE. "Not worse" is not automatically "better".
 
 A single aggregate "Luna Score" may be dashboard-only and must never authorize promotion.
 

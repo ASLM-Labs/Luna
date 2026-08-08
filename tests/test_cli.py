@@ -16,6 +16,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert exit_code == 0
     assert "phase: 19" in output
+    assert "status: IMPROVEMENT_GATE_IMPLEMENTED_UNVERIFIED" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -80,6 +81,16 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "phase19e_runtime_authority: none" in output
     assert "phase19e_promotion_authority: none" in output
     assert "phase19e_real_training_run: not_executed_by_repository_governance" in output
+    assert "phase19f_improvement_gate: paired_confidence_thresholds_multi_metric" in output
+    assert "phase19f_critical_regression: zero_tolerance" in output
+    assert "phase19f_candidate_evidence: phase19e_receipt_and_artifact_required" in output
+    assert "phase19f_decisions: promote_reject_rollback_or_insufficient" in output
+    assert "phase19f_runtime_authority: none" in output
+    assert (
+        "phase19f_real_candidate_evaluation: not_executed_without_trained_candidate"
+        in output
+    )
+    assert "phase19f_release_action_execution: not_performed_by_gate" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -682,3 +693,21 @@ def test_phase19e_smoke_command(
     assert payload["trained_artifact_registered"] is False
     assert payload["promotion_authorized"] is False
     assert payload["runtime_authority"] is False
+
+def test_phase19f_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19f-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["policy_locked"] is True
+    assert payload["confidence_level"] == pytest.approx(0.95)
+    assert payload["critical_regression_zero_tolerance"] is True
+    assert payload["decision"] == "INSUFFICIENT_EVIDENCE"
+    assert payload["candidate_evidence_verified"] is False
+    assert payload["meaningful_thresholds_frozen"] is True
+    assert payload["runtime_authority"] is False
+    assert payload["action_executed"] is False
+    assert payload["real_training_run_executed"] is False
+    assert payload["real_candidate_evaluation_executed"] is False
