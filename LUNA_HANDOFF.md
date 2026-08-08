@@ -459,3 +459,44 @@ working tree before review branch: clean
 ```
 
 <!-- HANDOFF_ROADMAP_DEPENDENCY_REVIEW_END -->
+
+<!-- HANDOFF_LEGACY_ROADMAP_RECONCILIATION_BEGIN -->
+
+## Legacy Roadmap Reconciliation Checkpoint
+
+A previously external historical roadmap document was reviewed before deletion.
+
+Preserved canonical intent:
+
+```text
+Phase 20 = Final Conformance Comparison and Release Candidate
+Phase 21 = Post-v0.1 Research
+```
+
+Therefore the previously considered name `Phase 20A — Capability Lineage
+Foundation` is rejected.
+
+The next implementation remains:
+
+```text
+C-002 — Capability Lineage Mapping
+branch: capability/c002-lineage-foundation
+```
+
+C-011 and C-012 remain QUEUED designs only.
+
+The historical detailed Phase 12-19 implementation plan is not re-imported; real
+repository implementation, verifiers, tests, manifests, merge history, and the
+current roadmap supersede stale planning details.
+
+An explicit Delta Review rule is now preserved for future roadmap discoveries.
+
+Canonical reconciliation document:
+
+`docs/LEGACY_ROADMAP_RECONCILIATION.md`
+
+After this reconciliation is merged, contained in `origin/main`, and the working
+tree is clean, the external historical plan file may be deleted without losing
+the still-relevant Phase 20 / Phase 21 / Delta Review intent.
+
+<!-- HANDOFF_LEGACY_ROADMAP_RECONCILIATION_END -->
