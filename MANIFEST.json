@@ -599,8 +599,8 @@
       "size_bytes": 7857
     },
     "src/luna/cli.py": {
-      "sha256": "64befcbcc85333dcb37983d2ffbcfd95a7e66a7be6a66279342cc3fe65576546",
-      "size_bytes": 77111
+      "sha256": "f7e53e1ed7b60d35767e6793d70bf859440eedfe66706cc1aa59fb4a480c5b6f",
+      "size_bytes": 77110
     },
     "src/luna/conformance/__init__.py": {
       "sha256": "386b8a4726a9aa1a0c013aba5c9ae63ca6bd783d0bbcc2d5feea906d49b784f8",

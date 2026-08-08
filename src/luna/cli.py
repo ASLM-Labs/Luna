@@ -1756,7 +1756,7 @@ def _run_phase16_smoke() -> int:
             "theme_sidebar": THEME_TOKENS["sidebar"],
             "shell_message": snapshot.shell_message,
         }
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0 if all(
             (
                 payload["task_count"] == 1,
