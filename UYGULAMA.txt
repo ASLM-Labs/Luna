@@ -77,3 +77,48 @@ COUNTERFACTUAL RESULT
 -> NO GENERALIZED CAUSAL CLAIM AUTHORITY
 
 Only an actually observed replay/sandbox result counts as Phase 19D counterfactual evidence.
+
+
+PHASE 19E — SMALL CONTROLLED SFT GOVERNANCE
+
+NORMALIZED TRAIN CORPUS
+-> schema + source lineage
+-> target-only loss
+-> Luna canonical tool schema
+-> privacy/context normalization
+-> duplicate + subset-mix checks
+-> CORPUS AUDIT PASS
+
+CORPUS AUDIT PASS
+-> freeze base model revision
+-> freeze trainer revision
+-> freeze corpus SHA256
+-> freeze seed / epochs / learning rate / max sequence
+-> TRAINING SPEC SHA256
+
+TRAINING SPEC
+-> EXTERNAL CONTROLLED TRAINING
+-> real execution receipt required
+-> artifact SHA256 + training log SHA256 required
+-> held-out use forbidden
+-> TRAINED_CANDIDATE_UNPROMOTED
+
+NO REAL RECEIPT
+-> NO TRAINED CANDIDATE CLAIM
+
+TRAINED CANDIDATE
+-> NO RUNTIME AUTHORITY
+-> NO PROMOTION AUTHORITY
+-> Phase 19F Improvement Gate required
+
+GORUNUR SMOKE
+.venv\Scripts\python.exe -m luna phase19e-smoke
+
+DETERMINISTIC VERIFIER
+.venv\Scripts\python.exe scripts\verify_phase19e.py
+
+TARGETED TESTS
+.venv\Scripts\python.exe -m pytest -q tests\test_phase19e_small_controlled_sft.py
+
+TAM KALITE KAPISI
+scripts\check_hold.bat

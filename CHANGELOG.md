@@ -488,3 +488,17 @@ Tüm önemli değişiklikler bu dosyada belgelenir.
 - Critical safety regressions remain zero tolerance.
 - Counterfactual results have no release-promotion or generalized-causal authority.
 - Real training and generalized post-training improvement are not claimed.
+
+
+## Phase 19E — Small Controlled SFT Governance
+
+- Added frozen, non-authoritative first-SFT policy.
+- Added large-file-safe JSONL corpus audit with target-only loss verification.
+- Added train-only split enforcement and canonical Luna tool/privacy normalization requirements.
+- Added duplicate record/training-fingerprint checks and raw hidden-chain-of-thought rejection.
+- Added conservative implementation-primary subset mixing boundaries.
+- Added SHA-256 locked base-model/trainer/corpus/hyperparameter candidate specifications.
+- Added external training receipts that require actual successful execution and artifact evidence.
+- Held-out use during training is rejected.
+- Trained candidates remain explicitly unpromoted and have no runtime authority.
+- No GPU training, trained weights, measured improvement, or promotion is claimed by repository governance.

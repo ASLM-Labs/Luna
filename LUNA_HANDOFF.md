@@ -24,13 +24,18 @@ UNRESOLVED — do not rename Luna while resolving company branding.
 Baseline branch:
 main
 
-Verified Phase 19C merge:
-ba47e8b Merge pull request #17 from Novopic-Intelligence/phase-19c-learning-integrity
+Verified Phase 19D merge:
+0ff1196 Merge pull request #19 from Novopic-Intelligence/phase-19d-counterfactual-analysis
 
-Phase 19C implementation:
-08cbf00 feat: complete Phase 19C learning integrity
+Phase 19D implementation:
+0a2f793 feat: complete Phase 19D counterfactual analysis
+
+Roadmap/handoff merge:
+739feed Merge pull request #18 from Novopic-Intelligence/docs/capability-roadmap-handoff
 
 Previous checkpoints:
+- Phase 19C merge: ba47e8b
+- Phase 19C implementation: 08cbf00
 - Phase 19B merge: 91a94ad
 - Phase 19B implementation: b68b88e
 - Phase 19A merge: 69d648b
@@ -50,29 +55,30 @@ Phase 19C — Learning Integrity:
 CLOSED
 
 Phase 19D — Counterfactual Analysis:
-IMPLEMENTED_UNVERIFIED
+CLOSED
 
-Next after Phase 19D validation/merge:
-Phase 19E — Small Controlled SFT
+Phase 19E — Small Controlled SFT:
+IMPLEMENTED_UNVERIFIED / REAL TRAINING PENDING
 
 Then:
-Phase 19F — Improvement Gate
+Phase 19F — Improvement Gate, blocked until a real trained 19E candidate exists.
 
 ## Next Engineering Step
 
-Current working phase: Phase 19D — Counterfactual Analysis.
+Current working branch: `phase-19e-small-controlled-sft`.
+Baseline: merged Phase 19D at `0ff1196`.
 
 Before merge:
-1. run the Phase 19D targeted verifier/tests;
+1. run the Phase 19E deterministic verifier and targeted tests;
 2. run the full Windows `scripts/check.bat`;
-3. keep exact Phase 19D scope;
+3. keep exact Phase 19E scope;
 4. commit/push only after the full local gate passes;
 5. merge only after GitHub Actions is green;
-6. sync main and verify the implementation commit is contained in `origin/main`.
+6. sync main and verify the Phase 19E implementation commit is contained in `origin/main`.
 
-After Phase 19D is merged, Phase 19E — Small Controlled SFT is next.
-
-Do not claim an unexecuted alternative would have succeeded.
+Important: repository governance can audit/freeze a corpus and training specification, but it does not
+claim an external GPU/SFT run happened. A real trained artifact requires a matching execution receipt.
+Phase 19F cannot start promotion evaluation until such a candidate exists.
 
 ## Phase 19 Program Boundaries
 

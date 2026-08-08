@@ -500,16 +500,18 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 19C learning integrity gate passed.
+[PASS] Luna 0.1 Phase 19E small controlled SFT governance gate passed.
 ```
 
 ## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase19c-smoke
+.venv\Scripts\python.exe -m luna phase19e-smoke
 ```
 
-Başarılı çıktıda frozen learning-integrity policy, shortcut/benchmark/evaluator/overfitting/proxy/
+Başarılı çıktıda Phase 19E corpus/spec governance boundary görünürdür.
+
+Phase 19C için ayrıca `phase19c-smoke` kullanılabilir. Başarılı çıktıda frozen learning-integrity policy, shortcut/benchmark/evaluator/overfitting/proxy/
 confirmation/self-confirmation probes ve no-promotion-authority boundary görünürdür.
 
 Faz 12F evidence smoke ayrıca kullanılabilir:
@@ -541,3 +543,23 @@ executed in a controlled replay or sandbox. Like-for-like comparisons require th
 revision, and replay environment. Candidate output cannot serve as independent proof of its own
 alternative, and counterfactual analysis cannot authorize release promotion or generalized causal
 claims.
+
+
+## Phase 19E — Small Controlled SFT Governance
+
+Phase 19E adds the controlled boundary between a normalized training corpus and a real external SFT
+run. It audits only `train` rows, enforces target-only loss, canonical Luna tool schema, privacy/context
+normalization, source derivation, duplicate checks, and conservative initial subset mixing. A passing
+corpus can be bound to a revision-locked base model, trainer, corpus digest, seed, and hyperparameter
+specification.
+
+The repository does **not** execute a GPU trainer or fabricate weights. A trained candidate is recorded
+only when an external execution receipt proves a successful run and binds the resulting artifact to the
+frozen spec. Even then the artifact remains `TRAINED_CANDIDATE_UNPROMOTED`; Phase 19F owns the
+post-training improvement gate.
+
+Visible smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase19e-smoke
+```

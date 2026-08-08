@@ -11,13 +11,13 @@ are already implemented.
 - Phase 19A — Foundation: CLOSED
 - Phase 19B — Evaluation Governance: CLOSED
 - Phase 19C — Learning Integrity: CLOSED
-- Phase 19D — Counterfactual Analysis: IMPLEMENTED_UNVERIFIED
-- Phase 19E — Small Controlled SFT: NEXT
-- Phase 19F — Improvement Gate: PLANNED
+- Phase 19D — Counterfactual Analysis: CLOSED
+- Phase 19E — Small Controlled SFT: IMPLEMENTED_UNVERIFIED / REAL TRAINING PENDING
+- Phase 19F — Improvement Gate: BLOCKED UNTIL A REAL 19E TRAINED CANDIDATE EXISTS
 
 ## Phase 19D — Counterfactual Analysis
 
-Status: IMPLEMENTED_UNVERIFIED / EXPERIMENTAL
+Status: CLOSED / EXPERIMENTAL
 
 Purpose:
 - compare alternative plans, tools, evidence paths, recovery paths, and minimal-action paths;
@@ -35,18 +35,26 @@ Runtime boundary:
 
 ## Phase 19E — Small Controlled SFT
 
-Status: NEXT
+Status: IMPLEMENTED_UNVERIFIED / REAL TRAINING PENDING
 
 Purpose:
-- import a real, curated and governed training corpus;
+- accept only a curated, normalized and governed training corpus;
 - preserve provenance and lineage;
-- preserve leak-free train/validation/held-out boundaries;
-- produce a small training candidate;
-- do not automatically promote trained weights.
+- reject validation/held-out rows from training;
+- require target-only loss for cumulative traces;
+- require canonical Luna tool normalization and privacy/context normalization;
+- freeze base model, trainer, corpus and hyperparameters into one candidate spec;
+- record a trained artifact only from a matching external training receipt;
+- keep every trained candidate unpromoted until Phase 19F.
+
+Execution boundary:
+- repository governance does not execute GPU/SFT training;
+- training requested is not training completed;
+- no weights or improvement are claimed until external artifact evidence exists.
 
 ## Phase 19F — Improvement Gate
 
-Status: PLANNED
+Status: BLOCKED UNTIL A REAL 19E TRAINED CANDIDATE EXISTS
 
 Purpose:
 - compare the candidate against the frozen pre-training baseline;

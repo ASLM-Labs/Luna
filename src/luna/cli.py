@@ -194,6 +194,11 @@ from luna.runtime import (
     SQLiteRuntimeJournal,
     build_task_fingerprint,
 )
+from luna.sft import (
+    audit_sft_corpus,
+    build_default_sft_policy,
+    prepare_sft_candidate,
+)
 from luna.tools import (
     AutonomyLevel,
     ProcessApproval,
@@ -350,6 +355,13 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Verify Phase 19D controlled replay, evidence independence, "
             "counterfactual comparison, and non-authority boundaries."
+        ),
+    )
+    subparsers.add_parser(
+        "phase19e-smoke",
+        help=(
+            "Verify Phase 19E normalized train-only corpus governance, frozen "
+            "training specification, receipt boundary, and non-promotion rules."
         ),
     )
     desktop_parser = subparsers.add_parser(
@@ -2665,6 +2677,113 @@ def _run_phase19d_smoke() -> int:
         )
     ) else 2
 
+def _run_phase19e_smoke() -> int:
+    policy = build_default_sft_policy()
+    with TemporaryDirectory(prefix="luna-phase19e-smoke-") as temp:
+        corpus_path = Path(temp) / "train.jsonl"
+
+        def record(*, suffix: str, task: str) -> dict[str, object]:
+            messages: list[dict[str, object]] = [
+                {"role": "system", "content": "Luna controlled SFT smoke."},
+                {"role": "user", "content": f"Verify {task}."},
+                {
+                    "role": "assistant",
+                    "content": "Inspect the observable contract before changing state.",
+                },
+            ]
+            return {
+                "record_id": f"{task}:{suffix}::step-1",
+                "source_trajectory_id": f"{task}:{suffix}",
+                "task": task,
+                "canonical_family": task,
+                "lang": "python",
+                "category": "debug-runtime",
+                "assistant_step": 1,
+                "assistant_steps": 1,
+                "messages": messages,
+                "tools": [],
+                "target_message_index": 2,
+                "loss_mask": [0, 0, 1],
+                "_luna_training": {
+                    "split": "train",
+                    "train_role": "policy",
+                    "trajectory_weight": 1.0,
+                    "step_weight": 1.0,
+                    "loss_weight": 1.0,
+                    "d1_decision": "train_candidate",
+                    "d1_decision_reasons": [],
+                    "tool_schema": "luna-canonical-tools-v0.1",
+                    "normalization": "privacy-and-context-v0.1",
+                    "source_derivation": "cumulative-next-assistant-v1",
+                },
+            }
+
+        rows = (
+            record(suffix="source-a", task="phase19e-smoke-a"),
+            record(suffix="source-b", task="phase19e-smoke-b"),
+        )
+        corpus_path.write_text(
+            "".join(
+                json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n"
+                for row in rows
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
+        audit = audit_sft_corpus(path=corpus_path, policy=policy)
+        spec = prepare_sft_candidate(
+            policy=policy,
+            audit=audit,
+            candidate_id="luna-phase19e-smoke-candidate",
+            base_model_id="fixture/base-model",
+            base_model_revision="fixture-base-rev",
+            trainer_id="external-controlled-sft",
+            trainer_revision="fixture-trainer-rev",
+            seed=19,
+            epochs=1.0,
+            learning_rate=2e-5,
+            max_sequence_tokens=4096,
+        )
+
+    payload = {
+        "policy_locked": policy.locked_sha256 == policy.computed_sha256(),
+        "corpus_ready": audit.ready_for_controlled_sft,
+        "record_count": audit.record_count,
+        "target_only_loss": audit.target_only_loss_verified,
+        "train_split_only": audit.train_split_only,
+        "canonical_tool_schema": audit.canonical_tool_schema_only,
+        "canonical_normalization": audit.canonical_normalization_only,
+        "source_derivation_present": audit.source_derivation_present,
+        "raw_hidden_chain_of_thought_absent": audit.raw_hidden_chain_of_thought_absent,
+        "candidate_spec_locked": spec.locked_sha256 == spec.computed_sha256(),
+        "held_out_used_for_training": spec.held_out_used_for_training,
+        "real_training_run_executed": False,
+        "trained_artifact_registered": False,
+        "promotion_authorized": spec.promotion_authority,
+        "runtime_authority": spec.runtime_authority,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            payload["policy_locked"] is True,
+            payload["corpus_ready"] is True,
+            payload["record_count"] == 2,
+            payload["target_only_loss"] is True,
+            payload["train_split_only"] is True,
+            payload["canonical_tool_schema"] is True,
+            payload["canonical_normalization"] is True,
+            payload["source_derivation_present"] is True,
+            payload["raw_hidden_chain_of_thought_absent"] is True,
+            payload["candidate_spec_locked"] is True,
+            payload["held_out_used_for_training"] is False,
+            payload["real_training_run_executed"] is False,
+            payload["trained_artifact_registered"] is False,
+            payload["promotion_authorized"] is False,
+            payload["runtime_authority"] is False,
+        )
+    ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2692,7 +2811,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "status":
         print("phase: 19")
-        print("status: COUNTERFACTUAL_ANALYSIS_IMPLEMENTED_UNVERIFIED")
+        print("status: SMALL_CONTROLLED_SFT_GOVERNANCE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2857,6 +2976,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19d_generalized_causal_authority: none")
         print("phase19d_promotion_authority: none")
         print("phase19d_real_training_run: not_executed_by_counterfactual_foundation")
+        print("phase19e_sft_corpus: normalized_train_only_target_only_loss")
+        print("phase19e_tool_schema: luna_canonical_only")
+        print("phase19e_privacy_normalization: required")
+        print("phase19e_initial_mix: implementation_primary_judge_harness_bounded")
+        print("phase19e_training_spec: base_trainer_corpus_hyperparameters_sha256_locked")
+        print("phase19e_external_training_receipt: execution_and_artifact_evidence_required")
+        print("phase19e_trained_candidate: unpromoted")
+        print("phase19e_runtime_authority: none")
+        print("phase19e_promotion_authority: none")
+        print("phase19e_real_training_run: not_executed_by_repository_governance")
         return 0
 
     if args.command == "resolve-intent":
@@ -2929,6 +3058,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase19d-smoke":
         return _run_phase19d_smoke()
+
+    if args.command == "phase19e-smoke":
+        return _run_phase19e_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(
