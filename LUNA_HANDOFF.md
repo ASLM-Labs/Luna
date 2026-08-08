@@ -261,3 +261,49 @@ terminal/Git evidence
 > conversation memory.
 
 "Baba, bi doğrula önce."
+
+<!-- HANDOFF_C011_SINGLE_VOICE_BEGIN -->
+
+## Single-Voice Parallel Cognition Design Checkpoint
+
+Queued capability: **C-011 - Single-Voice Parallel Cognition**
+
+Canonical principles:
+
+- **One mind. Many hands. One voice.**
+- **Workers prepare. Evidence supports. Luna decides. Runtime executes.**
+- **Fix the basis, not the worker.**
+- **Knowledge survives. Persona does not.**
+
+Architecture intent:
+
+- Main Luna keeps the single authoritative task state, decision authority, and
+  user-facing voice.
+- Temporary workers/workspaces may research, inspect, draft, test, or verify in
+  parallel.
+- Preferred serving form is shared Luna weights with isolated task contexts/KV
+  state when supported; workers do not require persistent specialist personas.
+- Worker outputs are proposals/evidence, never automatically trusted state.
+- Minor gaps resume the workspace; a bad basis causes drop + changed-basis
+  respawn; contradictory results trigger independent verification.
+- Worker-specific long-term memory and independent authority are prohibited by
+  default.
+- Delegation depth, concurrency, GPU/KV budget, tool permissions, cancellation,
+  freshness, provenance, cost, and state adoption must be bounded/measurable.
+
+Verified checkpoint when recorded:
+
+```text
+Phase 19E - Small Controlled SFT: CLOSED
+implementation: a816915
+merge:          be3facd
+PR:             #20
+GitHub Actions:  4/4 PASS
+main status:     clean
+next phase:      Phase 19F - Improvement Gate
+```
+
+C-011 is documentation/roadmap state only here; this update must not claim the
+parallel-cognition capability is already implemented.
+
+<!-- HANDOFF_C011_SINGLE_VOICE_END -->
