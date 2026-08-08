@@ -52,6 +52,13 @@ from luna.contracts.evidence import Evidence
 from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
+from luna.desktop import (
+    THEME_TOKENS,
+    DesktopAccessMode,
+    DesktopComposerDraft,
+    build_local_desktop_controller,
+    launch_desktop_shell,
+)
 from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
 from luna.learning import LearningCandidateBuilder
@@ -225,6 +232,29 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase15-smoke",
         help="Verify Phase 15 durable queue, scheduler, resource, and notification boundaries.",
+    )
+    subparsers.add_parser(
+        "phase16-smoke",
+        help="Verify Phase 16 desktop shell presentation and runtime-bound command gateway.",
+    )
+    desktop_parser = subparsers.add_parser(
+        "desktop",
+        help="Launch the local Phase 16 Luna desktop product shell.",
+    )
+    desktop_parser.add_argument(
+        "--workspace",
+        default=".",
+        help="Workspace root shown by the desktop shell.",
+    )
+    desktop_parser.add_argument(
+        "--database",
+        default=str(Path.home() / ".luna" / "operations.sqlite3"),
+        help="Local operations SQLite database used by the desktop shell.",
+    )
+    desktop_parser.add_argument(
+        "--actor-id",
+        default="desktop-local-session",
+        help="Local-session actor identifier bound outside model output.",
     )
     live_probe = subparsers.add_parser(
         "phase13-live-probe",
@@ -1695,6 +1725,54 @@ def _run_phase15_smoke() -> int:
         ) else 2
 
 
+def _run_phase16_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase16-smoke-") as temp:
+        root = Path(temp)
+        database = root / "operations.sqlite3"
+        controller = build_local_desktop_controller(
+            workspace_root=root,
+            database_path=database,
+            actor_id="phase16-smoke",
+        )
+        item_id = controller.submit(
+            DesktopComposerDraft(
+                text="Inspect the Phase 16 desktop smoke workspace.",
+                workspace_root=str(root),
+                access_mode=DesktopAccessMode.READ_ONLY,
+            )
+        )
+        snapshot = controller.snapshot()
+        item = SQLiteOperationsStore(database).load_queue_item(UUID(item_id))
+        request = item.payload.envelope.request
+        payload = {
+            "task_count": len(snapshot.tasks),
+            "task_state": snapshot.tasks[0].state.value if snapshot.tasks else None,
+            "request_source": request.source.value,
+            "write_allowed": request.scope.write_allowed,
+            "network_allowed": request.scope.network_allowed,
+            "autonomy_level": request.autonomy.level.value,
+            "queue_status": item.status.value,
+            "theme_canvas": THEME_TOKENS["canvas"],
+            "theme_sidebar": THEME_TOKENS["sidebar"],
+            "shell_message": snapshot.shell_message,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if all(
+            (
+                payload["task_count"] == 1,
+                payload["task_state"] == "QUEUED",
+                payload["request_source"] == "DESKTOP",
+                payload["write_allowed"] is False,
+                payload["network_allowed"] is False,
+                payload["autonomy_level"] == "LEVEL_1_READ_ONLY",
+                payload["queue_status"] == "QUEUED",
+                payload["theme_canvas"] == "#FFFFFF",
+                payload["theme_sidebar"] == "#F1F5F9",
+                payload["shell_message"] == "Luna ile ne geliştirelim?",
+            )
+        ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -1721,8 +1799,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 15")
-        print("status: RESOURCE_MANAGER_QUEUE_SCHEDULER_NOTIFICATIONS_IMPLEMENTED_UNVERIFIED")
+        print("phase: 16")
+        print("status: DESKTOP_PRODUCT_SHELL_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1820,6 +1898,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("scheduler_free_research_clone: blocked")
         print("notifications: local_outbox_runtime_outcome_bound")
         print("notification_external_delivery: disabled")
+        print("desktop_shell: local_light_first_conversation_workspace")
+        print("desktop_theme: white_graphite_soft_surface_luna_blue")
+        print("desktop_default_authority: read_only")
+        print("desktop_write_authority: explicit_bounded_user_approval")
+        print("desktop_command_path: runtime_request_then_durable_queue")
+        print("desktop_direct_tool_or_model_call: forbidden")
+        print("desktop_completion_label: runtime_outcome_verification_bound")
+        print("desktop_details: task_evidence_verification_resource_visible")
+        print("desktop_notifications: local_outbox_only")
+        print("desktop_renderer: tkinter_lazy_loaded")
         return 0
 
     if args.command == "resolve-intent":
@@ -1871,6 +1959,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase15-smoke":
         return _run_phase15_smoke()
+
+    if args.command == "phase16-smoke":
+        return _run_phase16_smoke()
+
+    if args.command == "desktop":
+        controller = build_local_desktop_controller(
+            workspace_root=args.workspace,
+            database_path=args.database,
+            actor_id=args.actor_id,
+        )
+        return launch_desktop_shell(controller)
 
     if args.command == "phase13-live-probe":
         return _run_phase13_live_probe(

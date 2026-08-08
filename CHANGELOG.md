@@ -2,6 +2,28 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase16] - 2026-08-08
+
+### Added
+
+- Local light-first desktop product shell with conversation workspace, sidebar, composer, and details drawer.
+- Runtime-bound desktop command gateway using `RequestSource.DESKTOP` and the durable Phase 15 queue.
+- Read-only default desktop authority and explicit bounded controlled-write approval contracts.
+- Evidence-aware task cards, schedule cards, resource summary, and local notification presentation.
+- Lazy-loaded Tk renderer plus deterministic Phase 16 headless verifier and CLI smoke.
+
+### Changed
+
+- Phase 15 metadata verifier is forward-compatible with later numeric phases.
+- Operations store exposes read-only schedule listing for desktop presentation.
+
+### Security
+
+- Desktop UI cannot call tools or models directly.
+- UI state cannot manufacture runtime authority or `VERIFIED_COMPLETE`.
+- Controlled writes require explicit local approval, approved paths, and file/line budgets.
+- Desktop notifications remain local-only; no external transport is added.
+
 ## [0.1.0-phase15] - 2026-08-08
 
 ### Added

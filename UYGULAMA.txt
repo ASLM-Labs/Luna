@@ -1,38 +1,33 @@
-LUNA 0.1 - FAZ 15 RESOURCE MANAGER / QUEUE / SCHEDULER / NOTIFICATIONS UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 16 DESKTOP PRODUCT SHELL UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-15-resource-manager-queue-scheduler-notifications
-Baseline: merged Faz 14
+Hedef branch: phase-16-desktop-product-shell
+Baseline: merged Faz 15
 
-Bu faz Luna'nin uzun sure yasayan yerel operations katmanini kurar. Queue, scheduler,
-resource manager ve notification outbox koordinasyon yapar; runtime authority vermez.
+Bu faz Luna runtime ve durable operations katmanlarinin ustune yerel desktop product shell ekler.
+UI presentation/command-routing katmanidir; runtime, tool, model, completion veya network authority
+uretmez.
 
 Ana davranislar:
-- shared SQLite WAL operations store + canonical JSON SHA-256 integrity
-- idempotent durable queue ve deterministic priority / eligibility ordering
-- queue priority authority grant degildir
-- LEASED -> DISPATCHED durable may-have-executed fence
-- expired LEASED safe requeue olabilir
-- expired DISPATCHED -> RECOVERY_REQUIRED; blind replay yok
-- ACTIVE / STALE / RELEASED resource leases
-- worker / model / network capacity admission; permission grant yok
-- STALE lease kapasiteyi bloke etmeye devam eder
-- UTC ONE_SHOT ve FIXED_INTERVAL scheduler
-- scheduler yalniz queue work materialize eder; runtime/tool/model cagirmaz
-- bounded catch-up materialization
-- recurring occurrence fresh deterministic task/request/trace ID alir
-- recurring Level 4 task-bound FREE_RESEARCH grant clone yasak
-- coordinator dispatch basina en fazla bir runtime invocation
-- runtime outcome + resource release + local outbox atomic finalization
-- notification yalniz RuntimeOutcome truth'undan uretilir
-- verified success notification icin VERIFIED_COMPLETE + verification/final report gerekir
-- external notification transport yok
+- light-first white / graphite / soft-surface / Luna-blue theme
+- conversation-first workspace + sidebar + bottom composer + optional details drawer
+- desktop composer default READ_ONLY
+- CONTROLLED_WRITE yalniz explicit local-user approval + bounded path/file/line budget ile
+- RequestSource.DESKTOP -> RuntimeRequest -> WorkEnvelope -> durable queue
+- desktop direct tool/model dispatch yok
+- queue/schedule/resource/notification read-model presentation
+- VERIFIED_COMPLETE label yalniz authoritative RuntimeOutcome + verification/final report ile
+- local notification outbox gorunur; external delivery yok
+- Tk renderer lazy-loaded; headless quality gate GUI acmaz
 
-Gorunur Phase 15 smoke:
-.venv\Scripts\python.exe -m luna phase15-smoke
+Gorunur Phase 16 smoke:
+.venv\Scripts\python.exe -m luna phase16-smoke
+
+Desktop shell:
+.venv\Scripts\python.exe -m luna desktop --workspace .
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase15.py
+.venv\Scripts\python.exe scripts\verify_phase16.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -42,9 +37,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-14 deterministic gates PASS
-- Faz 15 operations verifier PASS
+- Faz 1-15 deterministic gates PASS
+- Faz 16 desktop product shell verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 15 resource manager, queue, scheduler, and notifications gate passed.
+- son satir: [PASS] Luna 0.1 Phase 16 desktop product shell gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

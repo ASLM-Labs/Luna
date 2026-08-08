@@ -469,6 +469,21 @@ class SQLiteOperationsStore:
             ).fetchall()
         return tuple(self._schedule_from_row(row) for row in rows)
 
+    def list_schedules(self, *, limit: int = 100) -> tuple[ScheduledJob, ...]:
+        """Read schedules for local presentation without changing scheduler authority."""
+        if limit < 1 or limit > 1000:
+            raise ValueError("schedule limit must be in [1, 1000]")
+        with self._read_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM scheduled_jobs
+                ORDER BY enabled DESC, next_run_at ASC, rowid ASC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return tuple(self._schedule_from_row(row) for row in rows)
+
     def materialize_schedule_occurrence(
         self,
         *,

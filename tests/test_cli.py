@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 15" in output
+    assert "phase: 16" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -88,6 +88,13 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "scheduler: utc_one_shot_fixed_interval_materialize_only" in output
     assert "notifications: local_outbox_runtime_outcome_bound" in output
     assert "research_document_evidence: moderate_non_terminal" in output
+    assert "desktop_shell: local_light_first_conversation_workspace" in output
+    assert "desktop_default_authority: read_only" in output
+    assert "desktop_write_authority: explicit_bounded_user_approval" in output
+    assert "desktop_command_path: runtime_request_then_durable_queue" in output
+    assert "desktop_direct_tool_or_model_call: forbidden" in output
+    assert "desktop_completion_label: runtime_outcome_verification_bound" in output
+    assert "desktop_notifications: local_outbox_only" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -453,3 +460,20 @@ def test_phase15_smoke_command(
     assert payload["notification_kind"] == "TASK_VERIFIED_COMPLETE"
     assert payload["external_delivery_allowed"] is False
     assert payload["held_worker_slots"] == 0
+
+
+def test_phase16_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase16-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["task_count"] == 1
+    assert payload["task_state"] == "QUEUED"
+    assert payload["request_source"] == "DESKTOP"
+    assert payload["write_allowed"] is False
+    assert payload["network_allowed"] is False
+    assert payload["autonomy_level"] == "LEVEL_1_READ_ONLY"
+    assert payload["theme_canvas"] == "#FFFFFF"
+    assert payload["shell_message"] == "Luna ile ne geliştirelim?"

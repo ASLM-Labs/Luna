@@ -1,0 +1,43 @@
+{
+  "phase": "16",
+  "baseline": "merged Phase 15",
+  "target_branch": "phase-16-desktop-product-shell",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 27,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_16_REPORT.md",
+    "docs/PHASE_16_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-016_DESKTOP_PRODUCT_SHELL.md",
+    "phase_16_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase15.py",
+    "scripts/verify_phase16.py",
+    "src/luna/cli.py",
+    "src/luna/desktop/__init__.py",
+    "src/luna/desktop/bootstrap.py",
+    "src/luna/desktop/controller.py",
+    "src/luna/desktop/gateway.py",
+    "src/luna/desktop/models.py",
+    "src/luna/desktop/presenter.py",
+    "src/luna/desktop/theme.py",
+    "src/luna/desktop/tk_shell.py",
+    "src/luna/operations/store.py",
+    "tests/test_cli.py",
+    "tests/test_phase16_desktop_product_shell.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Desktop shell is presentation and command-routing only.",
+    "Default desktop authority is read-only.",
+    "Controlled write requires explicit bounded local-user approval.",
+    "Verified-complete labels remain RuntimeOutcome + verification/final-report bound.",
+    "Notifications remain local-only in Phase 16."
+  ]
+}
