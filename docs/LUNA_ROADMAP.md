@@ -758,3 +758,34 @@ canonical Phase 20 contract so the project does not silently reuse a phase
 number for a different purpose.
 
 <!-- ROADMAP_DEPENDENCY_REVIEW_END -->
+
+<!-- LEGACY_ROADMAP_RECONCILIATION_BEGIN -->
+
+## Legacy Roadmap Reconciliation
+
+The historical `LUNA_GUNCELLENMIS_FAZ_PLANI_V2.md` was reconciled with current
+repository reality.
+
+Canonical reservations preserved:
+
+```text
+Phase 20 — Final Conformance Comparison and Release Candidate
+Phase 21 — Post-v0.1 Research
+```
+
+Consequences:
+
+- **C-002 must not be named Phase 20A.**
+- C-002 remains the recommended next capability implementation.
+- Recommended C-002 branch: `capability/c002-lineage-foundation`.
+- C-011 remains a QUEUED governed parallel-cognition design.
+- C-012 remains a QUEUED governed self-optimization-sandbox design.
+- Uncontrolled self-modification remains prohibited.
+- Automatic deployment / external actions require separate security governance.
+- New roadmap discoveries require an explicit Delta Review.
+
+Full reconciliation and Phase 20/21 contracts:
+
+`docs/LEGACY_ROADMAP_RECONCILIATION.md`
+
+<!-- LEGACY_ROADMAP_RECONCILIATION_END -->

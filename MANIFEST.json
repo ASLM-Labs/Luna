@@ -31,8 +31,8 @@
       "size_bytes": 11358
     },
     "LUNA_HANDOFF.md": {
-      "sha256": "3b37f02a52f53b66bd62c3f424f9fc13d4d4595e57568058819b4163a01ba2a9",
-      "size_bytes": 13813
+      "sha256": "fc0a250fb7e296729a88909b25f7dd2028e0db535b0b91f7ae60253a084e7cb2",
+      "size_bytes": 15043
     },
     "NOTICE": {
       "sha256": "646f0597c250105de5a171ab2d9f5f0271efde0c10c758042af2968718b0a3cd",
@@ -50,9 +50,13 @@
       "sha256": "b24b1ae689ec20ca171322878edc79beeaef5f6f043fd65595a3647e133cb4cf",
       "size_bytes": 29249
     },
+    "docs/LEGACY_ROADMAP_RECONCILIATION.md": {
+      "sha256": "618fd80df398da853f247f3cd4719e3dcafb9c6706ac6ae102e057c85ca62615",
+      "size_bytes": 6728
+    },
     "docs/LUNA_ROADMAP.md": {
-      "sha256": "a1636c2e38ba7741bb3c0d11511ab63dc769a0d931a7ca367739a7772c006ac6",
-      "size_bytes": 21949
+      "sha256": "8c7c9a0d66a0fed5e96e11eb1b35eeb052007664e2ffd48c3708b5497afdb08a",
+      "size_bytes": 22915
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
