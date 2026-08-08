@@ -1,34 +1,39 @@
-LUNA 0.1 - FAZ 17 DISCORD GATEWAY UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 18 VOICE GATEWAY UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-17-discord-gateway
-Baseline: merged Faz 16
+Hedef branch: phase-18-voice-gateway
+Baseline: merged Faz 17
 
-Bu faz Discord ingress'i mevcut runtime identity/autonomy, durable queue ve append-only audit
-sinirlarina baglar. Discord mesaji authority, completion veya external-action kaynagi degildir.
+Bu faz yerel ses girisini mevcut runtime identity/autonomy, durable queue ve append-only audit
+sinirlarina baglar. Konusulan metin authority veya external-action kaynagi degildir.
 
 Ana davranislar:
-- verified Discord transport metadata zorunlu
-- configured guild/channel allowlist
-- owner user ID + trusted/community role ID mapping; fallback GUEST
-- Discord text veya samimiyet ile rol/autonomy escalation yok
-- RequestSource.DISCORD -> LEVEL_1_READ_ONLY -> WorkEnvelope -> durable queue
+- provider-neutral STT/TTS adapter kontratlari
+- gercek mikrofon/cloud provider yok
+- Luna final voice/persona sesi bu fazda kilitlenmez
+- verified local session + configured speaker identity zorunlu
+- wake-word / push-to-talk capture metadata
+- session-bound transcript view
+- chat / command ayrimi
+- read-only command -> 1 explicit transcript confirmation
+- high-impact command -> 2 explicit confirmation
+- double confirmation sonrasi bile yalniz read-only approval-review queue
+- RequestSource.VOICE -> LEVEL_1_READ_ONLY -> durable queue
 - project write kapali
 - process/terminal kapali
-- network authority kapali
-- model unavailable ise QUEUED_FOR_MODEL durable queue
-- deterministic duplicate-delivery idempotency
-- role-bound fixed-window rate limit
-- bot/webhook/mass-mention ingress moderation
-- append-only audit; raw message yerine content SHA-256
-- reply route ingress channel/message'e kilitli
-- gateway external Discord send/ban/delete yapmaz
+- network/external action kapali
+- model unavailable chat durable queue
+- interrupt/cancel pending confirmation'i siler ve pre-dispatch queue'yu guvenli iptal eder
+- append-only audit; raw transcript/audio yerine SHA-256 digest
 
-Gorunur Phase 17 smoke:
-.venv\Scripts\python.exe -m luna phase17-smoke
+Gorunur Phase 18 smoke:
+.venv\Scripts\python.exe -m luna phase18-smoke
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase17.py
+.venv\Scripts\python.exe scripts\verify_phase18.py
+
+Targeted tests:
+.venv\Scripts\python.exe -m pytest -q tests\test_phase18_voice_gateway.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -38,9 +43,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-16 deterministic gates PASS
-- Faz 17 Discord gateway verifier PASS
+- Faz 1-17 deterministic gates PASS
+- Faz 18 Voice Gateway verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 17 Discord gateway gate passed.
+- son satir: [PASS] Luna 0.1 Phase 18 Voice Gateway gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

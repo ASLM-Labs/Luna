@@ -206,3 +206,15 @@ def test_phase_seventeen_discord_gateway_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-017_DISCORD_GATEWAY.md"
     ).is_file()
+
+
+
+def test_phase_eighteen_voice_gateway_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "voice" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "voice" / "adapters.py").is_file()
+    assert (project_root / "src" / "luna" / "voice" / "confirmation.py").is_file()
+    assert (project_root / "src" / "luna" / "voice" / "session.py").is_file()
+    assert (project_root / "src" / "luna" / "voice" / "gateway.py").is_file()
+    assert (project_root / "scripts" / "verify_phase18.py").is_file()
+    assert (project_root / "docs" / "rfcs" / "RFC-018_VOICE_GATEWAY.md").is_file()

@@ -1,4 +1,44 @@
-# Faz 17 Mimari Sınırı
+# Faz 18 Mimari Sınırı
+
+Faz 18, Phase 16 desktop permission UX ve Phase 17 gateway disiplininin ustune yerel Voice
+Gateway ekler. Ses transkripsiyonu data'dir; role, autonomy veya tool authority degildir.
+
+## Var
+
+- provider-neutral STT/TTS adapter kontratlari;
+- verified local session + configured speaker identity;
+- wake-word / push-to-talk capture metadata;
+- session-bound transcript view;
+- chat/command ayrimi;
+- read-only command icin direct confirmation;
+- high-impact istek icin iki transcript-bound confirmation;
+- double confirmation sonrasi read-only approval-review queue;
+- `RequestSource.VOICE`, Level 1 read-only runtime envelope;
+- model-unavailable durable queue;
+- interruption/cancel pre-dispatch safe-control;
+- raw transcript/audio icermeyen append-only audit digest kaydi.
+
+## Zorlanan kurallar
+
+- spoken text owner identity olusturamaz veya autonomy yukseltemez;
+- bir transcript write/delete/deploy/external action calistiramaz;
+- high-impact iki onaydan sonra bile ayri non-voice bounded approval olmadan side effect alamaz;
+- Voice Gateway filesystem/shell/network/tool dispatcher'i dogrudan cagiramaz;
+- TTS provider veya final Luna voice profile Phase 18'de kilitlenmez;
+- interruption dispatch fence'i gecmis work'u blind cancel/replay yapmaz.
+
+## Yok
+
+- production microphone driver;
+- wake-word engine implementation;
+- real STT/TTS provider veya secret;
+- Luna'nin final kadin sesi, ton/pitch/accent/persona voice profili;
+- speaker biometric enrollment;
+- direct voice write/process/network/deploy/external action.
+
+---
+
+# Faz 17 Mimari Sınırı (Baseline)
 
 Faz 17, Phase 16 ürün yüzünün yanına external Discord ingress boundary ekler. Gateway yalnız
 doğrulanmış transport metadata'sını runtime kontratlarına çevirir; Discord mesajı yetki değildir.
