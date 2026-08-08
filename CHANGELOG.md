@@ -2,6 +2,32 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase14] - 2026-08-08
+
+### Added
+
+- Runtime-owned read-only Research Gateway and provider-neutral research backend boundary.
+- Explicit domain allow/deny policy with request, elapsed-time, source-size, and token budgets.
+- URL, publisher, source-family, retrieval-time, publication-time, and SHA-256 provenance.
+- Prompt-injection risk labeling with structural `DATA_ONLY` interpretation.
+- Citation-bound current-claim assessments and source-family citation discipline.
+- Phase 12F `DOCUMENT` evidence adapter that remains moderate/non-terminal by default.
+- Phase 14 verifier, tests, CLI smoke, RFC, report, metadata, and CI integration.
+
+### Changed
+
+- Phase 13 metadata verification is forward-compatible with later numeric phases while retaining
+  canonical manifest/SHA integrity checks.
+
+### Security
+
+- Research network access remains closed unless both runtime authority and explicit research
+  policy permit it.
+- Out-of-domain and Level 4 contract violations are blocked before backend dispatch.
+- Retrieved content cannot mutate runtime policy, invoke external actions, or auto-commit memory.
+- Sourceless current claims are not publishable and citation/source mismatch is rejected.
+- Research document evidence cannot manufacture `VERIFIED_COMPLETE` under the default gate.
+
 ## [0.1.0-phase13] - 2026-08-08
 
 ### Added

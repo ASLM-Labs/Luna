@@ -1,3 +1,69 @@
+# Faz 14 Mimari Sınırı
+
+Faz 14, Faz 13 controlled model sınırının üzerine runtime-owned read-only Research
+Gateway ve citation-bound Evidence RAG katmanı ekler.
+
+```text
+RuntimeRequest network authority
++ explicit ResearchPolicy
++ domain / Level 4 contract / budget preflight
+→ read-only ResearchBackend GET
+→ provenance-bound ResearchSource
+→ prompt-injection scan (DATA_ONLY)
+→ citation-bound claim assessment
+→ optional MODERATE DOCUMENT evidence
+```
+
+## Var
+
+- network-closed-by-default research policy;
+- runtime scope ve `RuntimeBudget.max_network_requests` authority binding;
+- deny-first explicit domain allowlist/denylist;
+- Level 4 `FREE_RESEARCH` domain/request/duration boundary;
+- request, elapsed-time, source-size ve admitted-token budgets;
+- read-only provider-neutral backend protocol ve standard-library GET backend;
+- automatic redirect refusal ve final-URL policy recheck;
+- URL, publisher, source-family, retrieval/publication time ve SHA-256 provenance;
+- conservative prompt-injection signals with structural `DATA_ONLY` semantics;
+- exact excerpt + digest + publisher + retrieval-time bound citations;
+- source-family-aware citation selection;
+- Phase 12F `DOCUMENT` evidence bridge;
+- deterministic Phase 14 verifier, tests, CLI smoke ve quality-gate integration.
+
+## Zorlanan kurallar
+
+- network access model veya web content tarafından açılamaz;
+- out-of-domain target backend dispatch'a ulaşamaz;
+- backend response başka domaine kaçarsa source admission olmaz;
+- web content runtime policy, autonomy veya tool authority olamaz;
+- external research action GET dışında genişletilemez;
+- sourceless current claim publishable olamaz;
+- citation/source digest/URL/publisher/retrieval-time mismatch kabul edilmez;
+- same-source-family sayfa çoğaltımı bağımsız corroboration gibi sunulmaz;
+- research result verified memory'ye otomatik commit olamaz;
+- DOCUMENT evidence default strong completion threshold'ünü tek başına geçemez;
+- backend failure implicit retry oluşturamaz.
+
+## Yok
+
+- autonomous web-search discovery veya research scheduling;
+- browser automation ve external account actions;
+- automatic persistent research memory;
+- cloud credential distribution;
+- GitHub veya diğer harici integrations;
+- subagent/persona chain;
+- desktop, Discord veya voice gateway.
+
+## Sonraki kapılar
+
+```text
+15 resource manager / queue / scheduler / notifications
+→ 16 desktop product shell
+→ 17 Discord
+```
+
+---
+
 # Faz 13 Mimari Sınırı
 
 Faz 13, Faz 12'nin integrated runtime foundation'ı üzerine gerçek-model

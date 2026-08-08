@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 13 — Real Model Compatibility & Controlled Rollout** durumundadır.
+Repository şu anda **Faz 14 — Research Gateway / Evidence RAG** durumundadır.
 
 ## Çalışan zincir
 
@@ -57,6 +57,11 @@ intent → explicit context candidates → contract → plan → expected observ
 → structured backend failure normalization
 → runtime-owned BLOCKED / SHADOW / CANARY / ACTIVE rollout gate
 → deterministic canary allocation + rollback tripwires
+→ runtime-owned read-only Research Gateway
+→ explicit domain allow/deny + request/time/token budgets
+→ provenance-bound source + prompt-injection DATA_ONLY boundary
+→ citation-backed supported claim / unsupported claim
+→ moderate DOCUMENT evidence without false completion
 ```
 
 Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
@@ -64,6 +69,43 @@ Component testlerinin yeşil olması tek başına yeterli değildir; completion 
 evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
 
+
+
+## Faz 14 Research Gateway / Evidence RAG sınırları
+
+Faz 14, güncel dış bilgiyi Luna'ya doğrudan otorite olarak değil, provenance ve
+citation taşıyan untrusted `DATA_ONLY` research evidence olarak alır.
+
+- network varsayılan olarak kapalıdır; runtime network scope + budget ve ayrıca
+  `ResearchPolicy(network_enabled=True)` gerekir;
+- domain allowlist/denylist dispatch öncesi uygulanır; Level 4 `FREE_RESEARCH`
+  kontratı varsa onun domain/request sınırı da ayrıca korunur;
+- araştırma yalnız read-only `GET` yapabilir; external action ve runtime-policy
+  mutation yasaktır;
+- request, elapsed-time, per-source character ve total admitted-token budget'ları
+  runtime-owned biçimde uygulanır;
+- admitted source URL, publisher, source family, retrieval timestamp, optional
+  publication timestamp ve SHA-256 provenance taşır;
+- prompt-injection sinyalleri risk etiketi olarak kalır; web içeriği hiçbir zaman
+  runtime control instruction'a yükseltilmez;
+- current factual claim yalnız exact source excerpt'e bağlanan citation ile
+  `SUPPORTED` olabilir; kaynaksız claim publishable değildir;
+- aynı source family bağımsız corroboration gibi çoğaltılmaz;
+- research citation `DOCUMENT` evidence'a çevrilse bile Phase 12F altında
+  `MODERATE` ve non-reproducible kalır; tek başına `VERIFIED_COMPLETE` üretemez;
+- research sonucu verified memory'ye otomatik commit olamaz; review gerekir.
+
+Görünür Phase 14 smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase14-smoke
+```
+
+Deterministic verifier:
+
+```bat
+.venv\Scripts\python.exe scripts\verify_phase14.py
+```
 
 ## Faz 13 real-model compatibility / controlled rollout sınırları
 
@@ -240,17 +282,17 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 13 real-model compatibility and controlled rollout gate passed.
+[PASS] Luna 0.1 Phase 14 research gateway and evidence RAG gate passed.
 ```
 
-## Görünür Faz 13 testi
+## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase13-smoke
+.venv\Scripts\python.exe -m luna phase14-smoke
 ```
 
-Başarılı çıktıda required compatibility PASS, SHADOW denial, ACTIVE authorization,
-health tripwire block ve compatibility fingerprint görünürdür.
+Başarılı çıktıda bounded network usage, admitted provenance source, citation-backed claim,
+domain pre-dispatch block ve DATA_ONLY injection boundary görünürdür.
 
 Faz 12F evidence smoke ayrıca kullanılabilir:
 
@@ -266,6 +308,7 @@ Faz 12F evidence smoke ayrıca kullanılabilir:
 - Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
 - Runtime E2E ve behavior conformance Faz 12G ile uygulanmıştır.
 - Gerçek-model compatibility ve runtime-owned controlled rollout Faz 13 ile uygulanmıştır.
+- Research Gateway ve citation-bound Evidence RAG Faz 14 ile uygulanmıştır.
 - Harici cloud-provider adapter/secrets entegrasyonu bu fazda açılmaz; live probe loopback-only kalır.
 - Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.

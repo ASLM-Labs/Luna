@@ -132,6 +132,7 @@ def test_phase_twelve_g_runtime_conformance_files_are_present() -> None:
         / "RFC-012G_RUNTIME_E2E_BEHAVIOR_CONFORMANCE.md"
     ).is_file()
 
+
 def test_phase_thirteen_model_compatibility_and_rollout_files_are_present() -> None:
     project_root = PROJECT_ROOT
     assert (project_root / "src" / "luna" / "modeling" / "errors.py").is_file()
@@ -143,4 +144,21 @@ def test_phase_thirteen_model_compatibility_and_rollout_files_are_present() -> N
         / "docs"
         / "rfcs"
         / "RFC-013_REAL_MODEL_COMPATIBILITY_CONTROLLED_ROLLOUT.md"
+    ).is_file()
+
+
+def test_phase_fourteen_research_gateway_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "research" / "gateway.py").is_file()
+    assert (project_root / "src" / "luna" / "research" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "research" / "sources.py").is_file()
+    assert (project_root / "src" / "luna" / "research" / "provenance.py").is_file()
+    assert (project_root / "src" / "luna" / "research" / "injection_guard.py").is_file()
+    assert (project_root / "src" / "luna" / "research" / "evidence_adapter.py").is_file()
+    assert (project_root / "scripts" / "verify_phase14.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-014_RESEARCH_GATEWAY_EVIDENCE_RAG.md"
     ).is_file()
