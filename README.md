@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 14 — Research Gateway / Evidence RAG** durumundadır.
+Repository şu anda **Faz 15 — Resource Manager / Queue / Scheduler / Notifications** durumundadır.
 
 ## Çalışan zincir
 
@@ -62,6 +62,11 @@ intent → explicit context candidates → contract → plan → expected observ
 → provenance-bound source + prompt-injection DATA_ONLY boundary
 → citation-backed supported claim / unsupported claim
 → moderate DOCUMENT evidence without false completion
+→ durable SQLite operations queue
+→ UTC schedule eligibility + bounded catch-up
+→ worker/model/network resource admission
+→ pre-runtime DISPATCHED replay fence
+→ LunaRuntime outcome-bound local notification outbox
 ```
 
 Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
@@ -70,6 +75,41 @@ evidence discipline, policy boundary, safe control, side-effect replay, scope in
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
 
 
+
+## Faz 15 Resource Manager / Queue / Scheduler / Notifications sınırları
+
+Faz 15, Luna'nın zaman içinde bekleyen ve uygun olduğunda çalıştırılan işleri güvenli
+şekilde koordine eden ilk durable operations katmanıdır.
+
+- `WorkEnvelope`, mevcut `RuntimeRequest + ToolPolicy` otoritesini taşır; queue/scheduler
+  yeni tool, network, write, process veya risk yetkisi veremez;
+- shared `SQLiteOperationsStore` WAL + FULL sync + canonical JSON SHA-256 integrity kullanır;
+- queue idempotent'tir ve ready sırası priority → eligibility time → insertion order'dır;
+- `LEASED → DISPATCHED` geçişi runtime çağrısından önce durable may-have-executed fence yazar;
+- expired `LEASED` item safe requeue olabilir; expired `DISPATCHED` item
+  `RECOVERY_REQUIRED` olur ve blind replay edilmez;
+- worker/model/network resource slot'ları yalnız kapasite admission'ıdır, permission değildir;
+- `STALE` resource lease belirsizlik çözülmeden kapasiteden düşmez;
+- scheduler UTC `ONE_SHOT` ve `FIXED_INTERVAL` destekler ve yalnız queue work materialize eder;
+- recurring occurrence fresh deterministic task/request/trace ID alır; task-bound Level 4
+  `FREE_RESEARCH` grant recurring schedule'a kopyalanamaz;
+- coordinator dispatch başına en fazla bir runtime invocation yapar;
+- successful finalization, resource release ve local outbox event aynı SQLite transaction'ında yazılır;
+- notification yalnız `RuntimeOutcome` truth'undan üretilir; verified success için
+  `VERIFIED_COMPLETE` + verification report + final report gerekir;
+- external notification transport Phase 15'te yoktur.
+
+Görünür Phase 15 smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase15-smoke
+```
+
+Deterministic verifier:
+
+```bat
+.venv\Scripts\python.exe scripts\verify_phase15.py
+```
 
 ## Faz 14 Research Gateway / Evidence RAG sınırları
 

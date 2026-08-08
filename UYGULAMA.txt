@@ -1,33 +1,38 @@
-LUNA 0.1 - FAZ 14 RESEARCH GATEWAY / EVIDENCE RAG UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 15 RESOURCE MANAGER / QUEUE / SCHEDULER / NOTIFICATIONS UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-14-research-gateway-evidence-rag
-Baseline: merged Faz 13
+Hedef branch: phase-15-resource-manager-queue-scheduler-notifications
+Baseline: merged Faz 14
 
-Bu faz güncel dis bilgiyi runtime-owned, read-only ve citation-bound research evidence
-olarak Luna'ya alir. Kaynak metni DATA_ONLY kalir; runtime policy veya tool authority
-olamaz.
+Bu faz Luna'nin uzun sure yasayan yerel operations katmanini kurar. Queue, scheduler,
+resource manager ve notification outbox koordinasyon yapar; runtime authority vermez.
 
 Ana davranislar:
-- network default CLOSED
-- runtime network authority + explicit ResearchPolicy birlikte zorunlu
-- deny-first domain allow/deny ve Level 4 FREE_RESEARCH domain kontrati
-- GET-only research; external action yok
-- request / elapsed-time / source-size / admitted-token budget
-- requested/final URL, publisher, source family, retrieval timestamp ve SHA-256 provenance
-- prompt-injection sinyali DATA_ONLY; runtime control yetkisi yok
-- current claim citation olmadan publishable degil
-- citation exact source excerpt + source digest ile bagli
-- ayni source family bagimsiz corroboration gibi sayilmaz
-- DOCUMENT research evidence default Phase 12F gate altinda MODERATE/non-terminal
-- research sonucu verified memory'ye otomatik commit olamaz; review gerekir
-- backend failure blind retry yapmaz
+- shared SQLite WAL operations store + canonical JSON SHA-256 integrity
+- idempotent durable queue ve deterministic priority / eligibility ordering
+- queue priority authority grant degildir
+- LEASED -> DISPATCHED durable may-have-executed fence
+- expired LEASED safe requeue olabilir
+- expired DISPATCHED -> RECOVERY_REQUIRED; blind replay yok
+- ACTIVE / STALE / RELEASED resource leases
+- worker / model / network capacity admission; permission grant yok
+- STALE lease kapasiteyi bloke etmeye devam eder
+- UTC ONE_SHOT ve FIXED_INTERVAL scheduler
+- scheduler yalniz queue work materialize eder; runtime/tool/model cagirmaz
+- bounded catch-up materialization
+- recurring occurrence fresh deterministic task/request/trace ID alir
+- recurring Level 4 task-bound FREE_RESEARCH grant clone yasak
+- coordinator dispatch basina en fazla bir runtime invocation
+- runtime outcome + resource release + local outbox atomic finalization
+- notification yalniz RuntimeOutcome truth'undan uretilir
+- verified success notification icin VERIFIED_COMPLETE + verification/final report gerekir
+- external notification transport yok
 
-Gorunur Phase 14 smoke:
-.venv\Scripts\python.exe -m luna phase14-smoke
+Gorunur Phase 15 smoke:
+.venv\Scripts\python.exe -m luna phase15-smoke
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase14.py
+.venv\Scripts\python.exe scripts\verify_phase15.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -37,9 +42,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-13 deterministic gates PASS
-- Faz 14 research gateway / evidence RAG verifier PASS
+- Faz 1-14 deterministic gates PASS
+- Faz 15 operations verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 14 research gateway and evidence RAG gate passed.
+- son satir: [PASS] Luna 0.1 Phase 15 resource manager, queue, scheduler, and notifications gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

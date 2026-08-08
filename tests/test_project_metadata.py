@@ -162,3 +162,21 @@ def test_phase_fourteen_research_gateway_files_are_present() -> None:
         / "rfcs"
         / "RFC-014_RESEARCH_GATEWAY_EVIDENCE_RAG.md"
     ).is_file()
+
+
+def test_phase_fifteen_operations_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "operations" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "store.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "queue.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "resources.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "scheduler.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "notifications.py").is_file()
+    assert (project_root / "src" / "luna" / "operations" / "coordinator.py").is_file()
+    assert (project_root / "scripts" / "verify_phase15.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-015_RESOURCE_MANAGER_QUEUE_SCHEDULER_NOTIFICATIONS.md"
+    ).is_file()
