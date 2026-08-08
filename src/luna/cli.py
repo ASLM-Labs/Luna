@@ -103,6 +103,11 @@ from luna.evaluation_governance import (
     freeze_regression_suite,
 )
 from luna.identity import IdentityProfile
+from luna.improvement_gate import (
+    ImprovementGateDecision,
+    build_default_improvement_gate_policy,
+    evaluate_improvement_gate,
+)
 from luna.intent import DeterministicIntentResolver
 from luna.learning import LearningCandidateBuilder
 from luna.learning_integrity import (
@@ -362,6 +367,13 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Verify Phase 19E normalized train-only corpus governance, frozen "
             "training specification, receipt boundary, and non-promotion rules."
+        ),
+    )
+    subparsers.add_parser(
+        "phase19f-smoke",
+        help=(
+            "Verify Phase 19F frozen improvement thresholds, confidence-aware "
+            "decision boundary, and no-false-promotion behavior."
         ),
     )
     desktop_parser = subparsers.add_parser(
@@ -2784,6 +2796,39 @@ def _run_phase19e_smoke() -> int:
     ) else 2
 
 
+def _run_phase19f_smoke() -> int:
+    policy = build_default_improvement_gate_policy()
+    report = evaluate_improvement_gate(policy=policy)
+    payload: dict[str, object] = {
+        "policy_locked": policy.locked_sha256 == policy.computed_sha256(),
+        "confidence_level": policy.confidence_level,
+        "critical_regression_zero_tolerance": policy.critical_regression_zero_tolerance,
+        "decision": report.decision.value,
+        "candidate_evidence_verified": report.candidate_evidence_verified,
+        "meaningful_thresholds_frozen": set(policy.dimension_thresholds)
+        == set(CognitiveDimension),
+        "runtime_authority": report.runtime_authority,
+        "action_executed": report.action_executed,
+        "real_training_run_executed": False,
+        "real_candidate_evaluation_executed": False,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            payload["policy_locked"] is True,
+            payload["confidence_level"] == 0.95,
+            payload["critical_regression_zero_tolerance"] is True,
+            payload["decision"] == ImprovementGateDecision.INSUFFICIENT_EVIDENCE.value,
+            payload["candidate_evidence_verified"] is False,
+            payload["meaningful_thresholds_frozen"] is True,
+            payload["runtime_authority"] is False,
+            payload["action_executed"] is False,
+            payload["real_training_run_executed"] is False,
+            payload["real_candidate_evaluation_executed"] is False,
+        )
+    ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2811,7 +2856,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "status":
         print("phase: 19")
-        print("status: SMALL_CONTROLLED_SFT_GOVERNANCE_IMPLEMENTED_UNVERIFIED")
+        print("status: IMPROVEMENT_GATE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2986,6 +3031,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19e_runtime_authority: none")
         print("phase19e_promotion_authority: none")
         print("phase19e_real_training_run: not_executed_by_repository_governance")
+        print("phase19f_improvement_gate: paired_confidence_thresholds_multi_metric")
+        print("phase19f_critical_regression: zero_tolerance")
+        print("phase19f_candidate_evidence: phase19e_receipt_and_artifact_required")
+        print("phase19f_decisions: promote_reject_rollback_or_insufficient")
+        print("phase19f_runtime_authority: none")
+        print("phase19f_real_candidate_evaluation: not_executed_without_trained_candidate")
+        print("phase19f_release_action_execution: not_performed_by_gate")
         return 0
 
     if args.command == "resolve-intent":
@@ -3061,6 +3113,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase19e-smoke":
         return _run_phase19e_smoke()
+
+    if args.command == "phase19f-smoke":
+        return _run_phase19f_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

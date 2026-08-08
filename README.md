@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 18 — Voice Gateway** durumundadır.
+Repository şu anda **Faz 19F — Improvement Gate** mimari durumundadır; gerçek eğitilmiş candidate evaluation henüz yürütülmemiştir.
 
 ## Çalışan zincir
 
@@ -500,16 +500,16 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 19E small controlled SFT governance gate passed.
+[PASS] Luna 0.1 Phase 19F improvement gate passed.
 ```
 
 ## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase19e-smoke
+.venv\Scripts\python.exe -m luna phase19f-smoke
 ```
 
-Başarılı çıktıda Phase 19E corpus/spec governance boundary görünürdür.
+Başarılı çıktıda Phase 19F mevcut gerçek candidate yokken `INSUFFICIENT_EVIDENCE` fail-closed boundary görünürdür. Phase 19E için `phase19e-smoke` kullanılabilir.
 
 Phase 19C için ayrıca `phase19c-smoke` kullanılabilir. Başarılı çıktıda frozen learning-integrity policy, shortcut/benchmark/evaluator/overfitting/proxy/
 confirmation/self-confirmation probes ve no-promotion-authority boundary görünürdür.
@@ -562,4 +562,26 @@ Visible smoke:
 
 ```bat
 .venv\Scripts\python.exe -m luna phase19e-smoke
+```
+
+## Phase 19F — Improvement Gate
+
+Phase 19F adds the final evidence boundary for a real trained candidate. It requires the Phase 19E
+spec/receipt/artifact chain, frozen held-out/OOD and regression identities, independent evaluator
+fingerprints, contamination checks, and Phase 19C learning-integrity status before comparing the
+candidate with the frozen baseline.
+
+Non-critical cognitive changes use frozen meaningful-change thresholds plus paired confidence
+intervals. Critical regressions remain zero-tolerance. A candidate may receive `PROMOTE`, `REJECT`,
+`ROLLBACK`, or `INSUFFICIENT_EVIDENCE`, but the gate itself has no runtime release execution
+authority.
+
+The repository currently has no real trained Phase 19E candidate evidence, so the visible smoke
+intentionally proves that the correct current decision is `INSUFFICIENT_EVIDENCE` rather than a false
+improvement claim.
+
+Visible smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase19f-smoke
 ```
