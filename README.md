@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 15 — Resource Manager / Queue / Scheduler / Notifications** durumundadır.
+Repository şu anda **Faz 16 — Desktop Product Shell** durumundadır.
 
 ## Çalışan zincir
 
@@ -67,6 +67,8 @@ intent → explicit context candidates → contract → plan → expected observ
 → worker/model/network resource admission
 → pre-runtime DISPATCHED replay fence
 → LunaRuntime outcome-bound local notification outbox
+→ local light-first desktop product shell
+→ runtime-bound desktop command gateway + evidence-aware task cards
 ```
 
 Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
@@ -75,6 +77,43 @@ evidence discipline, policy boundary, safe control, side-effect replay, scope in
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
 
 
+
+
+## Faz 16 Desktop Product Shell sınırları
+
+Faz 16, Luna'nın mevcut runtime/operations çekirdeğinin üstüne yerel masaüstü ürün kabuğunu
+ekler. UI otorite üretmez; yalnızca runtime ve durable operations durumunu dürüstçe sunar.
+
+- light-first beyaz/graphite/soft-surface/Luna-blue tema ve Codex-benzeri sakin yerleşim;
+- conversation-first workspace, sol navigation, alt composer ve isteğe bağlı details drawer;
+- composer varsayılanı `READ_ONLY`; `CONTROLLED_WRITE` yalnız açık kullanıcı onayı + path/line/file
+  bütçesiyle oluşturulabilir;
+- desktop kaynaklı işler `RequestSource.DESKTOP` ile `RuntimeRequest → WorkEnvelope → durable queue`
+  yolundan geçer;
+- desktop shell model veya tool'u doğrudan çağıramaz;
+- `Doğrulandı` etiketi yalnız `COMPLETED + VERIFIED_COMPLETE + verification_report_id +
+  final_report_id` birleşiminden üretilebilir;
+- queue, schedule, resource ve local notification durumu read-model olarak gösterilir;
+- notification external delivery Phase 16'da hâlâ kapalıdır;
+- Tk renderer lazy-load edilir; headless verifier/test ortamı GUI açmaz.
+
+Görünür Phase 16 smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase16-smoke
+```
+
+Desktop shell:
+
+```bat
+.venv\Scripts\python.exe -m luna desktop --workspace .
+```
+
+Deterministic verifier:
+
+```bat
+.venv\Scripts\python.exe scripts\verify_phase16.py
+```
 
 ## Faz 15 Resource Manager / Queue / Scheduler / Notifications sınırları
 

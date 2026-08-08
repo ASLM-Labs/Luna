@@ -1,3 +1,60 @@
+# Faz 16 Mimari Sınırı
+
+Faz 16, Phase 15 durable operations çekirdeğinin üzerine local desktop product shell ekler.
+Desktop shell presentation ve command-routing katmanıdır; runtime authority değildir.
+
+```text
+local user session
+→ DesktopComposerDraft
+→ explicit desktop access boundary
+→ RuntimeRequest(source=DESKTOP)
+→ WorkEnvelope
+→ durable queue
+→ Luna runtime / operations
+→ authoritative RuntimeOutcome
+→ evidence-aware desktop read model
+```
+
+## Var
+
+- light-first local Tk desktop renderer;
+- conversation-first workspace, sidebar, composer ve details drawer;
+- read-only default desktop request factory;
+- explicit bounded controlled-write approval;
+- durable queue, schedules, resources ve local notification read-model;
+- RuntimeOutcome-bound task state labels;
+- headless deterministic verifier ve CLI smoke.
+
+## Zorlanan kurallar
+
+- UI tool/model dispatch yapamaz;
+- UI completion veya evidence authority üretemez;
+- `VERIFIED_COMPLETE` yalnız authoritative runtime outcome + verification/final-report IDs ile görünür;
+- write authority raw composer metninden türemez;
+- desktop network authority üretmez;
+- local notification external-delivery claim taşımaz.
+
+## Yok
+
+- OS background service;
+- auto-updater;
+- installer/signing;
+- external desktop push transport;
+- Discord/voice gateway;
+- browser/webview dependency;
+- model-generated UI authority.
+
+## Sonraki kapılar
+
+```text
+17 Discord
+→ 18 voice
+→ 19 trace/dataset governance
+→ 20 final conformance / RC
+```
+
+---
+
 # Faz 15 Mimari Sınırı
 
 Faz 15, Faz 14 araştırma sınırının üzerine Luna'nın uzun süre yaşayan yerel operasyon

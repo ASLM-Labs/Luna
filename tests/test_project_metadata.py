@@ -180,3 +180,16 @@ def test_phase_fifteen_operations_files_are_present() -> None:
         / "rfcs"
         / "RFC-015_RESOURCE_MANAGER_QUEUE_SCHEDULER_NOTIFICATIONS.md"
     ).is_file()
+
+
+def test_phase_sixteen_desktop_product_shell_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "desktop" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "desktop" / "gateway.py").is_file()
+    assert (project_root / "src" / "luna" / "desktop" / "presenter.py").is_file()
+    assert (project_root / "src" / "luna" / "desktop" / "controller.py").is_file()
+    assert (project_root / "src" / "luna" / "desktop" / "tk_shell.py").is_file()
+    assert (project_root / "scripts" / "verify_phase16.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-016_DESKTOP_PRODUCT_SHELL.md"
+    ).is_file()

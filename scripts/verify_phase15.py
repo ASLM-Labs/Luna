@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -190,7 +191,9 @@ def _canonical_metadata_bytes(path: Path) -> bytes:
 
 def _metadata_integrity() -> bool:
     manifest = json.loads((ROOT / "MANIFEST.json").read_text(encoding="utf-8"))
-    if manifest.get("phase") != "15":
+    phase = str(manifest.get("phase", ""))
+    match = re.fullmatch(r"(\d+)(?:[A-Z])?", phase)
+    if match is None or int(match.group(1)) < 15:
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False
