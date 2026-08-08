@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 18" in output
+    assert "phase: 19" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -38,6 +38,11 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "context_secrets: blocked_or_redacted_before_model_view" in output
     assert "context_memory: verified_data_only" in output
     assert "context_freshness: explicit_and_deterministic" in output
+    assert "phase19_trace: observable_structured_no_raw_hidden_cot" in output
+    assert "phase19_split: task_repository_trajectory_grouped_leak_free" in output
+    assert "phase19_uncertainty: confidence_evidence_bound" in output
+    assert "phase19_self_correction: changed_basis_not_blind_retry" in output
+    assert "phase19_training_run: not_executed_by_foundation" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -535,3 +540,23 @@ def test_phase18_smoke_command(
     assert payload["confirmation_count"] == 2
     assert payload["tts_provider_bound"] is False
     assert payload["tts_voice_profile"] is None
+
+
+def test_phase19_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["raw_hidden_cot_included"] is False
+    assert payload["structured_stage_count"] == 7
+    assert payload["held_out_split"] == "HELD_OUT"
+    assert payload["contamination_detected"] is False
+    assert payload["target_only_loss"] is True
+    assert payload["uncertainty_directive"] == "STOP"
+    assert payload["changed_basis_self_correction"] is True
+    assert payload["baseline_locked"] is True
+    assert payload["planning_delta"] > 0.0
+    assert payload["comparison_verdict"] == "ACCEPT"
+    assert payload["training_run_executed"] is False

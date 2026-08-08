@@ -1,51 +1,65 @@
-LUNA 0.1 - FAZ 18 VOICE GATEWAY UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 19 TRACE/DATASET GOVERNANCE + COGNITIVE QUALITY FOUNDATION
 
-Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-18-voice-gateway
-Baseline: merged Faz 17
+Durum: FOUNDATION_IMPLEMENTED_UNVERIFIED
+Hedef branch: phase-19-trace-dataset-governance
+Baseline: merged Faz 18 (b1bd19f)
 
-Bu faz yerel ses girisini mevcut runtime identity/autonomy, durable queue ve append-only audit
-sinirlarina baglar. Konusulan metin authority veya external-action kaynagi degildir.
+Bu paket Phase 19'un veri yonetisimi ve dusunme-kalitesi olcum altyapisini kurar.
+Gercek 1 GB trace corpus import edilmis, GPU/SFT egitimi yapilmis veya model iyilesti diye
+iddia edilmez.
 
-Ana davranislar:
-- provider-neutral STT/TTS adapter kontratlari
-- gercek mikrofon/cloud provider yok
-- Luna final voice/persona sesi bu fazda kilitlenmez
-- verified local session + configured speaker identity zorunlu
-- wake-word / push-to-talk capture metadata
-- session-bound transcript view
-- chat / command ayrimi
-- read-only command -> 1 explicit transcript confirmation
-- high-impact command -> 2 explicit confirmation
-- double confirmation sonrasi bile yalniz read-only approval-review queue
-- RequestSource.VOICE -> LEVEL_1_READ_ONLY -> durable queue
-- project write kapali
-- process/terminal kapali
-- network/external action kapali
-- model unavailable chat durable queue
-- interrupt/cancel pending confirmation'i siler ve pre-dispatch queue'yu guvenli iptal eder
-- append-only audit; raw transcript/audio yerine SHA-256 digest
+TRACK A - DATASET GOVERNANCE
+- observable structured decision trace
+- raw hidden chain-of-thought forbidden
+- trajectory reconstruction; missing source row invent edilmez
+- dataset taxonomy
+- multi-axis failure labels
+- semantic tool normalization; executable ToolRequest yaratmaz
+- task/repository/trajectory family grouped leak-free split
+- explicit unseen task-family HELD_OUT
+- held-out -> training transform BLOCKED
+- license + PII review gate
+- target-only training transformation
 
-Gorunur Phase 18 smoke:
-.venv\Scripts\python.exe -m luna phase18-smoke
+TRACK B - COGNITIVE QUALITY
+- reasoning baseline
+- planning quality
+- tool-selection quality
+- failure-recovery quality
+- evidence usage
+- uncertainty calibration
+- self-correction quality
+- confidence evidence-bound
+- HIGH confidence + contradictory evidence -> STOP
+- self-correction -> failed assumption + new evidence + strategy change + changed basis
+- blind retry / pseudo-learning -> kabul edilmez
+- frozen pre-training baseline SHA256
+- candidate comparison dimension-specific
+- critical regression / held-out contamination -> REJECT
 
-Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase18.py
+GORUNUR SMOKE
+.venv\Scripts\python.exe -m luna phase19-smoke
 
-Targeted tests:
-.venv\Scripts\python.exe -m pytest -q tests\test_phase18_voice_gateway.py
+DETERMINISTIC VERIFIER
+.venv\Scripts\python.exe scripts\verify_phase19.py
 
-Tam kalite kapisi:
+TARGETED TESTS
+.venv\Scripts\python.exe -m pytest -q tests\test_phase19_trace_dataset_cognitive_quality.py
+
+TAM KALITE KAPISI
 scripts\check_hold.bat
 
-Beklenen:
+BEKLENEN
 - Python syntax PASS
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-17 deterministic gates PASS
-- Faz 18 Voice Gateway verifier PASS
+- Faz 1-18 deterministic gates PASS
+- Faz 19 foundation verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 18 Voice Gateway gate passed.
+- CP1252-safe phase19-smoke PASS
+- son satir: [PASS] Luna 0.1 Phase 19 trace/dataset governance and cognitive quality foundation gate passed.
 
-Tam kapi yesil olmadan commit veya push yapmayin.
+NOT
+Bu foundation yesil olmadan gercek corpus reconstruction, frozen real-model baseline veya SFT
+kosusu baslatilmaz. Commit/push da tam kalite kapisi yesil olmadan yapilmaz.

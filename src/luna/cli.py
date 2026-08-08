@@ -24,6 +24,16 @@ from luna.actions import (
 )
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
 from luna.autonomy import AutonomyPolicy, FreeResearchContract
+from luna.cognition import (
+    CognitiveDimension,
+    CognitiveScorecard,
+    ConfidenceBand,
+    EvidenceState,
+    FrozenCognitiveBaseline,
+    SelfCorrectionAssessment,
+    assess_uncertainty,
+    compare_to_baseline,
+)
 from luna.conformance import (
     ConformanceRunner,
     RuntimeBehaviorExecutor,
@@ -158,6 +168,17 @@ from luna.tools import (
     build_phase5_registry,
 )
 from luna.tools.policy import evaluate_tool_policy
+from luna.trajectories import (
+    DatasetSplit,
+    DatasetTaxonomy,
+    LeakFreeSplitter,
+    SourceTraceRow,
+    StructuredDecisionTrace,
+    TraceStage,
+    TrainingTransformer,
+    TrajectoryOutcome,
+    TrajectoryReconstructor,
+)
 from luna.verification import (
     CompletionGate,
     DeterministicVerifier,
@@ -263,6 +284,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase18-smoke",
         help="Verify Phase 18 voice transcript, confirmation, session, and queue boundaries.",
+    )
+    subparsers.add_parser(
+        "phase19-smoke",
+        help=(
+            "Verify Phase 19 trace governance, leak-free split, cognitive baseline, "
+            "uncertainty, and self-correction boundaries."
+        ),
     )
     desktop_parser = subparsers.add_parser(
         "desktop",
@@ -1977,6 +2005,158 @@ def _run_phase18_smoke() -> int:
             )
         ) else 2
 
+def _run_phase19_smoke() -> int:
+    reconstructor = TrajectoryReconstructor()
+
+    def build_trace(
+        source_id: str,
+        task_family: str,
+        trajectory_family: str,
+    ) -> StructuredDecisionTrace:
+        rows = (
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=0,
+                stage=TraceStage.TASK,
+                summary="Repair a failing quality gate.",
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=1,
+                stage=TraceStage.PLAN,
+                summary="Inspect the failing gate before editing.",
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=2,
+                stage=TraceStage.ACTION,
+                summary="Run a focused verifier.",
+                tool_name="pytest",
+                tool_arguments={"argv": ["pytest", "-q"]},
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=3,
+                stage=TraceStage.OBSERVATION,
+                summary="The observed failure narrows the changed basis.",
+                evidence_refs=("gate:evidence",),
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=4,
+                stage=TraceStage.REPLAN,
+                summary="Change strategy using the new evidence.",
+                decision_basis=("gate:evidence",),
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=5,
+                stage=TraceStage.VERIFICATION,
+                summary="Focused and full verification pass.",
+                evidence_refs=("gate:pass",),
+            ),
+            SourceTraceRow(
+                source_trajectory_id=source_id,
+                sequence=6,
+                stage=TraceStage.FINAL,
+                summary="The evidence-bound repair is complete.",
+                evidence_refs=("gate:pass",),
+            ),
+        )
+        return reconstructor.reconstruct(
+            rows=rows,
+            trajectory_family=trajectory_family,
+            task_family=task_family,
+            repository_family="luna",
+            taxonomy=DatasetTaxonomy.IMPLEMENTATION_CODING,
+            task_summary="Repair a failing quality gate.",
+            outcome=TrajectoryOutcome.SUCCESS,
+            provenance_refs=(f"trace:{source_id}",),
+            license_reviewed=True,
+            pii_reviewed=True,
+        )
+
+    known = build_trace("phase19-known", "known-quality-gate", "known-family")
+    held = build_trace("phase19-held", "unseen-held-out", "novel-family")
+    split_report = LeakFreeSplitter(
+        held_out_task_families=("unseen-held-out",),
+        validation_percent=10,
+    ).assign((known, held))
+    held_assignment = next(
+        item for item in split_report.assignments if item.source_trajectory_id == "phase19-held"
+    )
+    training_examples = TrainingTransformer().transform(
+        trace=known,
+        split=DatasetSplit.TRAIN,
+    )
+    uncertainty = assess_uncertainty(
+        confidence=ConfidenceBand.HIGH,
+        evidence=EvidenceState.CONTRADICTORY,
+        evidence_refs=("verifier:contradiction",),
+    )
+    correction = SelfCorrectionAssessment(
+        failed_assumption_identified=True,
+        new_evidence_observed=True,
+        strategy_changed=True,
+        changed_dimensions=("assumption", "strategy"),
+    )
+    baseline_scores = {dimension: 0.5 for dimension in CognitiveDimension}
+    baseline_card = CognitiveScorecard(
+        case_id="held-001",
+        scores=baseline_scores,
+        evidence_refs=("baseline:held-001",),
+    )
+    baseline = FrozenCognitiveBaseline.freeze(
+        baseline_name="phase19-pretraining",
+        revision="1.0.0",
+        scorecards=(baseline_card,),
+    )
+    candidate_scores = dict(baseline_scores)
+    candidate_scores[CognitiveDimension.PLANNING] = 0.6
+    candidate = CognitiveScorecard(
+        case_id="held-001",
+        scores=candidate_scores,
+        evidence_refs=("candidate:held-001",),
+    )
+    comparison = compare_to_baseline(
+        baseline=baseline,
+        candidate_scorecards=(candidate,),
+    )
+    training_example_count = len(training_examples)
+    planning_delta = comparison.dimension_deltas[CognitiveDimension.PLANNING]
+    payload = {
+        "raw_hidden_cot_included": known.raw_hidden_chain_of_thought_included,
+        "structured_stage_count": len(known.events),
+        "held_out_split": held_assignment.split.value,
+        "contamination_detected": split_report.contamination_detected,
+        "training_example_count": training_example_count,
+        "target_only_loss": all(item.target_only_loss for item in training_examples),
+        "uncertainty_directive": uncertainty.directive.value,
+        "changed_basis_self_correction": correction.changed_basis,
+        "baseline_locked": baseline.locked_sha256 == baseline.computed_sha256(),
+        "planning_delta": planning_delta,
+        "comparison_verdict": comparison.verdict.value,
+        "training_run_executed": False,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            payload["raw_hidden_cot_included"] is False,
+            payload["structured_stage_count"] == 7,
+            payload["held_out_split"] == "HELD_OUT",
+            payload["contamination_detected"] is False,
+            training_example_count >= 4,
+            payload["target_only_loss"] is True,
+            payload["uncertainty_directive"] == "STOP",
+            payload["changed_basis_self_correction"] is True,
+            payload["baseline_locked"] is True,
+            planning_delta > 0.0,
+            payload["comparison_verdict"] == "ACCEPT",
+            payload["training_run_executed"] is False,
+        )
+    ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2003,8 +2183,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 18")
-        print("status: VOICE_GATEWAY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 19")
+        print("status: TRACE_GOVERNANCE_COGNITIVE_QUALITY_FOUNDATION_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2135,6 +2315,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("voice_interrupt_cancel: predispatch_safe_control")
         print("voice_tts_persona: not_locked_in_phase18")
         print("voice_audit: append_only_transcript_digest_no_raw_audio")
+        print("phase19_trace: observable_structured_no_raw_hidden_cot")
+        print("phase19_failure_taxonomy: cognitive_tool_execution_verification")
+        print("phase19_tool_normalization: semantic_mapping_no_wrapper_authority")
+        print("phase19_split: task_repository_trajectory_grouped_leak_free")
+        print("phase19_held_out: explicit_unseen_task_families")
+        print("phase19_training_transform: target_only_loss_reviewed_data_only")
+        print("phase19_training_run: not_executed_by_foundation")
+        print("phase19_uncertainty: confidence_evidence_bound")
+        print("phase19_self_correction: changed_basis_not_blind_retry")
+        print("phase19_baseline: frozen_pretraining_dimension_comparison")
         return 0
 
     if args.command == "resolve-intent":
@@ -2195,6 +2385,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase18-smoke":
         return _run_phase18_smoke()
+
+    if args.command == "phase19-smoke":
+        return _run_phase19_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

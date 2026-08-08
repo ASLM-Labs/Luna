@@ -218,3 +218,21 @@ def test_phase_eighteen_voice_gateway_files_are_present() -> None:
     assert (project_root / "src" / "luna" / "voice" / "gateway.py").is_file()
     assert (project_root / "scripts" / "verify_phase18.py").is_file()
     assert (project_root / "docs" / "rfcs" / "RFC-018_VOICE_GATEWAY.md").is_file()
+
+
+def test_phase_nineteen_trace_governance_and_cognitive_quality_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "trajectories" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "trajectories" / "reconstruction.py").is_file()
+    assert (project_root / "src" / "luna" / "trajectories" / "normalization.py").is_file()
+    assert (project_root / "src" / "luna" / "trajectories" / "split.py").is_file()
+    assert (project_root / "src" / "luna" / "trajectories" / "transform.py").is_file()
+    assert (project_root / "src" / "luna" / "cognition" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "cognition" / "evaluator.py").is_file()
+    assert (project_root / "scripts" / "verify_phase19.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md"
+    ).is_file()

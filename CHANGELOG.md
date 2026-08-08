@@ -2,6 +2,28 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase19-foundation] - 2026-08-08
+
+### Added
+
+- Observable structured decision traces for task/plan/action/observation/replan/evidence/verification/final events.
+- Dataset taxonomy, source reconstruction guardrails, semantic tool normalization, and grouped leak-free split.
+- Explicit held-out task-family boundary before target-only training transformation.
+- Cognitive quality scorecards for reasoning, planning, tool selection, failure recovery, evidence, uncertainty, and self-correction.
+- Frozen pre-training cognitive baseline and dimension-specific candidate comparison.
+- Phase 19 foundation verifier, CLI smoke, regression tests, and CI/quality-gate integration.
+
+### Security / Governance
+
+- Raw hidden chain-of-thought is neither required nor admitted into canonical training traces.
+- Missing source rows are repaired from evidence or dropped; reconstruction does not invent them.
+- Tool normalization is dataset-only and cannot create executable Luna tool authority.
+- Held-out data is rejected by training transformation.
+- Contradictory evidence forces STOP even when confidence is HIGH.
+- Self-correction requires a changed basis rather than blind retry.
+- This foundation does not claim a real SFT run or post-training improvement.
+
+
 ## [0.1.0-phase18] - 2026-08-08
 
 ### Added

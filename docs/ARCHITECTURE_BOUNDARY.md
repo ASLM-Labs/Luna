@@ -1,3 +1,52 @@
+# Faz 19 Trace/Dataset Governance + Cognitive Quality Mimari Sınırı
+
+Faz 19, Luna'nın runtime güvenliğini model/dataset geliştirme hattına taşır. Bu katman runtime
+yetkisi vermez; geçmiş ve yeni trajectory'leri denetlenebilir eğitim/eval verisine dönüştürür ve
+model değişikliklerini frozen baseline'a karşı ölçer.
+
+```text
+observable source rows
+→ reconstruction (missing rows invent edilmez)
+→ taxonomy + failure labels
+→ semantic tool normalization (no executable authority)
+→ grouped leak-free split
+   ├─ TRAIN
+   ├─ VALIDATION
+   └─ HELD_OUT unseen task families
+→ target-only training transformation
+
+pre-training held-out scorecards
+→ frozen cognitive baseline
+→ candidate held-out scorecards
+→ dimension deltas + contamination/regression gate
+```
+
+## Zorlanan kurallar
+
+- canonical trace raw hidden chain-of-thought içermez;
+- observable decision basis, action, observation ve evidence refs tutulabilir;
+- eksik source event uydurulmaz; repair/drop gerekir;
+- binary FAILED yerine multi-axis failure taxonomy kullanılır;
+- wrapper tool adı Luna runtime authority değildir; normalization sadece dataset semantiğidir;
+- split row bazlı değil task/repository/trajectory family bazlıdır;
+- explicit held-out task family train/validation'a sızamaz;
+- held-out trajectory training transformation tarafından reddedilir;
+- license ve PII review olmadan training example üretilemez;
+- confidence evidence ile bağlıdır; contradictory evidence STOP üretir;
+- self-correction changed-basis ister; blind retry/pseudo-learning kabul edilmez;
+- model improvement generic iddia değildir; dimension-specific frozen-baseline delta ister;
+- critical regression veya held-out contamination candidate'i reddeder.
+
+## Foundation kapsamında olmayanlar
+
+- gerçek büyük trace corpus importu;
+- gerçek GPU/SFT training run;
+- trained weight publication;
+- post-training acceptance claim;
+- hidden chain-of-thought toplama/eğitme.
+
+---
+
 # Faz 18 Mimari Sınırı
 
 Faz 18, Phase 16 desktop permission UX ve Phase 17 gateway disiplininin ustune yerel Voice
