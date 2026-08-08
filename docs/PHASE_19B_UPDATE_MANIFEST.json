@@ -1,0 +1,40 @@
+{
+  "phase": "19B",
+  "scope": "EVALUATION_GOVERNANCE",
+  "baseline": "merged Phase 19A @ 69d648b",
+  "target_branch": "phase-19b-evaluation-governance",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 22,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_19B_REPORT.md",
+    "docs/PHASE_19B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-019B_EVALUATION_GOVERNANCE.md",
+    "phase_19b_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase19b.py",
+    "src/luna/cli.py",
+    "src/luna/evaluation_governance/__init__.py",
+    "src/luna/evaluation_governance/comparison.py",
+    "src/luna/evaluation_governance/contamination.py",
+    "src/luna/evaluation_governance/models.py",
+    "src/luna/evaluation_governance/suite.py",
+    "tests/test_cli.py",
+    "tests/test_phase19b_evaluation_governance.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Held-out and OOD evaluation identities are frozen before release comparison.",
+    "Benchmark contamination checks exact content, source trajectory, and family overlap.",
+    "Evaluator revision and implementation identity are explicit and fingerprinted.",
+    "A model-judge candidate cannot judge itself.",
+    "Release comparison is like-for-like and cannot authorize promotion.",
+    "This phase does not claim a real benchmark run, training run, trained weights, or improvement."
+  ]
+}

@@ -236,3 +236,19 @@ def test_phase_nineteen_trace_governance_and_cognitive_quality_files_are_present
         / "rfcs"
         / "RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md"
     ).is_file()
+
+
+def test_phase_nineteen_b_evaluation_governance_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "evaluation_governance" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "evaluation_governance" / "suite.py").is_file()
+    assert (
+        project_root / "src" / "luna" / "evaluation_governance" / "contamination.py"
+    ).is_file()
+    assert (
+        project_root / "src" / "luna" / "evaluation_governance" / "comparison.py"
+    ).is_file()
+    assert (project_root / "scripts" / "verify_phase19b.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-019B_EVALUATION_GOVERNANCE.md"
+    ).is_file()

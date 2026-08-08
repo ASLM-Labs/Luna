@@ -1,18 +1,18 @@
 {
   "project": "Luna",
   "developer": "Novopic Intelligence",
-  "version": "0.1.0-phase19-foundation",
-  "phase": "19",
-  "status": "FOUNDATION_IMPLEMENTED_UNVERIFIED",
-  "created_utc": "2026-08-08T05:01:14+00:00",
+  "version": "0.1.0-phase19b-evaluation-governance",
+  "phase": "19B",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "created_utc": "2026-08-08T11:26:44+00:00",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
       "size_bytes": 249
     },
     ".github/workflows/quality.yml": {
-      "sha256": "29ec6b6323df342e5d7bd58764e30185ce6d90765bdb32a672f54f7c01a456a1",
-      "size_bytes": 2642
+      "sha256": "bf5ac37e032d520c8ea80f79d56ef30a8fdd091db4a95a7eb43f6c6972039341",
+      "size_bytes": 2732
     },
     ".gitignore": {
       "sha256": "0cce6bf8eee33fabd00b1ef743433b2b61eb69681a1f5abe1f613d1658e2bb5d",
@@ -23,8 +23,8 @@
       "size_bytes": 243
     },
     "CHANGELOG.md": {
-      "sha256": "606bd446021f220503b6f93854d8f606637d03c649c339604391246e0c640e47",
-      "size_bytes": 21405
+      "sha256": "9a53825d54b9b6182abbf8df8afca70d51f138065aac80dea8f0a0190ed62817",
+      "size_bytes": 22414
     },
     "LICENSE": {
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -35,16 +35,16 @@
       "size_bytes": 222
     },
     "README.md": {
-      "sha256": "18abc65a077b5efb9f602d2e1b27fae0e5756c5f5f3550d811d23566687d184e",
-      "size_bytes": 23174
+      "sha256": "1af95dd35d98ec14e5b4ff8b0b9d989e25b3a732a84eb187b6c3928c89023f0c",
+      "size_bytes": 24361
     },
     "UYGULAMA.txt": {
-      "sha256": "4e34e9b6ffc2868e94e7d0f9818d3d026292cc927aba39bed8d30c5cb5243a1a",
-      "size_bytes": 2200
+      "sha256": "1b63d2c858bdbbe4af8ccbb6aacd63764c29a78c9307df0fce5e36ad3967a039",
+      "size_bytes": 1748
     },
     "docs/ARCHITECTURE_BOUNDARY.md": {
-      "sha256": "dd9d840d7b25a64479a920a695209389f18f968c6d77b36b7eb68b95f86315c4",
-      "size_bytes": 22395
+      "sha256": "63d5d1c44c36efe6e0dfa7989fc55d9e81bb736c89c24db767fa3a6ea7bf8572",
+      "size_bytes": 24128
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -419,8 +419,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "15e06779e2b57d761c8543674eb503c1837db1fffe0f6743682a381ba6b8ea27",
-      "size_bytes": 5759
+      "sha256": "59a3cc82857dd42053430adabd8359f2d50a0cf9f46e75581d85fd8722f6a970",
+      "size_bytes": 5914
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -619,8 +619,8 @@
       "size_bytes": 7857
     },
     "src/luna/cli.py": {
-      "sha256": "1bed90fadeeaa895992a4eb10b96849d1a973a7eba84a1561fec367912630a5e",
-      "size_bytes": 94513
+      "sha256": "bc9f9dff957563dcaf231ef36892eb6fcbc4b6ec3c92770679a35510a2421c5c",
+      "size_bytes": 101309
     },
     "src/luna/conformance/__init__.py": {
       "sha256": "386b8a4726a9aa1a0c013aba5c9ae63ca6bd783d0bbcc2d5feea906d49b784f8",
@@ -1183,8 +1183,8 @@
       "size_bytes": 3481
     },
     "tests/test_cli.py": {
-      "sha256": "ad37e36d3b9fa28900be711240243493dd85160f5949f0fffcb36de3664a4731",
-      "size_bytes": 22902
+      "sha256": "132135f0eae2e94dc365c4f07c1ea983187764630b9a289364318ff497a018c3",
+      "size_bytes": 24244
     },
     "tests/test_context_collection.py": {
       "sha256": "785dc4b9469eeb8b8877cc3718b05c4d10c01d8bbd0a49565d2b8e0158153648",
@@ -1343,8 +1343,8 @@
       "size_bytes": 775
     },
     "tests/test_project_metadata.py": {
-      "sha256": "c051857c175e895039c567ae54c756c16c26a6f3a90c06547c0b4fb6f257f1cf",
-      "size_bytes": 10734
+      "sha256": "4bec87e8aaaed6e163f1117cf3379ec9c0ab39a620481207e8f64231a9e3e307",
+      "size_bytes": 11432
     },
     "tests/test_replanner.py": {
       "sha256": "31703b6feb1f7fa41292d557033b866369fcec67ac2929573db2ec81168123ce",
@@ -1493,6 +1493,50 @@
     "tests/test_phase19_trace_dataset_cognitive_quality.py": {
       "sha256": "1a255b34775c1bed7b90624fc6845da0b5577e5e2d8e761ba85ebacfc9e9172d",
       "size_bytes": 13343
+    },
+    "docs/PHASE_19B_REPORT.md": {
+      "sha256": "ed0ec2a5954ad9d0291795b026ac30110df92ba57144ce77aaf5b7b52ad54307",
+      "size_bytes": 1628
+    },
+    "docs/PHASE_19B_UPDATE_MANIFEST.json": {
+      "sha256": "3971a1c78de0a68f8ca956296f539dc2f91953273d7bb5cb233fc830011c8936",
+      "size_bytes": 1534
+    },
+    "docs/rfcs/RFC-019B_EVALUATION_GOVERNANCE.md": {
+      "sha256": "9068ed5ff35b13c22aa38c29ed60cc4d62d31538d8b13b08cb447bf66b9729c7",
+      "size_bytes": 4201
+    },
+    "phase_19b_verification.json": {
+      "sha256": "689d755cd064f025d410271be43ed53fda2cf3bd0c3b3b59208310a4f841c9f8",
+      "size_bytes": 877
+    },
+    "scripts/verify_phase19b.py": {
+      "sha256": "9dc5b9c59ef10d8e03e31ee7e6fbdc8a3bb7d3b78dbe05fd0eeaebd6f4ba80b6",
+      "size_bytes": 12428
+    },
+    "src/luna/evaluation_governance/__init__.py": {
+      "sha256": "a499d2cf2d3bf79e972dbef217e525ba7c1f7ea9360a873f04688ed45c1cc587",
+      "size_bytes": 1181
+    },
+    "src/luna/evaluation_governance/comparison.py": {
+      "sha256": "1093b2897498e2f5fa37e48fb543a07213dcd26c59146c5a9ecd8c8a767bba52",
+      "size_bytes": 3928
+    },
+    "src/luna/evaluation_governance/contamination.py": {
+      "sha256": "66013a0c499de00f2befb346d3937c2ff97ecc74bebf89b1df2a84dee537b614",
+      "size_bytes": 2216
+    },
+    "src/luna/evaluation_governance/models.py": {
+      "sha256": "7eeaf621c710304340de4ff0aea2261cfb0398dd2ececd0f04129ecb633be7ff",
+      "size_bytes": 13759
+    },
+    "src/luna/evaluation_governance/suite.py": {
+      "sha256": "2a1acd0ff2246a7c42aa80b1dbe653e0b8e578c3adc35b942a0a7babcd9c715b",
+      "size_bytes": 1585
+    },
+    "tests/test_phase19b_evaluation_governance.py": {
+      "sha256": "aceafbd45c06a18be6da7daaed4a49212913957cada6ab05dfb2d82901dba0ef",
+      "size_bytes": 12594
     }
   },
   "hash_normalization": "utf8_text_lf_v1",

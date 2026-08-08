@@ -2,6 +2,25 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase19b-evaluation-governance] - 2026-08-08
+
+### Added
+
+- Frozen held-out/OOD evaluation suite with semantic revision and SHA-256 integrity.
+- Versioned evaluator identity, implementation fingerprint, and explicit independence checks.
+- Benchmark contamination detection across content, source trajectory, task, repository, and trajectory families.
+- Frozen regression case inventory with explicit critical-case subset.
+- Like-for-like release snapshots and cognitive-dimension release comparison.
+- Phase 19B verifier, CLI smoke, tests, and CI/quality-gate integration.
+
+### Security / Governance
+
+- A model-judge candidate cannot evaluate itself.
+- Evaluator or suite drift blocks comparison instead of silently changing the benchmark.
+- Contaminated held-out/OOD evaluation blocks release comparison.
+- Evaluation Governance reports regressions but has no candidate-promotion authority.
+- Real benchmark execution, SFT training, trained weights, and post-training improvement remain unclaimed.
+
 ## [0.1.0-phase19-foundation] - 2026-08-08
 
 ### Added

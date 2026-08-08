@@ -426,6 +426,32 @@ Görünür smoke:
 .venv\Scripts\python.exe -m luna phase19-smoke
 ```
 
+## Faz 19B Evaluation Governance
+
+Faz 19B, Faz 19A'nin cognitive scorecard ve leak-free dataset temeli uzerinde tekrar edilebilir
+evaluation governance katmanini kurar:
+
+- held-out ve OOD case kimlikleri semantic revision + SHA-256 ile dondurulur;
+- evaluator revision ve implementation fingerprint acikca kaydedilir;
+- evaluator candidate artifacts ve training data'dan bagimsiz olmak zorundadir;
+- model-judge evaluator candidate modelin kendisi olamaz;
+- benchmark contamination exact content, source trajectory ve task/repository/trajectory family
+  overlap ile kontrol edilir;
+- regression suite zorunlu case inventory ve critical-case subset'i dondurur;
+- release snapshot'lari tam ayni case inventory + evaluator fingerprint ile karsilastirilir;
+- evaluator/suite drift veya contamination comparison'i BLOCKED yapar;
+- comparison per-dimension delta ve regressed case'leri raporlar;
+- evaluation katmani promotion authority tasimaz.
+
+Bu faz altyapi/governance uygular. Gercek buyuk benchmark populate edilmis, gercek model baseline
+calistirilmis, SFT yapilmis veya model iyilesti diye iddia edilmez.
+
+Gorunur smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase19b-smoke
+```
+
 ## Kurulum
 
 ```bat
@@ -449,17 +475,17 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 19 trace/dataset governance and cognitive quality foundation gate passed.
+[PASS] Luna 0.1 Phase 19B evaluation governance gate passed.
 ```
 
 ## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase19-smoke
+.venv\Scripts\python.exe -m luna phase19b-smoke
 ```
 
-Başarılı çıktıda bounded network usage, admitted provenance source, citation-backed claim,
-domain pre-dispatch block ve DATA_ONLY injection boundary görünürdür.
+Başarılı çıktıda frozen held-out/OOD suite, locked regression inventory, evaluator independence,
+contamination probe, like-for-like release comparison ve no-promotion-authority boundary görünürdür.
 
 Faz 12F evidence smoke ayrıca kullanılabilir:
 
