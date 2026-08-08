@@ -1,0 +1,22 @@
+{
+  "phase": "19B",
+  "scope": "EVALUATION_GOVERNANCE",
+  "checks": {
+    "required_files_present": true,
+    "frozen_suite_digest_and_partitions_locked": true,
+    "evaluator_version_and_independence_locked": true,
+    "clean_training_exposure_preserves_heldout_ood": true,
+    "benchmark_contamination_exact_and_group_overlap_detected": true,
+    "regression_case_inventory_is_frozen": true,
+    "candidate_model_cannot_judge_itself": true,
+    "release_comparison_is_like_for_like_and_non_authoritative": true,
+    "critical_regression_is_surfaced_not_promoted": true,
+    "contamination_blocks_release_comparison": true,
+    "evaluator_or_suite_drift_blocks_comparison": true,
+    "real_benchmark_or_training_run_not_falsely_claimed": true,
+    "phase19a_foundation_remains_green": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

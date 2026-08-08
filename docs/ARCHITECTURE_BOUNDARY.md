@@ -614,3 +614,59 @@ authenticated RuntimeRequest
 → 12G runtime E2E + behavior conformance
 → 13 real-model compatibility + controlled rollout
 ```
+
+
+---
+
+# Faz 19B Evaluation Governance Mimari Siniri
+
+Faz 19B, Faz 19A'nin observable trace ve cognitive-quality altyapisini degistirmeden evaluation
+identity, contamination, evaluator independence ve release comparison governance katmanini ekler.
+
+```text
+frozen HELD_OUT/OOD case inventory
+→ versioned independent evaluator
+→ training-exposure contamination check
+→ frozen regression inventory
+→ exact-case release snapshot
+→ like-for-like comparison
+→ COMPARABLE / REGRESSION_DETECTED / BLOCKED
+```
+
+## Var
+
+- semantic-revision + SHA-256 ile kilitli held-out/OOD evaluation suite;
+- task/repository/trajectory family grouping;
+- exact content, source trajectory ve family-overlap contamination detection;
+- evaluator semantic revision + implementation fingerprint;
+- candidate/training-data independence zorunlulugu;
+- model-judge self-judging engeli;
+- frozen required-case + critical-case regression inventory;
+- evaluator/suite/case drift fail-closed comparison;
+- cognitive-dimension delta ve regressed-case raporu;
+- Faz 19A verifier regression guard.
+
+## Yetki siniri
+
+Evaluation Governance observe/freeze/compare/report yapabilir. Runtime authority, tool dispatch,
+training-data mutation veya candidate promotion yapamaz. `promotion_authorized` bu katmanda false
+kalir. Promotion threshold/confidence-interval ve rollback karari Faz 19F'ye aittir.
+
+## Yok
+
+- real large benchmark execution;
+- real-model pre-training baseline run;
+- GPU/SFT training;
+- trained weights;
+- post-training improvement claim;
+- autonomous promotion.
+
+## Sonraki kapi
+
+```text
+19B Evaluation Governance
+→ 19C Learning Integrity
+→ 19D experimental counterfactual analysis
+→ 19E small controlled SFT
+→ 19F improvement gate
+```

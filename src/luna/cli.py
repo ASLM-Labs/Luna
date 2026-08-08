@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 18 Voice Gateway runtime."""
+"""Command-line entry point for the Luna 0.1 runtime."""
 
 from __future__ import annotations
 
@@ -76,6 +76,19 @@ from luna.discord import (
     DiscordIngressDisposition,
     DiscordTransportEnvelope,
     build_local_discord_gateway,
+)
+from luna.evaluation_governance import (
+    EvaluationCase,
+    EvaluationPartition,
+    EvaluatorKind,
+    EvaluatorSpec,
+    FrozenEvaluationSuite,
+    ReleaseComparisonStatus,
+    TrainingExposure,
+    build_release_snapshot,
+    compare_release_snapshots,
+    detect_benchmark_contamination,
+    freeze_regression_suite,
 )
 from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
@@ -290,6 +303,13 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Verify Phase 19 trace governance, leak-free split, cognitive baseline, "
             "uncertainty, and self-correction boundaries."
+        ),
+    )
+    subparsers.add_parser(
+        "phase19b-smoke",
+        help=(
+            "Verify Phase 19B frozen held-out/OOD suites, contamination checks, "
+            "evaluator independence, and release comparison boundaries."
         ),
     )
     desktop_parser = subparsers.add_parser(
@@ -2157,6 +2177,153 @@ def _run_phase19_smoke() -> int:
     ) else 2
 
 
+def _run_phase19b_smoke() -> int:
+    evaluator = EvaluatorSpec(
+        evaluator_id="phase19b-deterministic",
+        revision="1.0.0",
+        kind=EvaluatorKind.DETERMINISTIC,
+        implementation_sha256="1" * 64,
+        independent_from_candidate_artifacts=True,
+        independent_from_training_data=True,
+    )
+    cases = (
+        EvaluationCase(
+            case_id="held-001",
+            source_trajectory_id="held-source-001",
+            partition=EvaluationPartition.HELD_OUT,
+            task_family="held-task-family",
+            repository_family="held-repository-family",
+            trajectory_family="held-trajectory-family",
+            content_sha256="2" * 64,
+            evidence_refs=("fixture:held-001",),
+        ),
+        EvaluationCase(
+            case_id="ood-001",
+            source_trajectory_id="ood-source-001",
+            partition=EvaluationPartition.OOD,
+            task_family="ood-task-family",
+            repository_family="ood-repository-family",
+            trajectory_family="ood-trajectory-family",
+            content_sha256="3" * 64,
+            evidence_refs=("fixture:ood-001",),
+        ),
+    )
+    suite = FrozenEvaluationSuite.freeze(
+        suite_name="phase19b-heldout-ood",
+        revision="1.0.0",
+        evaluator=evaluator,
+        cases=cases,
+    )
+    regression = freeze_regression_suite(
+        revision="1.0.0",
+        evaluation_suite=suite,
+        critical_case_ids=("held-001",),
+    )
+    clean_contamination = detect_benchmark_contamination(
+        evaluation_suite=suite,
+        training_exposures=(
+            TrainingExposure(
+                source_trajectory_id="train-source-001",
+                task_family="train-task-family",
+                repository_family="train-repository-family",
+                trajectory_family="train-trajectory-family",
+                content_sha256="4" * 64,
+            ),
+        ),
+    )
+    contamination_probe = detect_benchmark_contamination(
+        evaluation_suite=suite,
+        training_exposures=(
+            TrainingExposure(
+                source_trajectory_id="training-copy",
+                task_family=cases[0].task_family,
+                repository_family="different-repository",
+                trajectory_family="different-trajectory",
+                content_sha256=cases[0].content_sha256,
+            ),
+        ),
+    )
+    baseline_scores = {dimension: 0.5 for dimension in CognitiveDimension}
+    baseline_cards = tuple(
+        CognitiveScorecard(
+            case_id=case.case_id,
+            scores=dict(baseline_scores),
+            evidence_refs=(f"baseline:{case.case_id}",),
+        )
+        for case in cases
+    )
+    candidate_cards = list(baseline_cards)
+    planning_scores = dict(candidate_cards[0].scores)
+    planning_scores[CognitiveDimension.PLANNING] = 0.7
+    candidate_cards[0] = candidate_cards[0].model_copy(update={"scores": planning_scores})
+    baseline = build_release_snapshot(
+        release_id="baseline",
+        candidate_model_id="baseline-model",
+        evaluation_suite=suite,
+        scorecards=baseline_cards,
+    )
+    candidate = build_release_snapshot(
+        release_id="candidate",
+        candidate_model_id="candidate-model",
+        evaluation_suite=suite,
+        scorecards=tuple(candidate_cards),
+    )
+    comparison = compare_release_snapshots(
+        baseline=baseline,
+        candidate=candidate,
+        regression_suite=regression,
+        contamination_report=clean_contamination,
+    )
+    suite_locked = suite.locked_sha256 == suite.computed_sha256()
+    held_out_case_count = sum(
+        case.partition is EvaluationPartition.HELD_OUT for case in suite.cases
+    )
+    ood_case_count = sum(case.partition is EvaluationPartition.OOD for case in suite.cases)
+    regression_suite_locked = regression.locked_sha256 == regression.computed_sha256()
+    evaluator_revision = evaluator.revision
+    evaluator_independent = (
+        evaluator.independent_from_candidate_artifacts
+        and evaluator.independent_from_training_data
+    )
+    clean_contamination_detected = clean_contamination.contaminated
+    contamination_probe_detected = contamination_probe.contaminated
+    comparison_status = comparison.status.value
+    planning_delta = comparison.dimension_deltas[CognitiveDimension.PLANNING]
+    promotion_authorized = comparison.promotion_authorized
+    real_benchmark_run_executed = False
+    payload = {
+        "suite_locked": suite_locked,
+        "held_out_case_count": held_out_case_count,
+        "ood_case_count": ood_case_count,
+        "regression_suite_locked": regression_suite_locked,
+        "evaluator_revision": evaluator_revision,
+        "evaluator_independent": evaluator_independent,
+        "clean_contamination_detected": clean_contamination_detected,
+        "contamination_probe_detected": contamination_probe_detected,
+        "comparison_status": comparison_status,
+        "planning_delta": planning_delta,
+        "promotion_authorized": promotion_authorized,
+        "real_benchmark_run_executed": real_benchmark_run_executed,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            suite_locked,
+            held_out_case_count == 1,
+            ood_case_count == 1,
+            regression_suite_locked,
+            evaluator_revision == "1.0.0",
+            evaluator_independent,
+            not clean_contamination_detected,
+            contamination_probe_detected,
+            comparison_status == ReleaseComparisonStatus.COMPARABLE.value,
+            planning_delta > 0.0,
+            not promotion_authorized,
+            not real_benchmark_run_executed,
+        )
+    ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2184,7 +2351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "status":
         print("phase: 19")
-        print("status: TRACE_GOVERNANCE_COGNITIVE_QUALITY_FOUNDATION_UNVERIFIED")
+        print("status: EVALUATION_GOVERNANCE_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2325,6 +2492,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19_uncertainty: confidence_evidence_bound")
         print("phase19_self_correction: changed_basis_not_blind_retry")
         print("phase19_baseline: frozen_pretraining_dimension_comparison")
+        print("phase19b_eval_suite: heldout_ood_revision_locked_sha256")
+        print("phase19b_regression_suite: case_inventory_revision_locked")
+        print("phase19b_contamination: exact_source_and_family_overlap_checked")
+        print("phase19b_evaluator: versioned_independent_candidate_cannot_self_judge")
+        print("phase19b_release_comparison: like_for_like_no_promotion_authority")
+        print("phase19b_real_benchmark_run: not_executed_by_governance_foundation")
         return 0
 
     if args.command == "resolve-intent":
@@ -2388,6 +2561,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase19-smoke":
         return _run_phase19_smoke()
+
+    if args.command == "phase19b-smoke":
+        return _run_phase19b_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

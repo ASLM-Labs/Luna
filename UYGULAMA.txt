@@ -1,50 +1,38 @@
-LUNA 0.1 - FAZ 19 TRACE/DATASET GOVERNANCE + COGNITIVE QUALITY FOUNDATION
+LUNA 0.1 - FAZ 19B EVALUATION GOVERNANCE
 
-Durum: FOUNDATION_IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-19-trace-dataset-governance
-Baseline: merged Faz 18 (b1bd19f)
+Durum: IMPLEMENTED_UNVERIFIED
+Hedef branch: phase-19b-evaluation-governance
+Baseline: merged Faz 19A (69d648b)
 
-Bu paket Phase 19'un veri yonetisimi ve dusunme-kalitesi olcum altyapisini kurar.
-Gercek 1 GB trace corpus import edilmis, GPU/SFT egitimi yapilmis veya model iyilesti diye
-iddia edilmez.
+Bu paket Faz 19A uzerine evaluation governance katmanini kurar. Gercek buyuk benchmark
+calistirilmis, SFT egitimi yapilmis, trained weights uretilmis veya model iyilesti diye iddia edilmez.
 
-TRACK A - DATASET GOVERNANCE
-- observable structured decision trace
-- raw hidden chain-of-thought forbidden
-- trajectory reconstruction; missing source row invent edilmez
-- dataset taxonomy
-- multi-axis failure labels
-- semantic tool normalization; executable ToolRequest yaratmaz
-- task/repository/trajectory family grouped leak-free split
-- explicit unseen task-family HELD_OUT
-- held-out -> training transform BLOCKED
-- license + PII review gate
-- target-only training transformation
-
-TRACK B - COGNITIVE QUALITY
-- reasoning baseline
-- planning quality
-- tool-selection quality
-- failure-recovery quality
-- evidence usage
-- uncertainty calibration
-- self-correction quality
-- confidence evidence-bound
-- HIGH confidence + contradictory evidence -> STOP
-- self-correction -> failed assumption + new evidence + strategy change + changed basis
-- blind retry / pseudo-learning -> kabul edilmez
-- frozen pre-training baseline SHA256
-- candidate comparison dimension-specific
-- critical regression / held-out contamination -> REJECT
+EVALUATION GOVERNANCE
+- frozen HELD_OUT + OOD evaluation suite
+- semantic suite revision + SHA256 integrity
+- task/repository/trajectory family identities
+- benchmark contamination: exact content + source + family overlap
+- evaluator revision + implementation fingerprint
+- evaluator candidate artifacts ve training data'dan bagimsiz
+- model-judge candidate kendisini judge edemez
+- frozen regression required-case inventory
+- explicit critical-case subset
+- exact-case release snapshots
+- like-for-like release comparison
+- evaluator/suite drift -> BLOCKED
+- contamination -> BLOCKED
+- per-dimension cognitive deltas
+- regressed/critical-regressed case reporting
+- promotion authority -> YOK
 
 GORUNUR SMOKE
-.venv\Scripts\python.exe -m luna phase19-smoke
+.venv\Scripts\python.exe -m luna phase19b-smoke
 
 DETERMINISTIC VERIFIER
-.venv\Scripts\python.exe scripts\verify_phase19.py
+.venv\Scripts\python.exe scripts\verify_phase19b.py
 
 TARGETED TESTS
-.venv\Scripts\python.exe -m pytest -q tests\test_phase19_trace_dataset_cognitive_quality.py
+.venv\Scripts\python.exe -m pytest -q tests\test_phase19b_evaluation_governance.py
 
 TAM KALITE KAPISI
 scripts\check_hold.bat
@@ -54,12 +42,12 @@ BEKLENEN
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-18 deterministic gates PASS
-- Faz 19 foundation verifier PASS
+- Faz 1-19A deterministic gates PASS
+- Faz 19B Evaluation Governance verifier PASS
 - metadata integrity PASS
-- CP1252-safe phase19-smoke PASS
-- son satir: [PASS] Luna 0.1 Phase 19 trace/dataset governance and cognitive quality foundation gate passed.
+- CP1252-safe phase19b-smoke PASS
+- son satir: [PASS] Luna 0.1 Phase 19B evaluation governance gate passed.
 
 NOT
-Bu foundation yesil olmadan gercek corpus reconstruction, frozen real-model baseline veya SFT
-kosusu baslatilmaz. Commit/push da tam kalite kapisi yesil olmadan yapilmaz.
+Faz 19B yesil olmadan Faz 19C Learning Integrity baslatilmaz. Commit/push da tam Windows
+kalite kapisi yesil olmadan yapilmaz.

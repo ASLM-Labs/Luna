@@ -43,6 +43,12 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "phase19_uncertainty: confidence_evidence_bound" in output
     assert "phase19_self_correction: changed_basis_not_blind_retry" in output
     assert "phase19_training_run: not_executed_by_foundation" in output
+    assert "phase19b_eval_suite: heldout_ood_revision_locked_sha256" in output
+    assert "phase19b_regression_suite: case_inventory_revision_locked" in output
+    assert "phase19b_contamination: exact_source_and_family_overlap_checked" in output
+    assert "phase19b_evaluator: versioned_independent_candidate_cannot_self_judge" in output
+    assert "phase19b_release_comparison: like_for_like_no_promotion_authority" in output
+    assert "phase19b_real_benchmark_run: not_executed_by_governance_foundation" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -560,3 +566,24 @@ def test_phase19_smoke_command(
     assert payload["planning_delta"] > 0.0
     assert payload["comparison_verdict"] == "ACCEPT"
     assert payload["training_run_executed"] is False
+
+
+def test_phase19b_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19b-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["suite_locked"] is True
+    assert payload["held_out_case_count"] == 1
+    assert payload["ood_case_count"] == 1
+    assert payload["regression_suite_locked"] is True
+    assert payload["evaluator_revision"] == "1.0.0"
+    assert payload["evaluator_independent"] is True
+    assert payload["clean_contamination_detected"] is False
+    assert payload["contamination_probe_detected"] is True
+    assert payload["comparison_status"] == "COMPARABLE"
+    assert payload["planning_delta"] > 0.0
+    assert payload["promotion_authorized"] is False
+    assert payload["real_benchmark_run_executed"] is False
