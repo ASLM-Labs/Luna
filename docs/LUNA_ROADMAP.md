@@ -369,3 +369,131 @@ These are product-design reminders, not runtime claims.
   - the "u" may echo a crescent/moon form.
 
 These design decisions must remain separable from model architecture and runtime policy.
+
+<!-- C011_SINGLE_VOICE_PARALLEL_COGNITION_BEGIN -->
+
+## C-011 - Single-Voice Parallel Cognition
+
+**Status:** QUEUED
+**Principle:** One mind. Many hands. One voice.
+
+Luna should gain parallel task capacity without fragmenting user-facing identity,
+decision authority, or authoritative task state into persistent specialist personas.
+
+### Core topology
+
+```text
+                     MAIN LUNA
+          policy + authority + task state
+                         |
+          +--------------+--------------+
+          |              |              |
+          v              v              v
+     workspace A    workspace B    workspace C
+     temporary      temporary      temporary
+          |              |              |
+          +------ proposals/evidence ---+
+                         |
+                         v
+                     MAIN LUNA
+                         |
+                  accept / modify /
+                  reject / replan
+                         |
+                         v
+                 runtime execution
+```
+
+Preferred serving form: one Luna model / shared weights with isolated task
+contexts or KV states when the inference backend supports it. A logical worker
+does not require a persistent second Luna identity or another model copy.
+
+### Worker contract
+
+Workers are temporary work units, not independent authorities. They may inspect,
+research, search, compare, draft, test, or verify within granted scope.
+
+Where applicable they return:
+
+```text
+result
+evidence
+assumptions
+uncertainty
+conflicts
+recommended_next_action
+source_revision / freshness
+```
+
+Workers must not become persistent user-facing personas, own worker-specific
+long-term memory, declare their result authoritative, promote their own output
+into trusted state, escalate permissions, or create unbounded worker trees.
+
+### Authority rule
+
+> Workers prepare. Evidence supports. Luna decides. Runtime executes.
+
+Main Luna remains the single user-facing decision voice and the only cognitive
+component allowed to adopt worker output into authoritative task state.
+
+### Failure / retry policy
+
+```text
+unsatisfactory result
+        |
+        v
+diagnose failure basis
+   |                |
+   v                v
+minor gap        bad basis
+   |                |
+   v                v
+RESUME           DROP
+same workspace   old workspace
+   |                |
+   v                v
+refine task      RESPAWN with
+                 changed basis
+```
+
+- Minor gap: resume the same workspace with a precise correction.
+- Bad basis: discard the old workspace and respawn with changed assumptions,
+  evidence requirements, or task framing.
+- Contradiction: request independent verification instead of worker debate.
+
+> Fix the basis, not the worker.
+
+This extends Luna's changed-basis self-correction rule: no blind retry and no
+persona blame.
+
+### Persona / memory boundary
+
+- Workers receive task identities, not durable personal identities.
+- Worker contexts are disposable after the task.
+- Useful verified knowledge may be adopted by Luna.
+- Worker identity/history does not survive merely because the work succeeded.
+
+> Knowledge survives. Persona does not.
+
+### Orchestration safeguards
+
+Implementation must define and test concurrency/GPU budget, KV/context budget,
+timeout/cancellation, least-privilege tool permissions, source revision binding,
+web freshness/provenance, stale-result rejection, duplicate-work suppression,
+cost accounting, traceability, bounded delegation depth, and safe state-adoption
+checks.
+
+### High-value first use cases
+
+- web/document retrieval while Main Luna continues independent work;
+- repository inspection and constraint discovery;
+- PowerShell/code candidate drafting;
+- test execution and result collection;
+- independent evidence verification;
+- alternative-plan preparation.
+
+The objective is not free compute. It is overlapping independent work,
+especially I/O-bound work, while preserving one coherent Luna policy, state,
+and voice.
+
+<!-- C011_SINGLE_VOICE_PARALLEL_COGNITION_END -->
