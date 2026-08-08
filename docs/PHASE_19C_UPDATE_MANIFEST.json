@@ -1,0 +1,39 @@
+{
+  "phase": "19C",
+  "scope": "LEARNING_INTEGRITY",
+  "baseline": "merged Phase 19B @ 91a94ad",
+  "target_branch": "phase-19c-learning-integrity",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 21,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_19C_REPORT.md",
+    "docs/PHASE_19C_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-019C_LEARNING_INTEGRITY.md",
+    "phase_19c_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase19c.py",
+    "src/luna/cli.py",
+    "src/luna/learning_integrity/__init__.py",
+    "src/luna/learning_integrity/audit.py",
+    "src/luna/learning_integrity/models.py",
+    "src/luna/learning_integrity/policy.py",
+    "tests/test_cli.py",
+    "tests/test_phase19c_learning_integrity.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Integrity policy thresholds are revision-locked and SHA-256 bound.",
+    "Shortcut detection uses matched observational slices and does not claim counterfactual causality.",
+    "Frozen benchmark/evaluator identity exposure and evaluator disagreement are explicit gaming risks.",
+    "Proxy gain cannot hide governed cognitive regressions.",
+    "Candidate self-output is not independent verification evidence.",
+    "This phase does not execute training, reward optimization, counterfactual replay, or promotion."
+  ]
+}

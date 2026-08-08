@@ -252,3 +252,14 @@ def test_phase_nineteen_b_evaluation_governance_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-019B_EVALUATION_GOVERNANCE.md"
     ).is_file()
+
+
+def test_phase_nineteen_c_learning_integrity_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "learning_integrity" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "learning_integrity" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "learning_integrity" / "audit.py").is_file()
+    assert (project_root / "scripts" / "verify_phase19c.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-019C_LEARNING_INTEGRITY.md"
+    ).is_file()

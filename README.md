@@ -452,6 +452,31 @@ Gorunur smoke:
 .venv\Scripts\python.exe -m luna phase19b-smoke
 ```
 
+## Faz 19C Learning Integrity
+
+Faz 19C, merged Faz 19B evaluation governance uzerine learning-integrity kontrollerini ekler:
+
+- learning-integrity policy semantic revision + SHA-256 ile dondurulur;
+- train/held-out/OOD gap'leri overfitting riski icin kontrol edilir;
+- matched observational shortcut slice gap'leri shortcut-learning riski olarak raporlanir;
+- frozen benchmark case identity exposure benchmark gaming olarak bloklanir;
+- governed evaluator identity exposure ve independent-evaluator disagreement evaluator gaming olarak bloklanir;
+- proxy metric gain governed cognitive regression ile birlikteyse proxy/specification optimization riski
+  raporlanir;
+- contradictory evidence'in goz ardi edilmesi confirmation bias olarak raporlanir;
+- candidate output tek basina independent verification sayilmaz ve self-confirmation olarak bloklanir;
+- learning-integrity katmani promotion authority tasimaz.
+
+Shortcut slice kontrolu observational evidence'dir; counterfactual causal proof degildir. Controlled
+replay/sandbox counterfactual analysis Faz 19D'ye ertelenmistir. Bu faz gercek training, reward
+optimization, trained weights veya measured improvement iddia etmez.
+
+Gorunur smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase19c-smoke
+```
+
 ## Kurulum
 
 ```bat
@@ -475,17 +500,17 @@ scripts\check_hold.bat
 Beklenen son satır:
 
 ```text
-[PASS] Luna 0.1 Phase 19B evaluation governance gate passed.
+[PASS] Luna 0.1 Phase 19C learning integrity gate passed.
 ```
 
 ## Görünür güncel faz testi
 
 ```bat
-.venv\Scripts\python.exe -m luna phase19b-smoke
+.venv\Scripts\python.exe -m luna phase19c-smoke
 ```
 
-Başarılı çıktıda frozen held-out/OOD suite, locked regression inventory, evaluator independence,
-contamination probe, like-for-like release comparison ve no-promotion-authority boundary görünürdür.
+Başarılı çıktıda frozen learning-integrity policy, shortcut/benchmark/evaluator/overfitting/proxy/
+confirmation/self-confirmation probes ve no-promotion-authority boundary görünürdür.
 
 Faz 12F evidence smoke ayrıca kullanılabilir:
 

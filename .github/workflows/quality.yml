@@ -52,6 +52,7 @@ jobs:
       - run: python scripts/verify_phase18.py
       - run: python scripts/verify_phase19.py
       - run: python scripts/verify_phase19b.py
+      - run: python scripts/verify_phase19c.py
       - run: python -m luna --version
       - run: python -m luna status
       - run: python -m luna checkpoint-smoke
@@ -73,3 +74,4 @@ jobs:
       - run: python -m luna phase18-smoke
       - run: python -m luna phase19-smoke
       - run: python -m luna phase19b-smoke
+      - run: python -m luna phase19c-smoke

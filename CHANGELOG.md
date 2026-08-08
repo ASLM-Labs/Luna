@@ -2,6 +2,25 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase19c-learning-integrity] - 2026-08-08
+
+### Added
+
+- Revision-locked learning-integrity policy with SHA-256 integrity.
+- Train/held-out/OOD generalization-gap and matched observational shortcut-slice checks.
+- Frozen benchmark/evaluator identity exposure and independent evaluator-disagreement detection.
+- Proxy/specification optimization checks against governed cognitive regressions.
+- Explicit evidence origins, contradiction accounting, and self-confirmation detection.
+- Phase 19C verifier, CLI smoke, tests, and CI/quality-gate integration.
+
+### Security / Governance
+
+- Candidate output cannot mark itself independent verification evidence.
+- Ignored contradictory evidence is surfaced instead of allowing self-confirming success.
+- Observational shortcut probes do not claim counterfactual causality.
+- Learning Integrity can reject/review a candidate but cannot authorize runtime or release promotion.
+- Training, reward optimization, counterfactual replay, trained weights, and measured improvement remain unclaimed.
+
 ## [0.1.0-phase19b-evaluation-governance] - 2026-08-08
 
 ### Added

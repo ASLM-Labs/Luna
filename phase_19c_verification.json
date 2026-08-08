@@ -1,0 +1,24 @@
+{
+  "phase": "19C",
+  "scope": "LEARNING_INTEGRITY",
+  "checks": {
+    "required_files_present": true,
+    "frozen_learning_integrity_policy_locked": true,
+    "clean_profile_remains_clean_and_non_authoritative": true,
+    "shortcut_learning_observational_gap_detected": true,
+    "benchmark_and_evaluator_identity_gaming_detected": true,
+    "independent_evaluator_disagreement_detected": true,
+    "heldout_ood_overfitting_detected": true,
+    "proxy_gain_with_governed_regression_detected": true,
+    "confirmation_bias_ignored_contradiction_detected": true,
+    "self_confirmation_requires_independent_support": true,
+    "integrity_layer_cannot_authorize_promotion": true,
+    "counterfactual_replay_not_falsely_claimed": true,
+    "real_training_or_reward_optimization_not_falsely_claimed": true,
+    "phase19b_evaluation_governance_remains_green": true,
+    "phase19b_verifier_remains_green": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}
