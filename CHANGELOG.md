@@ -2,6 +2,33 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase15] - 2026-08-08
+
+### Added
+
+- Shared SQLite WAL operations store for queue, schedules, resource leases, and local outbox events.
+- Idempotent durable queue with deterministic priority/eligibility ordering.
+- Worker/model/network resource admission with ACTIVE/STALE/RELEASED leases.
+- UTC one-shot and fixed-interval scheduler with bounded catch-up and fresh recurring task IDs.
+- Pre-runtime DISPATCHED replay fence and RECOVERY_REQUIRED ambiguity handling.
+- Runtime coordinator with one invocation per dispatch and atomic outcome/resource/outbox finalization.
+- RuntimeOutcome-bound local notification events with no external transport.
+- Phase 15 verifier, tests, CLI smoke, RFC, report, metadata, and CI integration.
+
+### Changed
+
+- Phase 14 metadata verifier is forward-compatible with later numeric phases while retaining
+  canonical manifest/SHA integrity checks.
+
+### Security
+
+- Queue priority, scheduler eligibility, and resource capacity cannot grant runtime authority.
+- Expired DISPATCHED work is never blindly replayed.
+- STALE resource reservations continue to consume capacity until reconciled.
+- Recurring schedules cannot clone task-bound Level 4 FREE_RESEARCH authority.
+- Verified-complete notifications require authoritative verification and final-report evidence.
+- Phase 15 provides no email, webhook, Discord, desktop-push, or other external notification transport.
+
 ## [0.1.0-phase14] - 2026-08-08
 
 ### Added

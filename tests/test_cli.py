@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 14" in output
+    assert "phase: 15" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -82,6 +82,11 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "research_injection: data_only_no_runtime_control" in output
     assert "research_external_actions: forbidden" in output
     assert "research_memory: review_required_no_auto_commit" in output
+    assert "durable_queue: idempotent_priority_eligible" in output
+    assert "queue_dispatch_fence: pre_runtime_no_blind_replay" in output
+    assert "resource_manager: capacity_only_no_authority_grant" in output
+    assert "scheduler: utc_one_shot_fixed_interval_materialize_only" in output
+    assert "notifications: local_outbox_runtime_outcome_bound" in output
     assert "research_document_evidence: moderate_non_terminal" in output
 
 
@@ -430,3 +435,21 @@ def test_phase14_smoke_command(
     assert payload["external_actions_allowed"] is False
     assert payload["automatic_memory_commit_allowed"] is False
     assert payload["memory_review_required"] is True
+
+
+def test_phase15_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase15-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["schema_version"] == 1
+    assert payload["journal_mode"] == "wal"
+    assert payload["materialized"] == 1
+    assert payload["runtime_calls"] == 1
+    assert payload["dispatch_status"] == "OUTCOME_RECORDED"
+    assert payload["queue_status"] == "COMPLETED"
+    assert payload["notification_kind"] == "TASK_VERIFIED_COMPLETE"
+    assert payload["external_delivery_allowed"] is False
+    assert payload["held_worker_slots"] == 0

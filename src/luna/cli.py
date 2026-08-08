@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 14 research-enabled runtime."""
+"""Command-line entry point for the Luna Phase 15 durable operations runtime."""
 
 from __future__ import annotations
 
@@ -81,6 +81,21 @@ from luna.modeling import (
     ScriptedModelOutput,
     ScriptedTestBackend,
     ScriptedTurn,
+)
+from luna.operations import (
+    DispatchResultStatus,
+    DurableTaskQueue,
+    NotificationKind,
+    NotificationOutbox,
+    OperationsCoordinator,
+    QueueStatus,
+    ResourceCapacity,
+    ResourceManager,
+    ScheduleKind,
+    Scheduler,
+    ScheduleSpec,
+    SQLiteOperationsStore,
+    WorkEnvelope,
 )
 from luna.recovery import (
     ChangeEstimate,
@@ -206,6 +221,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase14-smoke",
         help="Verify Phase 14 research policy, provenance, citations, and injection boundary.",
+    )
+    subparsers.add_parser(
+        "phase15-smoke",
+        help="Verify Phase 15 durable queue, scheduler, resource, and notification boundaries.",
     )
     live_probe = subparsers.add_parser(
         "phase13-live-probe",
@@ -1550,6 +1569,132 @@ def _run_phase14_smoke() -> int:
     ) else 2
 
 
+
+class _Phase15SmokeRuntime:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def run(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
+        del tool_policy
+        self.calls += 1
+        contract = TaskContract(
+            task_id=request.task_id,
+            objective="Complete the Phase 15 CLI smoke fixture.",
+            required_conditions=("The queued runtime invocation is verified.",),
+            evidence_required=("runtime outcome",),
+            scope=request.scope,
+            owner=request.actor.actor_id,
+        )
+        state = TaskState(
+            task_id=request.task_id,
+            contract=contract,
+            phase=TaskPhase.CLOSED,
+            completion_status=CompletionStatus.VERIFIED_COMPLETE,
+        )
+        now = datetime.now(UTC)
+        return RuntimeOutcome(
+            request_id=request.request_id,
+            task_id=request.task_id,
+            trace_id=request.trace_id,
+            task_fingerprint=build_task_fingerprint(request).digest,
+            state=state,
+            stop_reason=RuntimeStopReason.COMPLETED,
+            completion_status=CompletionStatus.VERIFIED_COMPLETE,
+            verification_report_id=uuid4(),
+            final_report_id=uuid4(),
+            usage=RuntimeUsage(budget=request.runtime_budget),
+            started_at=now,
+            finished_at=now,
+        )
+
+    def resume(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
+        return self.run(request=request, tool_policy=tool_policy)
+
+
+def _run_phase15_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase15-smoke-") as temp:
+        root = Path(temp)
+        now = datetime.now(UTC)
+        task_id = uuid4()
+        request = RuntimeRequest(
+            task_id=task_id,
+            raw_request="Run the Phase 15 operations CLI smoke fixture.",
+            source=RequestSource.SCHEDULER,
+            actor=RuntimeActor.verified_owner("phase15-smoke"),
+            scope=TaskScope(workspace_root=str(root)),
+            autonomy=AutonomyPolicy(
+                task_id=task_id,
+                level=AutonomyLevel.LEVEL_1_READ_ONLY,
+                max_risk=RiskLevel.LOW,
+            ),
+            runtime_budget=RuntimeBudget(),
+            required_conditions=("The queued runtime invocation is verified.",),
+            evidence_required=("runtime outcome",),
+            risk_level=RiskLevel.LOW,
+            mode=RuntimeMode.EXECUTE,
+            requested_at=now,
+        )
+        envelope = WorkEnvelope(
+            request=request,
+            tool_policy=ToolPolicy(
+                autonomy_level=AutonomyLevel.LEVEL_1_READ_ONLY,
+                max_risk=RiskLevel.LOW,
+            ),
+        )
+        store = SQLiteOperationsStore(root / "operations.sqlite3")
+        queue = DurableTaskQueue(store)
+        scheduler = Scheduler(store)
+        resources = ResourceManager(
+            store,
+            ResourceCapacity(worker_slots=1, model_slots=1),
+        )
+        notifications = NotificationOutbox(store)
+        runtime = _Phase15SmokeRuntime()
+        coordinator = OperationsCoordinator(
+            queue=queue,
+            scheduler=scheduler,
+            resources=resources,
+            notifications=notifications,
+            runtime=runtime,
+        )
+        scheduler.create(
+            envelope=envelope,
+            spec=ScheduleSpec(kind=ScheduleKind.ONE_SHOT, first_run_at=now),
+            now=now,
+        )
+        materialized = coordinator.materialize_due(now=now)
+        result = coordinator.dispatch_one(worker_id="phase15-smoke-worker", now=now)
+        queued = store.list_queue_items()
+        pending = notifications.pending()
+        payload = {
+            "schema_version": store.schema_version(),
+            "journal_mode": store.journal_mode(),
+            "materialized": materialized,
+            "runtime_calls": runtime.calls,
+            "dispatch_status": result.status.value,
+            "queue_status": queued[0].status.value if queued else None,
+            "notification_kind": pending[0].kind.value if pending else None,
+            "external_delivery_allowed": (
+                pending[0].external_delivery_allowed if pending else None
+            ),
+            "held_worker_slots": resources.held_usage().worker_slots,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if all(
+            (
+                payload["schema_version"] == 1,
+                payload["journal_mode"] == "wal",
+                payload["materialized"] == 1,
+                payload["runtime_calls"] == 1,
+                payload["dispatch_status"] == DispatchResultStatus.OUTCOME_RECORDED.value,
+                payload["queue_status"] == QueueStatus.COMPLETED.value,
+                payload["notification_kind"] == NotificationKind.TASK_VERIFIED_COMPLETE.value,
+                payload["external_delivery_allowed"] is False,
+                payload["held_worker_slots"] == 0,
+            )
+        ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -1576,8 +1721,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 14")
-        print("status: RESEARCH_GATEWAY_EVIDENCE_RAG_IMPLEMENTED_UNVERIFIED")
+        print("phase: 15")
+        print("status: RESOURCE_MANAGER_QUEUE_SCHEDULER_NOTIFICATIONS_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1666,6 +1811,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("research_external_actions: forbidden")
         print("research_memory: review_required_no_auto_commit")
         print("research_document_evidence: moderate_non_terminal")
+        print("operations_store: sqlite_wal_shared_transaction_boundary")
+        print("durable_queue: idempotent_priority_eligible")
+        print("queue_dispatch_fence: pre_runtime_no_blind_replay")
+        print("resource_manager: capacity_only_no_authority_grant")
+        print("resource_stale_lease: blocks_capacity_until_reconciled")
+        print("scheduler: utc_one_shot_fixed_interval_materialize_only")
+        print("scheduler_free_research_clone: blocked")
+        print("notifications: local_outbox_runtime_outcome_bound")
+        print("notification_external_delivery: disabled")
         return 0
 
     if args.command == "resolve-intent":
@@ -1714,6 +1868,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_phase13_smoke()
     if args.command == "phase14-smoke":
         return _run_phase14_smoke()
+
+    if args.command == "phase15-smoke":
+        return _run_phase15_smoke()
 
     if args.command == "phase13-live-probe":
         return _run_phase13_live_probe(

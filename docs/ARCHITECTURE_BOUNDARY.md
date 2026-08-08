@@ -1,3 +1,73 @@
+# Faz 15 Mimari Sınırı
+
+Faz 15, Faz 14 araştırma sınırının üzerine Luna'nın uzun süre yaşayan yerel operasyon
+katmanını ekler. Queue, scheduler, resource manager ve notification outbox koordinasyon
+yapar; hiçbiri runtime otoritesinin yerine geçmez.
+
+```text
+authorized RuntimeRequest + ToolPolicy
+→ durable queue
+→ UTC scheduler eligibility
+→ resource-capacity lease
+→ pre-runtime DISPATCHED fence
+→ LunaRuntime.run/resume
+→ authoritative RuntimeOutcome
+→ atomic queue finalization + resource release + local outbox
+```
+
+## Var
+
+- shared SQLite WAL operations store ve canonical JSON SHA-256 integrity;
+- idempotent durable queue, priority + eligible-time ordering;
+- `LEASED` ve `DISPATCHED` arasında may-have-executed replay fence;
+- expired pre-dispatch lease için safe requeue;
+- expired/failed post-dispatch ambiguity için `RECOVERY_REQUIRED`;
+- `ACTIVE / STALE / RELEASED` resource leases;
+- worker/model/network capacity admission;
+- UTC `ONE_SHOT` ve `FIXED_INTERVAL` schedules;
+- bounded catch-up materialization;
+- recurrence başına fresh deterministic request/task/trace IDs;
+- recurring Level 4 task-bound FREE_RESEARCH grant clone rejection;
+- one-runtime-invocation-per-dispatch coordinator;
+- RuntimeOutcome-bound local notification outbox;
+- verified-complete notification için verification + final-report evidence;
+- Phase 15 verifier, tests, CLI smoke ve quality-gate integration.
+
+## Zorlanan kurallar
+
+- scheduler sadece işi eligible/materialized yapar; execution authority değildir;
+- queue priority permission/risk/autonomy artırmaz;
+- resource slot tahsisi network/write/process/tool yetkisi vermez;
+- ambiguous `DISPATCHED` item otomatik replay edilmez;
+- stale resource lease kapasiteden sessizce düşmez;
+- runtime exception blind retry üretmez;
+- queue payload'daki ToolPolicy RuntimeRequest authority'sini aşamaz;
+- `TASK_VERIFIED_COMPLETE` model metninden üretilemez;
+- Phase 15 notification external transport içermez;
+- queued cancel yalnız dispatch öncesinde doğrudan yapılır; in-flight control LunaRuntime'a aittir.
+
+## Yok
+
+- email/webhook/Discord/SMS/desktop push transport;
+- distributed multi-node scheduler;
+- OS background service hosting;
+- webhook event triggers;
+- automatic replay of ambiguous runtime execution;
+- recurring FREE_RESEARCH authority cloning;
+- external account mutation;
+- desktop, Discord veya voice product gateway.
+
+## Sonraki kapılar
+
+```text
+16 desktop product shell
+→ 17 Discord
+→ 18 voice
+→ 19 trace/dataset governance
+```
+
+---
+
 # Faz 14 Mimari Sınırı
 
 Faz 14, Faz 13 controlled model sınırının üzerine runtime-owned read-only Research
