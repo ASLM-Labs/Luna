@@ -1,0 +1,20 @@
+{
+  "phase": "18",
+  "checks": {
+    "required_files_present": true,
+    "stt_tts_adapters_provider_neutral": true,
+    "verified_speaker_session_identity": true,
+    "low_risk_direct_confirmation": true,
+    "transcript_view_confirmation_visible": true,
+    "high_risk_double_confirmation": true,
+    "spoken_text_cannot_grant_authority": true,
+    "high_impact_requires_non_voice_approval_review": true,
+    "model_unavailable_remains_durable_queue": true,
+    "interruption_cancel_predispatch_safe": true,
+    "append_only_audit_uses_transcript_digest": true,
+    "phase17_foundation_remains_green": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

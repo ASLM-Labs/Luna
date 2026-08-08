@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 17 Discord gateway runtime."""
+"""Command-line entry point for the Luna Phase 18 Voice Gateway runtime."""
 
 from __future__ import annotations
 
@@ -168,6 +168,17 @@ from luna.verification import (
     required_condition_claim_id,
 )
 from luna.version import __version__
+from luna.voice import (
+    UnboundTextToSpeechAdapter,
+    VoiceActionClass,
+    VoiceAuthorityConfig,
+    VoiceCaptureMode,
+    VoiceConfirmationEvent,
+    VoiceIngressDisposition,
+    VoiceTranscriptPacket,
+    VoiceUtteranceKind,
+    build_local_voice_gateway,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -248,6 +259,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase17-smoke",
         help="Verify Phase 17 verified Discord ingress, queue, role, and audit boundaries.",
+    )
+    subparsers.add_parser(
+        "phase18-smoke",
+        help="Verify Phase 18 voice transcript, confirmation, session, and queue boundaries.",
     )
     desktop_parser = subparsers.add_parser(
         "desktop",
@@ -1859,6 +1874,109 @@ def _run_phase17_smoke() -> int:
         ) else 2
 
 
+
+def _run_phase18_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase18-smoke-") as temp:
+        root = Path(temp)
+        database = root / "operations.sqlite3"
+        gateway = build_local_voice_gateway(
+            config=VoiceAuthorityConfig(
+                workspace_root=str(root),
+                owner_actor_id="phase18-owner",
+                allowed_speaker_ids=("phase18-speaker",),
+            ),
+            database_path=database,
+            audit_root=root / "audit",
+        )
+        now = datetime(2026, 8, 8, 6, 30, tzinfo=UTC)
+        session = gateway.open_owner_session(
+            speaker_id="phase18-speaker",
+            local_session_verified=True,
+            speaker_verified=True,
+            now=now,
+        )
+        packet = VoiceTranscriptPacket(
+            session_id=session.session_id,
+            speaker_id=session.speaker_id,
+            text="Projeyi değiştir ve deploy et.",
+            confidence=0.99,
+            capture_mode=VoiceCaptureMode.PUSH_TO_TALK,
+            utterance_kind=VoiceUtteranceKind.COMMAND,
+            action_class=VoiceActionClass.HIGH_IMPACT,
+            transport_verified=True,
+            received_at=now,
+        )
+        pending = gateway.ingest(packet, main_model_available=True)
+        first = gateway.confirm(
+            VoiceConfirmationEvent(
+                session_id=session.session_id,
+                utterance_id=packet.utterance_id,
+                speaker_id=session.speaker_id,
+                transcript_sha256=packet.text_sha256,
+                confirmation_index=1,
+                confirmed=True,
+                transport_verified=True,
+                occurred_at=now,
+            ),
+            main_model_available=True,
+        )
+        final = gateway.confirm(
+            VoiceConfirmationEvent(
+                session_id=session.session_id,
+                utterance_id=packet.utterance_id,
+                speaker_id=session.speaker_id,
+                transcript_sha256=packet.text_sha256,
+                confirmation_index=2,
+                confirmed=True,
+                transport_verified=True,
+                occurred_at=now,
+            ),
+            main_model_available=True,
+        )
+        if final.queue_item_id is None:
+            print(json.dumps(final.model_dump(mode="json"), ensure_ascii=True, indent=2))
+            return 2
+        item = SQLiteOperationsStore(database).load_queue_item(final.queue_item_id)
+        request = item.payload.envelope.request
+        transcript = gateway.sessions.transcript_view(session.session_id)
+        tts_plan = UnboundTextToSpeechAdapter().plan("Phase 18 voice response")
+        payload = {
+            "pending": pending.disposition.value,
+            "first_confirmation": first.disposition.value,
+            "final": final.disposition.value,
+            "request_source": request.source.value,
+            "queue_status": item.status.value,
+            "write_allowed": request.scope.write_allowed,
+            "process_allowed": request.scope.process_allowed,
+            "network_allowed": request.scope.network_allowed,
+            "autonomy_level": request.autonomy.level.value,
+            "required_confirmations": final.required_confirmations,
+            "confirmation_count": transcript[0].confirmation_count,
+            "tts_provider_bound": tts_plan.provider_bound,
+            "tts_voice_profile": tts_plan.voice_profile_id,
+        }
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0 if all(
+            (
+                payload["pending"]
+                == VoiceIngressDisposition.DOUBLE_CONFIRMATION_REQUIRED.value,
+                payload["first_confirmation"]
+                == VoiceIngressDisposition.CONFIRMATION_PROGRESS.value,
+                payload["final"]
+                == VoiceIngressDisposition.QUEUED_FOR_APPROVAL_REVIEW.value,
+                payload["request_source"] == "VOICE",
+                payload["queue_status"] == "QUEUED",
+                payload["write_allowed"] is False,
+                payload["process_allowed"] is False,
+                payload["network_allowed"] is False,
+                payload["autonomy_level"] == "LEVEL_1_READ_ONLY",
+                payload["required_confirmations"] == 2,
+                payload["confirmation_count"] == 2,
+                payload["tts_provider_bound"] is False,
+                payload["tts_voice_profile"] is None,
+            )
+        ) else 2
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -1885,8 +2003,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 17")
-        print("status: DISCORD_GATEWAY_IMPLEMENTED_UNVERIFIED")
+        print("phase: 18")
+        print("status: VOICE_GATEWAY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2005,6 +2123,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("discord_rate_limit: role_bound_fixed_window")
         print("discord_moderation: ingress_only_no_external_action")
         print("discord_audit: append_only_content_digest_no_raw_message")
+        print("voice_gateway: verified_local_session_runtime_bound")
+        print("voice_stt_tts: provider_neutral_adapter_contracts")
+        print("voice_transcript_view: explicit_session_bound")
+        print("voice_low_risk_command: direct_confirmation_required")
+        print("voice_high_risk: double_confirmation_then_approval_review")
+        print("voice_spoken_authority: none")
+        print("voice_project_write: disabled")
+        print("voice_process_terminal: disabled")
+        print("voice_network_authority: disabled")
+        print("voice_interrupt_cancel: predispatch_safe_control")
+        print("voice_tts_persona: not_locked_in_phase18")
+        print("voice_audit: append_only_transcript_digest_no_raw_audio")
         return 0
 
     if args.command == "resolve-intent":
@@ -2062,6 +2192,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase17-smoke":
         return _run_phase17_smoke()
+
+    if args.command == "phase18-smoke":
+        return _run_phase18_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

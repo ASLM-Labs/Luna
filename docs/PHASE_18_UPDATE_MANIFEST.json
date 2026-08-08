@@ -1,0 +1,40 @@
+{
+  "phase": "18",
+  "baseline": "merged Phase 17",
+  "target_branch": "phase-18-voice-gateway",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 24,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_18_REPORT.md",
+    "docs/PHASE_18_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-018_VOICE_GATEWAY.md",
+    "phase_18_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase18.py",
+    "src/luna/cli.py",
+    "src/luna/voice/__init__.py",
+    "src/luna/voice/adapters.py",
+    "src/luna/voice/bootstrap.py",
+    "src/luna/voice/confirmation.py",
+    "src/luna/voice/gateway.py",
+    "src/luna/voice/models.py",
+    "src/luna/voice/session.py",
+    "tests/test_cli.py",
+    "tests/test_phase18_voice_gateway.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Voice identity comes only from a verified local session plus configured speaker mapping.",
+    "Read-only commands require direct transcript confirmation; high-impact requests require two confirmations.",
+    "High-impact voice requests remain Level 1 read-only approval-review work after double confirmation.",
+    "STT/TTS interfaces are provider-neutral; no final Luna voice profile is selected in Phase 18.",
+    "Audit stores transcript digests instead of raw spoken content or audio."
+  ]
+}

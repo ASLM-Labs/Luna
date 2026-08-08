@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 17" in output
+    assert "phase: 18" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -102,6 +102,13 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "discord_process_terminal: disabled" in output
     assert "discord_model_unavailable: durable_queue" in output
     assert "discord_audit: append_only_content_digest_no_raw_message" in output
+    assert "voice_gateway: verified_local_session_runtime_bound" in output
+    assert "voice_stt_tts: provider_neutral_adapter_contracts" in output
+    assert "voice_low_risk_command: direct_confirmation_required" in output
+    assert "voice_high_risk: double_confirmation_then_approval_review" in output
+    assert "voice_spoken_authority: none" in output
+    assert "voice_interrupt_cancel: predispatch_safe_control" in output
+    assert "voice_tts_persona: not_locked_in_phase18" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -505,3 +512,26 @@ def test_phase17_smoke_command(
     assert payload["model_slots"] == 1
     assert payload["network_slots"] == 0
     assert payload["reply_channel"] == "200"
+
+
+
+def test_phase18_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase18-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["pending"] == "DOUBLE_CONFIRMATION_REQUIRED"
+    assert payload["first_confirmation"] == "CONFIRMATION_PROGRESS"
+    assert payload["final"] == "QUEUED_FOR_APPROVAL_REVIEW"
+    assert payload["request_source"] == "VOICE"
+    assert payload["queue_status"] == "QUEUED"
+    assert payload["write_allowed"] is False
+    assert payload["process_allowed"] is False
+    assert payload["network_allowed"] is False
+    assert payload["autonomy_level"] == "LEVEL_1_READ_ONLY"
+    assert payload["required_confirmations"] == 2
+    assert payload["confirmation_count"] == 2
+    assert payload["tts_provider_bound"] is False
+    assert payload["tts_voice_profile"] is None

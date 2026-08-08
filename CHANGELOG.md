@@ -2,6 +2,25 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase18] - 2026-08-08
+
+### Added
+
+- Provider-neutral STT/TTS adapter contracts and deterministic local test adapters.
+- Verified local voice session + configured speaker identity binding.
+- Session-bound transcript view with capture mode, chat/command classification and confirmation state.
+- Direct confirmation for read-only commands and double confirmation for high-impact requests.
+- Voice durable-queue integration, model-unavailable queue behavior, interruption/cancel and audit digest evidence.
+- Phase 18 verifier, CLI smoke, regression tests and Windows/CI quality-gate integration.
+
+### Security
+
+- Spoken text cannot grant owner identity, autonomy, workspace write, process/terminal, or network authority.
+- A single transcript cannot trigger write, delete, deploy or external action.
+- Double-confirmed high-impact requests remain read-only approval-review work pending a separate non-voice approval path.
+- Audit stores transcript SHA-256 metadata, not raw spoken text or audio.
+- Phase 18 does not bind a production STT/TTS provider or Luna's final voice profile.
+
 ## [0.1.0-phase17] - 2026-08-08
 
 ### Added

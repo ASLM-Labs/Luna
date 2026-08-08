@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 17 — Discord Gateway** durumundadır.
+Repository şu anda **Faz 18 — Voice Gateway** durumundadır.
 
 ## Çalışan zincir
 
@@ -78,6 +78,28 @@ Component testlerinin yeşil olması tek başına yeterli değildir; completion 
 evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
 
+
+## Faz 18 Voice Gateway sınırları
+
+Faz 18, yerel voice transport'u mevcut runtime, queue ve audit sinirlarina baglar. Sesli
+transkript authority degildir ve Luna'nin nihai sesi bu fazda secilmez.
+
+- STT/TTS adapter kontratlari provider-neutral kalir;
+- verified local session + configured speaker identity gerekir;
+- transcript view capture mode, command/chat ve confirmation durumunu gorunur tutar;
+- read-only command bir explicit confirmation ister;
+- high-impact request iki confirmation ister;
+- double confirmation sonrasi high-impact istek yalniz read-only approval-review olur;
+- voice source project write, process/terminal veya network authority vermez;
+- interrupt/cancel pending confirmation'i temizler ve safe pre-dispatch queue'yu iptal eder;
+- audit raw transcript/audio yerine SHA-256 digest tutar;
+- final TTS provider/voice profile/persona sesi sonraki urun kararina birakilir.
+
+Görünür Phase 18 smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase18-smoke
+```
 
 ## Faz 17 Discord Gateway sınırları
 
