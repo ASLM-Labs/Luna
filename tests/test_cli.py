@@ -49,6 +49,16 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "phase19b_evaluator: versioned_independent_candidate_cannot_self_judge" in output
     assert "phase19b_release_comparison: like_for_like_no_promotion_authority" in output
     assert "phase19b_real_benchmark_run: not_executed_by_governance_foundation" in output
+    assert "phase19c_learning_integrity: frozen_policy_observable_evidence_only" in output
+    assert "phase19c_shortcut_learning: matched_observational_slice_gap_checked" in output
+    assert "phase19c_benchmark_gaming: frozen_case_identity_exposure_blocked" in output
+    assert "phase19c_evaluator_gaming: identity_exposure_and_disagreement_checked" in output
+    assert "phase19c_proxy_optimization: proxy_gain_with_governed_regression_blocked" in output
+    assert "phase19c_confirmation_bias: ignored_contradictory_evidence_blocked" in output
+    assert "phase19c_self_confirmation: independent_support_required" in output
+    assert "phase19c_overfitting: train_heldout_ood_gap_checked" in output
+    assert "phase19c_promotion_authority: none" in output
+    assert "phase19c_real_training_run: not_executed_by_integrity_foundation" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -587,3 +597,24 @@ def test_phase19b_smoke_command(
     assert payload["planning_delta"] > 0.0
     assert payload["promotion_authorized"] is False
     assert payload["real_benchmark_run_executed"] is False
+
+
+def test_phase19c_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19c-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["policy_locked"] is True
+    assert payload["shortcut_learning_detected"] is True
+    assert payload["benchmark_gaming_detected"] is True
+    assert payload["evaluator_gaming_detected"] is True
+    assert payload["proxy_specification_optimization_detected"] is True
+    assert payload["confirmation_bias_detected"] is True
+    assert payload["overfitting_detected"] is True
+    assert payload["self_confirmation_detected"] is True
+    assert payload["integrity_status"] == "REJECT_CANDIDATE"
+    assert payload["promotion_authorized"] is False
+    assert payload["counterfactual_replay_executed"] is False
+    assert payload["real_training_run_executed"] is False

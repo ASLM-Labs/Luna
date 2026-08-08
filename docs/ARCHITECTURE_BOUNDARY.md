@@ -670,3 +670,70 @@ kalir. Promotion threshold/confidence-interval ve rollback karari Faz 19F'ye ait
 → 19E small controlled SFT
 → 19F improvement gate
 ```
+
+
+---
+
+# Faz 19C Learning Integrity Mimari Siniri
+
+Faz 19C, Faz 19B'nin frozen evaluation identities ve release comparison sonucunu kullanarak gorunen
+"iyilesme" sinyallerinin shortcut, gaming, proxy optimization, confirmation bias, self-confirmation
+veya overfitting ile aciklanabildigi durumlari fail-closed bicimde gorunur yapar.
+
+```text
+frozen Phase 19B evaluation identities
+→ frozen learning-integrity policy
+→ generalization / shortcut / evaluator probes
+→ benchmark + evaluator exposure accounting
+→ proxy-vs-governed-result comparison
+→ evidence independence + contradiction accounting
+→ CLEAN / REVIEW_REQUIRED / REJECT_CANDIDATE
+→ promotion authority: NONE
+```
+
+## Var
+
+- semantic-revision + SHA-256 ile kilitli learning-integrity policy;
+- train/held-out/OOD generalization gap kontrolleri;
+- matched observational shortcut-slice dependency sinyali;
+- frozen benchmark case identity exposure detection;
+- governed evaluator identity exposure detection;
+- distinct independent evaluator disagreement kontrolu;
+- proxy gain ile governed regression ayrismasi;
+- critical governed regression icin zero-tolerance integrity handling;
+- explicit evidence origin + candidate-independence kaydi;
+- ignored contradictory evidence icin confirmation-bias detection;
+- candidate self-output icin independent-support zorunlulugu;
+- Faz 19B verifier regression guard.
+
+## Yetki siniri
+
+Learning Integrity observe/compare/classify/report yapabilir ve learning-lab seviyesinde candidate'i
+`REJECT_CANDIDATE` olarak isaretleyebilir. Runtime authority, tool dispatch, data mutation veya release
+promotion yapamaz. `promotion_authorized` bu katmanda false kalir. Final statistical promotion ve
+rollback Faz 19F'ye aittir.
+
+## Counterfactual siniri
+
+Matched shortcut slices observational evidence'dir. Faz 19C bunlardan causal counterfactual sonuc
+uretemez. "Shortcut kaldirilsa kesin daha iyi olurdu" gibi iddialar controlled replay/sandbox evidence
+olmadan kabul edilmez. Bu deneysel alan Faz 19D'ye ertelenmistir.
+
+## Yok
+
+- real large-corpus import;
+- GPU/SFT training;
+- reward optimization;
+- trained weights;
+- real counterfactual replay;
+- measured post-training improvement claim;
+- autonomous promotion.
+
+## Sonraki kapi
+
+```text
+19C Learning Integrity
+→ 19D experimental counterfactual analysis
+→ 19E small controlled SFT
+→ 19F improvement gate
+```

@@ -93,6 +93,20 @@ from luna.evaluation_governance import (
 from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
 from luna.learning import LearningCandidateBuilder
+from luna.learning_integrity import (
+    ClaimEvidenceReview,
+    EvaluatorAgreementProbe,
+    EvidenceOrigin,
+    GeneralizationProfile,
+    IntegrityEvidence,
+    LearningExposureRecord,
+    LearningIntegrityRisk,
+    LearningIntegrityStatus,
+    ProxyMetricOutcome,
+    ShortcutSliceProbe,
+    assess_learning_integrity,
+    build_default_learning_integrity_policy,
+)
 from luna.memory import (
     MemoryCandidate,
     MemoryDecisionStatus,
@@ -310,6 +324,13 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Verify Phase 19B frozen held-out/OOD suites, contamination checks, "
             "evaluator independence, and release comparison boundaries."
+        ),
+    )
+    subparsers.add_parser(
+        "phase19c-smoke",
+        help=(
+            "Verify Phase 19C shortcut, gaming, overfitting, proxy, confirmation, "
+            "and self-confirmation integrity boundaries."
         ),
     )
     desktop_parser = subparsers.add_parser(
@@ -2324,6 +2345,194 @@ def _run_phase19b_smoke() -> int:
     ) else 2
 
 
+def _run_phase19c_smoke() -> int:
+    evaluator = EvaluatorSpec(
+        evaluator_id="phase19c-primary",
+        revision="1.0.0",
+        kind=EvaluatorKind.DETERMINISTIC,
+        implementation_sha256="5" * 64,
+        independent_from_candidate_artifacts=True,
+        independent_from_training_data=True,
+    )
+    cases = (
+        EvaluationCase(
+            case_id="held-001",
+            source_trajectory_id="held-source-001",
+            partition=EvaluationPartition.HELD_OUT,
+            task_family="held-task-family",
+            repository_family="held-repository-family",
+            trajectory_family="held-trajectory-family",
+            content_sha256="6" * 64,
+            evidence_refs=("fixture:held-001",),
+        ),
+        EvaluationCase(
+            case_id="ood-001",
+            source_trajectory_id="ood-source-001",
+            partition=EvaluationPartition.OOD,
+            task_family="ood-task-family",
+            repository_family="ood-repository-family",
+            trajectory_family="ood-trajectory-family",
+            content_sha256="7" * 64,
+            evidence_refs=("fixture:ood-001",),
+        ),
+    )
+    suite = FrozenEvaluationSuite.freeze(
+        suite_name="phase19c-heldout-ood",
+        revision="1.0.0",
+        evaluator=evaluator,
+        cases=cases,
+    )
+    regression = freeze_regression_suite(
+        revision="1.0.0",
+        evaluation_suite=suite,
+        critical_case_ids=("held-001",),
+    )
+    clean_contamination = detect_benchmark_contamination(
+        evaluation_suite=suite,
+        training_exposures=(
+            TrainingExposure(
+                source_trajectory_id="train-source-001",
+                task_family="train-task-family",
+                repository_family="train-repository-family",
+                trajectory_family="train-trajectory-family",
+                content_sha256="8" * 64,
+            ),
+        ),
+    )
+    baseline_cards = tuple(
+        CognitiveScorecard(
+            case_id=case.case_id,
+            scores={dimension: 0.6 for dimension in CognitiveDimension},
+            evidence_refs=(f"baseline:{case.case_id}",),
+        )
+        for case in cases
+    )
+    candidate_cards = list(baseline_cards)
+    degraded_scores = dict(candidate_cards[0].scores)
+    degraded_scores[CognitiveDimension.EVIDENCE_USAGE] = 0.4
+    candidate_cards[0] = candidate_cards[0].model_copy(update={"scores": degraded_scores})
+    baseline = build_release_snapshot(
+        release_id="baseline",
+        candidate_model_id="baseline-model",
+        evaluation_suite=suite,
+        scorecards=baseline_cards,
+    )
+    candidate = build_release_snapshot(
+        release_id="candidate",
+        candidate_model_id="candidate-model",
+        evaluation_suite=suite,
+        scorecards=tuple(candidate_cards),
+    )
+    comparison = compare_release_snapshots(
+        baseline=baseline,
+        candidate=candidate,
+        regression_suite=regression,
+        contamination_report=clean_contamination,
+    )
+    policy = build_default_learning_integrity_policy()
+    candidate_evidence = IntegrityEvidence(
+        evidence_id="candidate-self",
+        origin=EvidenceOrigin.CANDIDATE_OUTPUT,
+        independent_from_candidate=False,
+    )
+    contradiction_evidence = IntegrityEvidence(
+        evidence_id="independent-contradiction",
+        origin=EvidenceOrigin.DETERMINISTIC_VERIFIER,
+        independent_from_candidate=True,
+    )
+    report = assess_learning_integrity(
+        policy=policy,
+        evaluation_suite=suite,
+        release_comparison=comparison,
+        generalization_profiles=(
+            GeneralizationProfile(
+                profile_id="generalization-risk",
+                training_score=0.95,
+                validation_score=0.88,
+                held_out_score=0.60,
+                ood_score=0.50,
+                evidence_refs=("eval:generalization",),
+            ),
+        ),
+        shortcut_probes=(
+            ShortcutSliceProbe(
+                probe_id="shortcut-risk",
+                shortcut_present_score=0.90,
+                shortcut_absent_score=0.50,
+                evidence_refs=("eval:shortcut",),
+            ),
+        ),
+        evaluator_agreement_probes=(
+            EvaluatorAgreementProbe(
+                probe_id="evaluator-risk",
+                primary_evaluator_fingerprint=suite.evaluator.fingerprint(),
+                independent_evaluator_fingerprint="9" * 64,
+                primary_score=0.90,
+                independent_score=0.55,
+                independent_evaluator_verified=True,
+                evidence_refs=("eval:evaluator-agreement",),
+            ),
+        ),
+        learning_exposure=LearningExposureRecord(
+            benchmark_case_ids=("held-001",),
+            evaluator_fingerprints=(suite.evaluator.fingerprint(),),
+            optimization_metric_ids=("training-objective",),
+            evidence_refs=("lineage:learning-config",),
+        ),
+        proxy_metrics=(
+            ProxyMetricOutcome(
+                metric_id="training-objective",
+                baseline_value=0.5,
+                candidate_value=0.8,
+                evidence_refs=("metric:training-objective",),
+            ),
+        ),
+        evidence_catalog=(candidate_evidence, contradiction_evidence),
+        claim_reviews=(
+            ClaimEvidenceReview(
+                claim_id="candidate-improved",
+                supporting_evidence_ids=(candidate_evidence.evidence_id,),
+                contradicting_evidence_ids=(contradiction_evidence.evidence_id,),
+                considered_evidence_ids=(candidate_evidence.evidence_id,),
+            ),
+        ),
+    )
+    risks = report.risk_set
+    payload = {
+        "policy_locked": policy.locked_sha256 == policy.computed_sha256(),
+        "shortcut_learning_detected": LearningIntegrityRisk.SHORTCUT_LEARNING in risks,
+        "benchmark_gaming_detected": LearningIntegrityRisk.BENCHMARK_GAMING in risks,
+        "evaluator_gaming_detected": LearningIntegrityRisk.EVALUATOR_GAMING in risks,
+        "proxy_specification_optimization_detected": (
+            LearningIntegrityRisk.PROXY_SPECIFICATION_OPTIMIZATION in risks
+        ),
+        "confirmation_bias_detected": LearningIntegrityRisk.CONFIRMATION_BIAS in risks,
+        "overfitting_detected": LearningIntegrityRisk.OVERFITTING in risks,
+        "self_confirmation_detected": LearningIntegrityRisk.SELF_CONFIRMATION in risks,
+        "integrity_status": report.status.value,
+        "promotion_authorized": report.promotion_authorized,
+        "counterfactual_replay_executed": False,
+        "real_training_run_executed": False,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            payload["policy_locked"] is True,
+            payload["shortcut_learning_detected"] is True,
+            payload["benchmark_gaming_detected"] is True,
+            payload["evaluator_gaming_detected"] is True,
+            payload["proxy_specification_optimization_detected"] is True,
+            payload["confirmation_bias_detected"] is True,
+            payload["overfitting_detected"] is True,
+            payload["self_confirmation_detected"] is True,
+            payload["integrity_status"] == LearningIntegrityStatus.REJECT_CANDIDATE.value,
+            payload["promotion_authorized"] is False,
+            payload["counterfactual_replay_executed"] is False,
+            payload["real_training_run_executed"] is False,
+        )
+    ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2351,7 +2560,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "status":
         print("phase: 19")
-        print("status: EVALUATION_GOVERNANCE_IMPLEMENTED_UNVERIFIED")
+        print("status: LEARNING_INTEGRITY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2498,6 +2707,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19b_evaluator: versioned_independent_candidate_cannot_self_judge")
         print("phase19b_release_comparison: like_for_like_no_promotion_authority")
         print("phase19b_real_benchmark_run: not_executed_by_governance_foundation")
+        print("phase19c_learning_integrity: frozen_policy_observable_evidence_only")
+        print("phase19c_shortcut_learning: matched_observational_slice_gap_checked")
+        print("phase19c_benchmark_gaming: frozen_case_identity_exposure_blocked")
+        print("phase19c_evaluator_gaming: identity_exposure_and_disagreement_checked")
+        print("phase19c_proxy_optimization: proxy_gain_with_governed_regression_blocked")
+        print("phase19c_confirmation_bias: ignored_contradictory_evidence_blocked")
+        print("phase19c_self_confirmation: independent_support_required")
+        print("phase19c_overfitting: train_heldout_ood_gap_checked")
+        print("phase19c_promotion_authority: none")
+        print("phase19c_real_training_run: not_executed_by_integrity_foundation")
         return 0
 
     if args.command == "resolve-intent":
@@ -2564,6 +2783,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase19b-smoke":
         return _run_phase19b_smoke()
+
+    if args.command == "phase19c-smoke":
+        return _run_phase19c_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(
