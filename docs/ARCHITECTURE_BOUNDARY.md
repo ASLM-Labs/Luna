@@ -737,3 +737,12 @@ olmadan kabul edilmez. Bu deneysel alan Faz 19D'ye ertelenmistir.
 → 19E small controlled SFT
 → 19F improvement gate
 ```
+
+## Phase 19D Counterfactual Analysis Boundary
+
+The Phase 19D counterfactual package is a learning/evaluation-lab component. It receives already
+observed controlled replay/sandbox outcomes and compares them deterministically. It does not dispatch
+runtime tools, acquire network authority, mutate runtime permissions, or promote a model candidate.
+
+Unexecuted alternatives remain hypotheses. An observed sandbox/replay advantage is scoped to the
+specific controlled conditions and cannot become a generalized causal claim without later evidence.

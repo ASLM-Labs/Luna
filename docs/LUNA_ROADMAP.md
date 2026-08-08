@@ -11,13 +11,13 @@ are already implemented.
 - Phase 19A — Foundation: CLOSED
 - Phase 19B — Evaluation Governance: CLOSED
 - Phase 19C — Learning Integrity: CLOSED
-- Phase 19D — Counterfactual Analysis: NEXT
-- Phase 19E — Small Controlled SFT: PLANNED
+- Phase 19D — Counterfactual Analysis: IMPLEMENTED_UNVERIFIED
+- Phase 19E — Small Controlled SFT: NEXT
 - Phase 19F — Improvement Gate: PLANNED
 
 ## Phase 19D — Counterfactual Analysis
 
-Status: NEXT / EXPERIMENTAL
+Status: IMPLEMENTED_UNVERIFIED / EXPERIMENTAL
 
 Purpose:
 - compare alternative plans, tools, evidence paths, recovery paths, and minimal-action paths;
@@ -35,7 +35,7 @@ Runtime boundary:
 
 ## Phase 19E — Small Controlled SFT
 
-Status: PLANNED
+Status: NEXT
 
 Purpose:
 - import a real, curated and governed training corpus;

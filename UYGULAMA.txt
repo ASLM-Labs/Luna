@@ -52,3 +52,28 @@ BEKLENEN
 NOT
 Faz 19C yesil olmadan Faz 19D Counterfactual Analysis baslatilmaz. Commit/push da tam Windows
 kalite kapisi yesil olmadan yapilmaz.
+
+PHASE 19D — COUNTERFACTUAL ANALYSIS
+
+Counterfactual analysis is experimental and non-authoritative.
+
+UNEXECUTED ALTERNATIVE
+-> HYPOTHESIS ONLY
+
+EXECUTED ALTERNATIVE
+-> CONTROLLED_REPLAY or SANDBOX
+-> SAME CASE
+-> SAME SOURCE REVISION
+-> SAME ENVIRONMENT
+-> INDEPENDENT OBSERVATION EVIDENCE
+-> MULTI-DIMENSION COMPARISON
+
+CRITICAL SAFETY REGRESSION
+-> REJECTED
+
+COUNTERFACTUAL RESULT
+-> NO RUNTIME AUTHORITY
+-> NO PROMOTION AUTHORITY
+-> NO GENERALIZED CAUSAL CLAIM AUTHORITY
+
+Only an actually observed replay/sandbox result counts as Phase 19D counterfactual evidence.

@@ -1,0 +1,42 @@
+{
+  "phase": "19D",
+  "scope": "COUNTERFACTUAL_ANALYSIS",
+  "baseline": "merged docs/handoff checkpoint @ 739feed",
+  "target_branch": "phase-19d-counterfactual-analysis",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 23,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/LUNA_ROADMAP.md",
+    "docs/PHASE_19D_REPORT.md",
+    "docs/PHASE_19D_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-019D_COUNTERFACTUAL_ANALYSIS.md",
+    "phase_19d_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase19d.py",
+    "src/luna/cli.py",
+    "src/luna/counterfactual/__init__.py",
+    "src/luna/counterfactual/analysis.py",
+    "src/luna/counterfactual/models.py",
+    "src/luna/counterfactual/policy.py",
+    "tests/test_cli.py",
+    "tests/test_phase19d_counterfactual_analysis.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Unexecuted alternatives remain hypotheses and cannot produce replay-derived evidence.",
+    "Only controlled replay or sandbox observations count as Phase 19D counterfactual evidence.",
+    "Baseline and alternative must be like-for-like on case, source revision, and replay environment.",
+    "Candidate output cannot self-declare independent replay evidence.",
+    "Critical safety regressions and verified-success regressions reject the tested alternative.",
+    "Counterfactual evidence is scoped to the controlled conditions and grants neither generalized causal authority nor release-promotion authority.",
+    "Counterfactual analysis remains experimental and non-blocking for the first small controlled SFT."
+  ]
+}

@@ -59,6 +59,14 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "phase19c_overfitting: train_heldout_ood_gap_checked" in output
     assert "phase19c_promotion_authority: none" in output
     assert "phase19c_real_training_run: not_executed_by_integrity_foundation" in output
+    assert "phase19d_counterfactual: controlled_replay_or_sandbox_only" in output
+    assert "phase19d_unexecuted_alternative: hypothesis_only" in output
+    assert "phase19d_comparability: same_case_revision_environment" in output
+    assert "phase19d_evidence: independent_observation_required" in output
+    assert "phase19d_safety: critical_regression_zero_tolerance" in output
+    assert "phase19d_generalized_causal_authority: none" in output
+    assert "phase19d_promotion_authority: none" in output
+    assert "phase19d_real_training_run: not_executed_by_counterfactual_foundation" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -617,4 +625,23 @@ def test_phase19c_smoke_command(
     assert payload["integrity_status"] == "REJECT_CANDIDATE"
     assert payload["promotion_authorized"] is False
     assert payload["counterfactual_replay_executed"] is False
+    assert payload["real_training_run_executed"] is False
+
+
+def test_phase19d_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase19d-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["policy_locked"] is True
+    assert payload["executed_disposition"] == "EVIDENCE_SUPPORTED"
+    assert payload["executed_counterfactual_evidence"] is True
+    assert payload["hypothesis_disposition"] == "HYPOTHESIS_ONLY"
+    assert payload["hypothesis_has_replay_evidence"] is False
+    assert payload["action_count_delta"] == -1
+    assert payload["cost_delta"] == pytest.approx(-1.0)
+    assert payload["generalized_causal_claim_authorized"] is False
+    assert payload["promotion_authorized"] is False
     assert payload["real_training_run_executed"] is False

@@ -49,22 +49,28 @@ CLOSED
 Phase 19C — Learning Integrity:
 CLOSED
 
-Next:
-Phase 19D — Counterfactual Analysis
+Phase 19D — Counterfactual Analysis:
+IMPLEMENTED_UNVERIFIED
+
+Next after Phase 19D validation/merge:
+Phase 19E — Small Controlled SFT
 
 Then:
-Phase 19E — Small Controlled SFT
 Phase 19F — Improvement Gate
 
 ## Next Engineering Step
 
-After this documentation checkpoint is merged:
+Current working phase: Phase 19D — Counterfactual Analysis.
 
-1. sync clean main;
-2. create `phase-19d-counterfactual-analysis`;
-3. verify the branch starts at the documentation/main merge;
-4. prepare Phase 19D from that baseline;
-5. keep counterfactual evidence limited to controlled replay/sandbox observations.
+Before merge:
+1. run the Phase 19D targeted verifier/tests;
+2. run the full Windows `scripts/check.bat`;
+3. keep exact Phase 19D scope;
+4. commit/push only after the full local gate passes;
+5. merge only after GitHub Actions is green;
+6. sync main and verify the implementation commit is contained in `origin/main`.
+
+After Phase 19D is merged, Phase 19E — Small Controlled SFT is next.
 
 Do not claim an unexecuted alternative would have succeeded.
 
