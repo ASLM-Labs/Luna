@@ -113,7 +113,9 @@ def _canonical_metadata_bytes(path: Path) -> bytes:
 
 def _metadata_integrity() -> bool:
     manifest = json.loads((ROOT / "MANIFEST.json").read_text(encoding="utf-8"))
-    if manifest.get("phase") != "13":
+    phase = str(manifest.get("phase", ""))
+    match = re.fullmatch(r"(\d+)(?:[A-Z])?", phase)
+    if match is None or int(match.group(1)) < 13:
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False

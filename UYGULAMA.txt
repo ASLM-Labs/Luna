@@ -1,34 +1,33 @@
-LUNA 0.1 - FAZ 13 UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 14 RESEARCH GATEWAY / EVIDENCE RAG UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-13-real-model-compatibility-rollout
-Baseline: merged Faz 12G
+Hedef branch: phase-14-research-gateway-evidence-rag
+Baseline: merged Faz 13
 
-Bu faz gerçek model adapter davranisini scripted backend'den ayirir ve
-compatibility + controlled rollout kapilarini runtime authority sinirinda uygular.
+Bu faz güncel dis bilgiyi runtime-owned, read-only ve citation-bound research evidence
+olarak Luna'ya alir. Kaynak metni DATA_ONLY kalir; runtime policy veya tool authority
+olamaz.
 
 Ana davranislar:
-- required compatibility: text response + single tool call + exact JSON arguments
-- usage accounting optional capability olarak raporlanir
-- compatibility report deterministic SHA-256 fingerprint uretir
-- live probe yalniz loopback OpenAI-compatible endpoint kullanir
-- live probe rollout authority vermez
-- backend timeout/rate-limit/unavailable/malformed/rollout failure structured'dir
-- retryable model failure blind retry yerine RESOURCE_SUSPENDED uretir
-- BLOCKED ve SHADOW authoritative model output calistiramaz
-- CANARY task_id + backend_id deterministic bucket kullanir
-- ACTIVE compatibility fingerprint + health tripwire ister
-- false-success / authority-violation tripwire rollout'u bloklar
-- silent provider fallback yoktur
+- network default CLOSED
+- runtime network authority + explicit ResearchPolicy birlikte zorunlu
+- deny-first domain allow/deny ve Level 4 FREE_RESEARCH domain kontrati
+- GET-only research; external action yok
+- request / elapsed-time / source-size / admitted-token budget
+- requested/final URL, publisher, source family, retrieval timestamp ve SHA-256 provenance
+- prompt-injection sinyali DATA_ONLY; runtime control yetkisi yok
+- current claim citation olmadan publishable degil
+- citation exact source excerpt + source digest ile bagli
+- ayni source family bagimsiz corroboration gibi sayilmaz
+- DOCUMENT research evidence default Phase 12F gate altinda MODERATE/non-terminal
+- research sonucu verified memory'ye otomatik commit olamaz; review gerekir
+- backend failure blind retry yapmaz
 
-Gorunur Phase 13 smoke:
-.venv\Scripts\python.exe -m luna phase13-smoke
-
-Opsiyonel local real-model probe:
-.venv\Scripts\python.exe -m luna phase13-live-probe --model MODEL_ADI
+Gorunur Phase 14 smoke:
+.venv\Scripts\python.exe -m luna phase14-smoke
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase13.py
+.venv\Scripts\python.exe scripts\verify_phase14.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -38,9 +37,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-12G deterministic gates PASS
-- Faz 13 compatibility / rollout verifier PASS
+- Faz 1-13 deterministic gates PASS
+- Faz 14 research gateway / evidence RAG verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 13 real-model compatibility and controlled rollout gate passed.
+- son satir: [PASS] Luna 0.1 Phase 14 research gateway and evidence RAG gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

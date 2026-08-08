@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 13" in output
+    assert "phase: 14" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -73,6 +73,16 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "canary_allocation: deterministic_task_bucket" in output
     assert "rollout_tripwires: false_success_authority_backend_invalid_turn" in output
     assert "live_probe: loopback_only_no_rollout_authority" in output
+    assert "research_gateway: runtime_owned_read_only" in output
+    assert "research_network: explicit_runtime_and_policy_authority" in output
+    assert "research_domains: allow_deny_fail_closed" in output
+    assert "research_budget: request_elapsed_token_bound" in output
+    assert "research_provenance: publisher_url_retrieval_sha256" in output
+    assert "research_citations: current_claims_source_bound" in output
+    assert "research_injection: data_only_no_runtime_control" in output
+    assert "research_external_actions: forbidden" in output
+    assert "research_memory: review_required_no_auto_commit" in output
+    assert "research_document_evidence: moderate_non_terminal" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -178,7 +188,6 @@ def test_audit_inspect_prints_only_selected_task(
     assert payload[0]["trace_id"] == str(trace_id)
 
 
-
 def test_verify_smoke_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -190,7 +199,6 @@ def test_verify_smoke_command(
     assert payload["audit_integrity"] is True
     assert "VERIFICATION_REPORT" in payload["event_kinds"]
     assert "COMPLETION_DECISION" in payload["event_kinds"]
-
 
 
 def test_checkpoint_smoke_command(
@@ -348,6 +356,7 @@ def test_phase12e_smoke_command(
     assert payload["side_effect_replay"] == "write_ahead_fenced"
     assert payload["completion_handoff"] == "VERIFICATION_PENDING"
 
+
 def test_phase12f_smoke_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -364,6 +373,7 @@ def test_phase12f_smoke_command(
     assert payload["evidence_store_integrity"] is True
     assert payload["learning_review_required"] is True
     assert payload["learning_auto_commit"] is False
+
 
 def test_phase12g_smoke_command(
     capsys: pytest.CaptureFixture[str],
@@ -400,3 +410,23 @@ def test_phase13_smoke_command(
     assert payload["active_authorized"] is True
     assert payload["tripwire_authorized"] is False
     assert payload["live_probe_authority"] == "none"
+
+
+def test_phase14_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase14-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["network_requests"] == 1
+    assert payload["admitted_sources"] == 1
+    assert payload["publishable_claims"] == 1
+    assert payload["citation_count"] == 1
+    assert payload["blocked_domain_before_dispatch"] is True
+    assert payload["injection_detected"] is True
+    assert payload["source_interpretation"] == "DATA_ONLY"
+    assert payload["runtime_control_allowed"] is False
+    assert payload["external_actions_allowed"] is False
+    assert payload["automatic_memory_commit_allowed"] is False
+    assert payload["memory_review_required"] is True
