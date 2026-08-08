@@ -2,6 +2,24 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [0.1.0-phase17] - 2026-08-08
+
+### Added
+
+- Transport-neutral Discord gateway contracts and bootstrap over the existing durable queue and audit ledger.
+- Runtime-owned guild/channel bindings plus owner/trusted/community/guest role resolution from verified Discord metadata.
+- Role-bound fixed-window ingress rate limiting and local bot/webhook/mass-mention moderation guard.
+- Model-unavailable durable queue acknowledgements, deterministic Discord delivery idempotency, and ingress-bound reply routes.
+- Phase 17 deterministic verifier, CLI smoke, regression tests, and quality-gate integration.
+
+### Security
+
+- Discord message text, familiarity, or self-asserted identity cannot raise actor role or autonomy.
+- Discord-originated tasks remain Level 1 read-only with project write, terminal/process, and network authority disabled.
+- Unknown guild/channel input fails closed and updates-channel ingress is restricted to owner/trusted roles.
+- Append-only audit records message content digests rather than raw community message text.
+- Gateway performs no external Discord moderation action and no direct network send.
+
 ## [0.1.0-phase16] - 2026-08-08
 
 ### Added
