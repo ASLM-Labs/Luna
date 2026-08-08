@@ -62,6 +62,18 @@ from luna.contracts.evidence import Evidence
 from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract, TaskScope
+from luna.counterfactual import (
+    CounterfactualAlternativeKind,
+    CounterfactualCandidate,
+    CounterfactualDisposition,
+    CounterfactualEvidence,
+    CounterfactualEvidenceOrigin,
+    CounterfactualExperiment,
+    ReplayEnvironment,
+    ReplayObservation,
+    assess_counterfactual,
+    build_default_counterfactual_policy,
+)
 from luna.desktop import (
     THEME_TOKENS,
     DesktopAccessMode,
@@ -331,6 +343,13 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Verify Phase 19C shortcut, gaming, overfitting, proxy, confirmation, "
             "and self-confirmation integrity boundaries."
+        ),
+    )
+    subparsers.add_parser(
+        "phase19d-smoke",
+        help=(
+            "Verify Phase 19D controlled replay, evidence independence, "
+            "counterfactual comparison, and non-authority boundaries."
         ),
     )
     desktop_parser = subparsers.add_parser(
@@ -2533,6 +2552,119 @@ def _run_phase19c_smoke() -> int:
     ) else 2
 
 
+
+def _run_phase19d_smoke() -> int:
+    policy = build_default_counterfactual_policy()
+    baseline_evidence = CounterfactualEvidence(
+        evidence_id="baseline-replay",
+        origin=CounterfactualEvidenceOrigin.SANDBOX_HARNESS,
+        independent_from_candidate=True,
+        source_ref="sandbox:baseline-replay",
+    )
+    alternative_evidence = CounterfactualEvidence(
+        evidence_id="alternative-replay",
+        origin=CounterfactualEvidenceOrigin.SANDBOX_HARNESS,
+        independent_from_candidate=True,
+        source_ref="sandbox:alternative-replay",
+    )
+    candidate = CounterfactualCandidate(
+        candidate_id="phase19d-alt",
+        source_case_id="case-001",
+        source_revision="rev-001",
+        alternative_kind=CounterfactualAlternativeKind.MINIMAL_PATH,
+        baseline_decision_ref="decision:baseline",
+        alternative_summary="Use a shorter verified path in the same sandbox fixture.",
+        changed_basis=("sandbox observation", "minimal action path"),
+        hypothesis_refs=("trace:phase19d-decision",),
+    )
+    baseline = ReplayObservation(
+        observation_id="baseline",
+        case_id="case-001",
+        source_revision="rev-001",
+        decision_ref="decision:baseline",
+        environment=ReplayEnvironment.SANDBOX,
+        scorecard=CognitiveScorecard(
+            case_id="case-001",
+            scores={dimension: 0.6 for dimension in CognitiveDimension},
+            evidence_refs=("score:baseline",),
+        ),
+        task_success=True,
+        verification_success=True,
+        action_count=4,
+        unnecessary_action_count=1,
+        cost_units=4.0,
+        critical_safety_regressions=0,
+        evidence_ids=(baseline_evidence.evidence_id,),
+    )
+    alternative = ReplayObservation(
+        observation_id="alternative",
+        case_id="case-001",
+        source_revision="rev-001",
+        decision_ref="decision:alternative",
+        environment=ReplayEnvironment.SANDBOX,
+        scorecard=CognitiveScorecard(
+            case_id="case-001",
+            scores={dimension: 0.7 for dimension in CognitiveDimension},
+            evidence_refs=("score:alternative",),
+        ),
+        task_success=True,
+        verification_success=True,
+        action_count=3,
+        unnecessary_action_count=0,
+        cost_units=3.0,
+        critical_safety_regressions=0,
+        evidence_ids=(alternative_evidence.evidence_id,),
+    )
+    executed = assess_counterfactual(
+        policy=policy,
+        experiment=CounterfactualExperiment(
+            experiment_id="phase19d-executed",
+            candidate=candidate,
+            baseline=baseline,
+            alternative=alternative,
+            evidence_catalog=(baseline_evidence, alternative_evidence),
+        ),
+    )
+    hypothesis = assess_counterfactual(
+        policy=policy,
+        experiment=CounterfactualExperiment(
+            experiment_id="phase19d-hypothesis",
+            candidate=candidate,
+            baseline=baseline,
+            alternative=None,
+            evidence_catalog=(baseline_evidence,),
+        ),
+    )
+    payload = {
+        "policy_locked": policy.locked_sha256 == policy.computed_sha256(),
+        "executed_disposition": executed.disposition.value,
+        "executed_counterfactual_evidence": executed.executed_counterfactual_evidence,
+        "hypothesis_disposition": hypothesis.disposition.value,
+        "hypothesis_has_replay_evidence": hypothesis.executed_counterfactual_evidence,
+        "action_count_delta": executed.action_count_delta,
+        "cost_delta": executed.cost_delta,
+        "generalized_causal_claim_authorized": executed.generalized_causal_claim_authorized,
+        "promotion_authorized": executed.promotion_authorized,
+        "real_training_run_executed": False,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
+    return 0 if all(
+        (
+            payload["policy_locked"] is True,
+            payload["executed_disposition"]
+            == CounterfactualDisposition.EVIDENCE_SUPPORTED.value,
+            payload["executed_counterfactual_evidence"] is True,
+            payload["hypothesis_disposition"]
+            == CounterfactualDisposition.HYPOTHESIS_ONLY.value,
+            payload["hypothesis_has_replay_evidence"] is False,
+            payload["action_count_delta"] == -1,
+            payload["cost_delta"] == -1.0,
+            payload["generalized_causal_claim_authorized"] is False,
+            payload["promotion_authorized"] is False,
+            payload["real_training_run_executed"] is False,
+        )
+    ) else 2
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -2560,7 +2692,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "status":
         print("phase: 19")
-        print("status: LEARNING_INTEGRITY_IMPLEMENTED_UNVERIFIED")
+        print("status: COUNTERFACTUAL_ANALYSIS_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -2717,6 +2849,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19c_overfitting: train_heldout_ood_gap_checked")
         print("phase19c_promotion_authority: none")
         print("phase19c_real_training_run: not_executed_by_integrity_foundation")
+        print("phase19d_counterfactual: controlled_replay_or_sandbox_only")
+        print("phase19d_unexecuted_alternative: hypothesis_only")
+        print("phase19d_comparability: same_case_revision_environment")
+        print("phase19d_evidence: independent_observation_required")
+        print("phase19d_safety: critical_regression_zero_tolerance")
+        print("phase19d_generalized_causal_authority: none")
+        print("phase19d_promotion_authority: none")
+        print("phase19d_real_training_run: not_executed_by_counterfactual_foundation")
         return 0
 
     if args.command == "resolve-intent":
@@ -2786,6 +2926,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase19c-smoke":
         return _run_phase19c_smoke()
+
+    if args.command == "phase19d-smoke":
+        return _run_phase19d_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

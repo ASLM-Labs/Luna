@@ -476,3 +476,15 @@ Tüm önemli değişiklikler bu dosyada belgelenir.
 - Append-only SHA-256 zincirli audit ledger.
 - Redacted content-addressed output store.
 - Observation ve Evidence audit bağlantısı.
+
+## Phase 19D — Counterfactual Analysis
+
+- Added a frozen experimental counterfactual-analysis policy.
+- Added controlled replay/sandbox observation contracts for plan, tool, evidence, recovery, and minimal-path alternatives.
+- Unexecuted alternatives remain hypotheses and cannot produce replay-derived improvement claims.
+- Added same-case, same-revision, same-environment comparison guards.
+- Added independent evidence requirements; candidate output cannot prove its own alternative.
+- Added cognitive, verified-success, action-count, unnecessary-action, cost, and critical-safety comparisons.
+- Critical safety regressions remain zero tolerance.
+- Counterfactual results have no release-promotion or generalized-causal authority.
+- Real training and generalized post-training improvement are not claimed.

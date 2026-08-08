@@ -532,3 +532,12 @@ Faz 12F evidence smoke ayrıca kullanılabilir:
 - GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.
 - Ses, Discord, masaüstü ve diğer ürün gateway'leri ayrı faz ister.
 - Sabit eval çekirdeği deterministik backend ve yerel dosya fixture'ları kullanır.
+
+## Phase 19D — Controlled Counterfactual Analysis
+
+Phase 19D adds an experimental, non-authoritative counterfactual lab. A proposed alternative plan,
+tool selection, evidence path, recovery path, or minimal path is only a hypothesis until it is actually
+executed in a controlled replay or sandbox. Like-for-like comparisons require the same case, source
+revision, and replay environment. Candidate output cannot serve as independent proof of its own
+alternative, and counterfactual analysis cannot authorize release promotion or generalized causal
+claims.
