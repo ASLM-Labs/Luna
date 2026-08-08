@@ -15,7 +15,7 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "phase: 16" in output
+    assert "phase: 17" in output
     assert "tool_dispatcher: deny_by_default" in output
     assert "workspace_writes: snapshot_first_atomic" in output
     assert "shell_parsing: disabled" in output
@@ -95,6 +95,13 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "desktop_direct_tool_or_model_call: forbidden" in output
     assert "desktop_completion_label: runtime_outcome_verification_bound" in output
     assert "desktop_notifications: local_outbox_only" in output
+    assert "discord_gateway: verified_transport_runtime_bound" in output
+    assert "discord_role_source: configured_gateway_mapping_only" in output
+    assert "discord_autonomy_escalation: blocked" in output
+    assert "discord_project_write: disabled" in output
+    assert "discord_process_terminal: disabled" in output
+    assert "discord_model_unavailable: durable_queue" in output
+    assert "discord_audit: append_only_content_digest_no_raw_message" in output
 
 
 def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -477,3 +484,24 @@ def test_phase16_smoke_command(
     assert payload["autonomy_level"] == "LEVEL_1_READ_ONLY"
     assert payload["theme_canvas"] == "#FFFFFF"
     assert payload["shell_message"] == "Luna ile ne geliştirelim?"
+
+
+def test_phase17_smoke_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["phase17-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["disposition"] == "QUEUED_FOR_MODEL"
+    assert payload["actor_role"] == "COMMUNITY"
+    assert payload["channel_purpose"] == "CHAT"
+    assert payload["request_source"] == "DISCORD"
+    assert payload["queue_status"] == "QUEUED"
+    assert payload["write_allowed"] is False
+    assert payload["process_allowed"] is False
+    assert payload["network_allowed"] is False
+    assert payload["autonomy_level"] == "LEVEL_1_READ_ONLY"
+    assert payload["model_slots"] == 1
+    assert payload["network_slots"] == 0
+    assert payload["reply_channel"] == "200"

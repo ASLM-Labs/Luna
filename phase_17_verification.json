@@ -1,0 +1,20 @@
+{
+  "phase": "17",
+  "checks": {
+    "required_files_present": true,
+    "verified_channel_role_source": true,
+    "owner_trusted_community_guest_policy": true,
+    "discord_cannot_raise_autonomy": true,
+    "project_write_terminal_network_default_off": true,
+    "model_unavailable_remains_durable_queue": true,
+    "duplicate_delivery_is_idempotent": true,
+    "moderation_boundary_is_ingress_only": true,
+    "role_bound_rate_limit": true,
+    "append_only_audit_uses_content_digest": true,
+    "reply_route_is_ingress_bound": true,
+    "phase16_foundation_remains_green": true,
+    "metadata_hashes_current": true
+  },
+  "missing_files": [],
+  "status": "PASS"
+}

@@ -193,3 +193,16 @@ def test_phase_sixteen_desktop_product_shell_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-016_DESKTOP_PRODUCT_SHELL.md"
     ).is_file()
+
+
+def test_phase_seventeen_discord_gateway_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "discord" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "discord" / "policy.py").is_file()
+    assert (project_root / "src" / "luna" / "discord" / "rate_limit.py").is_file()
+    assert (project_root / "src" / "luna" / "discord" / "moderation.py").is_file()
+    assert (project_root / "src" / "luna" / "discord" / "gateway.py").is_file()
+    assert (project_root / "scripts" / "verify_phase17.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-017_DISCORD_GATEWAY.md"
+    ).is_file()

@@ -1,4 +1,4 @@
-"""Command-line entry point for the Luna Phase 15 durable operations runtime."""
+"""Command-line entry point for the Luna Phase 17 Discord gateway runtime."""
 
 from __future__ import annotations
 
@@ -58,6 +58,14 @@ from luna.desktop import (
     DesktopComposerDraft,
     build_local_desktop_controller,
     launch_desktop_shell,
+)
+from luna.discord import (
+    DiscordAuthorityConfig,
+    DiscordChannelBinding,
+    DiscordChannelPurpose,
+    DiscordIngressDisposition,
+    DiscordTransportEnvelope,
+    build_local_discord_gateway,
 )
 from luna.identity import IdentityProfile
 from luna.intent import DeterministicIntentResolver
@@ -236,6 +244,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "phase16-smoke",
         help="Verify Phase 16 desktop shell presentation and runtime-bound command gateway.",
+    )
+    subparsers.add_parser(
+        "phase17-smoke",
+        help="Verify Phase 17 verified Discord ingress, queue, role, and audit boundaries.",
     )
     desktop_parser = subparsers.add_parser(
         "desktop",
@@ -1773,6 +1785,80 @@ def _run_phase16_smoke() -> int:
         ) else 2
 
 
+def _run_phase17_smoke() -> int:
+    with TemporaryDirectory(prefix="luna-phase17-smoke-") as temp:
+        root = Path(temp)
+        database = root / "operations.sqlite3"
+        config = DiscordAuthorityConfig(
+            guild_id="100",
+            workspace_root=str(root),
+            channels=(
+                DiscordChannelBinding(
+                    channel_id="200",
+                    purpose=DiscordChannelPurpose.CHAT,
+                ),
+            ),
+            community_role_ids=("500",),
+        )
+        gateway = build_local_discord_gateway(
+            config=config,
+            database_path=database,
+            audit_root=root / "audit",
+        )
+        result = gateway.ingest(
+            DiscordTransportEnvelope(
+                guild_id="100",
+                channel_id="200",
+                message_id="600",
+                author_id="700",
+                author_role_ids=("500",),
+                content="Phase 17 Discord smoke mesajini kuyruga al.",
+                transport_verified=True,
+                verified_at=datetime(2026, 8, 8, 3, 30, tzinfo=UTC),
+                received_at=datetime(2026, 8, 8, 3, 30, tzinfo=UTC),
+            ),
+            main_model_available=False,
+        )
+        if result.queue_item_id is None:
+            print(json.dumps(result.model_dump(mode="json"), ensure_ascii=True, indent=2))
+            return 2
+        item = SQLiteOperationsStore(database).load_queue_item(result.queue_item_id)
+        request = item.payload.envelope.request
+        payload = {
+            "disposition": result.disposition.value,
+            "actor_role": result.actor_role.value if result.actor_role else None,
+            "channel_purpose": (
+                result.channel_purpose.value if result.channel_purpose else None
+            ),
+            "request_source": request.source.value,
+            "queue_status": item.status.value,
+            "write_allowed": request.scope.write_allowed,
+            "process_allowed": request.scope.process_allowed,
+            "network_allowed": request.scope.network_allowed,
+            "autonomy_level": request.autonomy.level.value,
+            "model_slots": item.payload.resources.model_slots,
+            "network_slots": item.payload.resources.network_slots,
+            "reply_channel": result.reply_route.channel_id,
+        }
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0 if all(
+            (
+                payload["disposition"] == DiscordIngressDisposition.QUEUED_FOR_MODEL.value,
+                payload["actor_role"] == "COMMUNITY",
+                payload["channel_purpose"] == "CHAT",
+                payload["request_source"] == "DISCORD",
+                payload["queue_status"] == "QUEUED",
+                payload["write_allowed"] is False,
+                payload["process_allowed"] is False,
+                payload["network_allowed"] is False,
+                payload["autonomy_level"] == "LEVEL_1_READ_ONLY",
+                payload["model_slots"] == 1,
+                payload["network_slots"] == 0,
+                payload["reply_channel"] == "200",
+            )
+        ) else 2
+
+
 def _run_phase13_live_probe(
     *,
     endpoint: str,
@@ -1799,8 +1885,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "status":
-        print("phase: 16")
-        print("status: DESKTOP_PRODUCT_SHELL_IMPLEMENTED_UNVERIFIED")
+        print("phase: 17")
+        print("status: DISCORD_GATEWAY_IMPLEMENTED_UNVERIFIED")
         print("tool_dispatcher: deny_by_default")
         print("registered_tools: 7")
         print("workspace_writes: snapshot_first_atomic")
@@ -1908,6 +1994,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("desktop_details: task_evidence_verification_resource_visible")
         print("desktop_notifications: local_outbox_only")
         print("desktop_renderer: tkinter_lazy_loaded")
+        print("discord_gateway: verified_transport_runtime_bound")
+        print("discord_role_source: configured_gateway_mapping_only")
+        print("discord_channels: configured_allowlist_only")
+        print("discord_autonomy_escalation: blocked")
+        print("discord_project_write: disabled")
+        print("discord_process_terminal: disabled")
+        print("discord_network_authority: disabled")
+        print("discord_model_unavailable: durable_queue")
+        print("discord_rate_limit: role_bound_fixed_window")
+        print("discord_moderation: ingress_only_no_external_action")
+        print("discord_audit: append_only_content_digest_no_raw_message")
         return 0
 
     if args.command == "resolve-intent":
@@ -1962,6 +2059,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phase16-smoke":
         return _run_phase16_smoke()
+
+    if args.command == "phase17-smoke":
+        return _run_phase17_smoke()
 
     if args.command == "desktop":
         controller = build_local_desktop_controller(

@@ -5,7 +5,7 @@
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.
 
-Repository şu anda **Faz 16 — Desktop Product Shell** durumundadır.
+Repository şu anda **Faz 17 — Discord Gateway** durumundadır.
 
 ## Çalışan zincir
 
@@ -69,12 +69,43 @@ intent → explicit context candidates → contract → plan → expected observ
 → LunaRuntime outcome-bound local notification outbox
 → local light-first desktop product shell
 → runtime-bound desktop command gateway + evidence-aware task cards
+→ verified Discord transport + configured channel/role mapping
+→ read-only Discord RuntimeRequest → durable queue + append-only audit
 ```
 
 Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
 Component testlerinin yeşil olması tek başına yeterli değildir; completion truth,
 evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
 isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
+
+
+## Faz 17 Discord Gateway sınırları
+
+Faz 17, Discord mesajlarını mevcut runtime identity, autonomy, durable queue ve audit sınırlarına
+bağlar. Discord mesajı veya samimi üslup yeni yetki kaynağı değildir.
+
+- guild/channel purpose yalnız runtime-owned configured allowlist'ten çözülür;
+- owner user ID ve trusted/community role ID eşleşmeleri yalnız verified transport metadata'sından gelir;
+- eşleşmeyen doğrulanmış üye `GUEST` olur; mesaj metni rolü değiştiremez;
+- accepted Discord işleri `RequestSource.DISCORD` + `LEVEL_1_READ_ONLY` ile durable queue'ya gider;
+- project write, process/terminal ve network authority Phase 17 Discord ingress'te kapalıdır;
+- ana model kullanılamıyorsa accepted message `QUEUED_FOR_MODEL` olarak durable queue'da bekler;
+- duplicate Discord delivery deterministic idempotency ile ikinci task üretmez;
+- role-bound fixed-window rate limit ve bot/webhook/mass-mention ingress moderation uygulanır;
+- audit raw mesajı saklamaz; content SHA-256 + routing/decision metadata'sı yazar;
+- reply route ingress channel + source message'e kilitlidir; gateway doğrudan network send yapmaz.
+
+Görünür Phase 17 smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna phase17-smoke
+```
+
+Deterministic verifier:
+
+```bat
+.venv\Scripts\python.exe scripts\verify_phase17.py
+```
 
 
 

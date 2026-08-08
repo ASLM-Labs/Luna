@@ -1,3 +1,67 @@
+# Faz 17 Mimari Sınırı
+
+Faz 17, Phase 16 ürün yüzünün yanına external Discord ingress boundary ekler. Gateway yalnız
+doğrulanmış transport metadata'sını runtime kontratlarına çevirir; Discord mesajı yetki değildir.
+
+```text
+verified Discord transport event
+→ configured guild/channel allowlist
+→ configured user/role mapping
+→ RuntimeActor(GATEWAY_ROLE)
+→ fixed moderation + rate-limit boundary
+→ RuntimeRequest(source=DISCORD, Level 1 read-only)
+→ WorkEnvelope
+→ durable queue
+→ append-only audit decision
+→ ingress-bound reply route
+```
+
+## Var
+
+- transport-neutral Discord contracts;
+- configured channel purposes `UPDATES / CHAT / AION_QA / MAINTENANCE / FEEDBACK`;
+- owner/trusted/community/guest role resolution;
+- verified `GATEWAY_ROLE` runtime actor;
+- role-bound rate limiter;
+- ingress-only bot/webhook/mass-mention moderation;
+- model unavailable durable queue acknowledgement;
+- deterministic duplicate-delivery idempotency;
+- append-only content-digest audit;
+- ingress-channel-bound reply route;
+- deterministic verifier, tests and CLI smoke.
+
+## Zorlanan kurallar
+
+- message text/familiarity cannot become role authority;
+- Discord cannot raise autonomy;
+- Discord project write is disabled;
+- Discord process/terminal is disabled;
+- Discord network authority is disabled;
+- unknown guild/channel fails closed;
+- community/guest cannot publish through UPDATES ingress;
+- gateway does not call a model/tool directly;
+- gateway does not send, delete, ban or perform another external Discord action;
+- audit does not persist raw community message content.
+
+## Yok
+
+- Discord token/secret manager;
+- live `discord.py` client or network transport;
+- automatic external moderation;
+- Discord-driven project write/terminal;
+- Discord-driven network/autonomy escalation;
+- private owner memory exposure to community.
+
+## Sonraki kapılar
+
+```text
+18 voice gateway
+→ 19 trace/dataset governance
+→ 20 final conformance / RC
+```
+
+---
+
 # Faz 16 Mimari Sınırı
 
 Faz 16, Phase 15 durable operations çekirdeğinin üzerine local desktop product shell ekler.

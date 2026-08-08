@@ -1,33 +1,34 @@
-LUNA 0.1 - FAZ 16 DESKTOP PRODUCT SHELL UYGULAMA / KALITE KAPISI
+LUNA 0.1 - FAZ 17 DISCORD GATEWAY UYGULAMA / KALITE KAPISI
 
 Durum: IMPLEMENTED_UNVERIFIED
-Hedef branch: phase-16-desktop-product-shell
-Baseline: merged Faz 15
+Hedef branch: phase-17-discord-gateway
+Baseline: merged Faz 16
 
-Bu faz Luna runtime ve durable operations katmanlarinin ustune yerel desktop product shell ekler.
-UI presentation/command-routing katmanidir; runtime, tool, model, completion veya network authority
-uretmez.
+Bu faz Discord ingress'i mevcut runtime identity/autonomy, durable queue ve append-only audit
+sinirlarina baglar. Discord mesaji authority, completion veya external-action kaynagi degildir.
 
 Ana davranislar:
-- light-first white / graphite / soft-surface / Luna-blue theme
-- conversation-first workspace + sidebar + bottom composer + optional details drawer
-- desktop composer default READ_ONLY
-- CONTROLLED_WRITE yalniz explicit local-user approval + bounded path/file/line budget ile
-- RequestSource.DESKTOP -> RuntimeRequest -> WorkEnvelope -> durable queue
-- desktop direct tool/model dispatch yok
-- queue/schedule/resource/notification read-model presentation
-- VERIFIED_COMPLETE label yalniz authoritative RuntimeOutcome + verification/final report ile
-- local notification outbox gorunur; external delivery yok
-- Tk renderer lazy-loaded; headless quality gate GUI acmaz
+- verified Discord transport metadata zorunlu
+- configured guild/channel allowlist
+- owner user ID + trusted/community role ID mapping; fallback GUEST
+- Discord text veya samimiyet ile rol/autonomy escalation yok
+- RequestSource.DISCORD -> LEVEL_1_READ_ONLY -> WorkEnvelope -> durable queue
+- project write kapali
+- process/terminal kapali
+- network authority kapali
+- model unavailable ise QUEUED_FOR_MODEL durable queue
+- deterministic duplicate-delivery idempotency
+- role-bound fixed-window rate limit
+- bot/webhook/mass-mention ingress moderation
+- append-only audit; raw message yerine content SHA-256
+- reply route ingress channel/message'e kilitli
+- gateway external Discord send/ban/delete yapmaz
 
-Gorunur Phase 16 smoke:
-.venv\Scripts\python.exe -m luna phase16-smoke
-
-Desktop shell:
-.venv\Scripts\python.exe -m luna desktop --workspace .
+Gorunur Phase 17 smoke:
+.venv\Scripts\python.exe -m luna phase17-smoke
 
 Deterministic verifier:
-.venv\Scripts\python.exe scripts\verify_phase16.py
+.venv\Scripts\python.exe scripts\verify_phase17.py
 
 Tam kalite kapisi:
 scripts\check_hold.bat
@@ -37,9 +38,9 @@ Beklenen:
 - full pytest PASS
 - Ruff PASS
 - mypy strict PASS
-- Faz 1-15 deterministic gates PASS
-- Faz 16 desktop product shell verifier PASS
+- Faz 1-16 deterministic gates PASS
+- Faz 17 Discord gateway verifier PASS
 - metadata integrity PASS
-- son satir: [PASS] Luna 0.1 Phase 16 desktop product shell gate passed.
+- son satir: [PASS] Luna 0.1 Phase 17 Discord gateway gate passed.
 
 Tam kapi yesil olmadan commit veya push yapmayin.

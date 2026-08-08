@@ -1,0 +1,40 @@
+{
+  "phase": "17",
+  "baseline": "merged Phase 16",
+  "target_branch": "phase-17-discord-gateway",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 24,
+  "scope_files": [
+    ".github/workflows/quality.yml",
+    "CHANGELOG.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "UYGULAMA.txt",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/PHASE_17_REPORT.md",
+    "docs/PHASE_17_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-017_DISCORD_GATEWAY.md",
+    "phase_17_verification.json",
+    "scripts/check.bat",
+    "scripts/verify_phase17.py",
+    "src/luna/cli.py",
+    "src/luna/discord/__init__.py",
+    "src/luna/discord/bootstrap.py",
+    "src/luna/discord/gateway.py",
+    "src/luna/discord/models.py",
+    "src/luna/discord/moderation.py",
+    "src/luna/discord/policy.py",
+    "src/luna/discord/rate_limit.py",
+    "tests/test_cli.py",
+    "tests/test_phase17_discord_gateway.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "Discord authority comes only from verified transport metadata and runtime-owned mappings.",
+    "Discord-originated tasks remain Level 1 read-only with write/process/network disabled.",
+    "Model-unavailable ingress remains in the durable queue and duplicate delivery is idempotent.",
+    "Rate limiting and moderation are ingress-only and perform no external Discord action.",
+    "Audit records content digests instead of raw community message text."
+  ]
+}
