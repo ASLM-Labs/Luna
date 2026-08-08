@@ -367,3 +367,55 @@ Phase 19F architecture now requires:
 
 Current repository evidence does not prove a real external training run or a real candidate evaluation.
 The correct current smoke behavior is therefore `INSUFFICIENT_EVIDENCE`.
+
+<!-- HANDOFF_C012_SELF_OPTIMIZATION_BEGIN -->
+
+## C-012 - Self-Optimization Sandbox Design Checkpoint
+
+A post-Phase-19 queued capability was added after Phase 19F closed:
+
+**C-012 - Self-Optimization Sandbox**
+
+Canonical principle:
+
+> Optimize freely in the sandbox; promote only with evidence.
+
+Intent:
+
+- Luna may discover bottlenecks and produce candidate optimizations for code,
+  configuration, orchestration, serving, retrieval, caching, scheduling, or
+  governed training recipes.
+- Candidate changes run only in sandbox / controlled replay before promotion.
+- Luna's own success claim is never independent evidence.
+- Quality, correctness, safety, latency, throughput, compute, memory, and cost
+  are compared against a frozen baseline where applicable.
+- Efficiency gains cannot silently mask material quality or safety regressions.
+- Every candidate keeps provenance, changed scope, hypothesis, measured
+  evidence, reproduction information, and rollback plan.
+- Self-optimization has bounded scope, budget, iteration depth, delegation,
+  permissions, cancellation, and stop conditions.
+- Failed experiments use changed-basis replanning rather than blind retry.
+- Production promotion remains a separate authority decision and must reuse the
+  Phase 19F Improvement Gate pattern.
+- Recursive self-promotion is prohibited.
+
+Canonical boundary:
+
+> A system may propose its own improvement. It may not certify itself improved.
+
+Verified project checkpoint when this design was recorded:
+
+```text
+Phase 19F - Improvement Gate: CLOSED
+implementation: 0aa94b2
+merge:          394f04c
+PR:             #23
+GitHub Actions:  4/4 PASS
+main status:     clean
+Phase 19 umbrella: CLOSED
+```
+
+C-012 is QUEUED documentation/design only. This update does not claim that Luna
+currently performs autonomous self-optimization or production self-modification.
+
+<!-- HANDOFF_C012_SELF_OPTIMIZATION_END -->

@@ -590,3 +590,143 @@ pollution, contradiction, or latency without meaningful quality gain is a
 regression, not an improvement.
 
 <!-- C011_SINGLE_VOICE_PARALLEL_COGNITION_END -->
+
+<!-- C012_SELF_OPTIMIZATION_SANDBOX_BEGIN -->
+
+## C-012 - Self-Optimization Sandbox
+
+**Status:** QUEUED
+
+**Principle:** Optimize freely in the sandbox; promote only with evidence.
+
+Luna may investigate and propose improvements to its own supporting system, but
+self-optimization must remain separated from production authority.
+
+Candidate optimization classes may include:
+
+- code and algorithm changes;
+- tool-selection or orchestration policies;
+- configuration changes;
+- inference / serving optimizations;
+- training or fine-tuning recipe candidates;
+- retrieval, caching, batching, scheduling, or resource-use improvements.
+
+### Controlled optimization loop
+
+```text
+observe bottleneck / opportunity
+            |
+            v
+form optimization hypothesis
+            |
+            v
+produce candidate change
+            |
+            v
+SANDBOX / CONTROLLED REPLAY
+            |
+            v
+independent verification
+            |
+            v
+baseline-vs-candidate comparison
+            |
+            v
+IMPROVEMENT GATE
+      |       |       |
+   PROMOTE  REJECT  ROLLBACK
+```
+
+The optimization workspace may experiment. Production does not inherit the
+candidate merely because Luna created it or because one metric improved.
+
+### Authority boundary
+
+Luna MUST NOT:
+
+- directly rewrite or replace production state without an external promotion gate;
+- treat its own claim of success as independent evidence;
+- self-promote a candidate;
+- silently expand permissions, blast radius, or optimization scope;
+- bypass frozen held-out / OOD evaluation;
+- hide quality or safety regression behind latency, throughput, or cost gains;
+- recursively approve its own self-modification chain.
+
+Promotion remains an explicit authority boundary outside the optimization
+workspace.
+
+### Evidence contract
+
+Every optimization candidate should preserve:
+
+```text
+candidate_id
+base_revision
+changed_scope
+optimization_hypothesis
+expected_benefit
+measured_results
+independent_evidence
+quality_delta
+safety_delta
+latency / throughput delta
+compute / memory / cost delta
+known_regressions
+reproduction_steps
+rollback_plan
+provenance
+decision
+```
+
+Claims must be reproducible against a known baseline and evaluation revision.
+
+### Decision rules
+
+- Critical safety or correctness regression -> **REJECT**.
+- Evaluation contamination -> **REJECT**.
+- Missing independent evidence -> **INSUFFICIENT_EVIDENCE**.
+- Missing reproducibility or rollback evidence -> no production promotion.
+- Efficiency gain with material quality regression -> **REJECT** unless an
+  explicitly governed tradeoff policy authorizes that exact tradeoff.
+- Aggregate score alone cannot authorize promotion.
+- Successful sandbox evidence remains candidate evidence until the promotion
+  authority accepts it.
+
+### Bounded self-optimization
+
+Self-optimization must have explicit:
+
+- time / token / GPU / memory / tool budgets;
+- maximum iteration and delegation depth;
+- allowed file / subsystem scope;
+- sandbox isolation;
+- cancellation and timeout;
+- deterministic or independently repeatable verification where possible;
+- stop conditions for contradictory evidence;
+- changed-basis replanning after failed attempts;
+- audit trace linking hypothesis -> experiment -> evidence -> decision.
+
+The system should prefer the smallest independently testable optimization
+before attempting wider changes.
+
+### Relationship to Phase 19F
+
+Phase 19F Improvement Gate provides the governance pattern that C-012 must reuse:
+
+```text
+candidate
+  -> identity / provenance validation
+  -> frozen baseline comparison
+  -> held-out / OOD evaluation
+  -> critical regression checks
+  -> meaningful thresholds / confidence
+  -> independent evidence
+  -> PROMOTE / REJECT / ROLLBACK / INSUFFICIENT_EVIDENCE
+```
+
+C-012 does not weaken Phase 19F. It creates a controlled source of future
+optimization candidates that must still pass an evidence-based gate.
+
+> A system may propose its own improvement. It may not certify itself improved.
+
+<!-- C012_SELF_OPTIMIZATION_SANDBOX_END -->
