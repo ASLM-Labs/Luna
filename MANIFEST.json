@@ -31,8 +31,8 @@
       "size_bytes": 11358
     },
     "LUNA_HANDOFF.md": {
-      "sha256": "86be2a9749a44f3b4fae084f0cb218c08d3512b1710d632f292c4393f13ba9b1",
-      "size_bytes": 12709
+      "sha256": "3b37f02a52f53b66bd62c3f424f9fc13d4d4595e57568058819b4163a01ba2a9",
+      "size_bytes": 13813
     },
     "NOTICE": {
       "sha256": "646f0597c250105de5a171ab2d9f5f0271efde0c10c758042af2968718b0a3cd",
@@ -51,8 +51,8 @@
       "size_bytes": 29249
     },
     "docs/LUNA_ROADMAP.md": {
-      "sha256": "921be36f0ffa9f09e254aa1658288c7c3dd12c8df4a939e51d5b30d8e536b1c5",
-      "size_bytes": 21133
+      "sha256": "a1636c2e38ba7741bb3c0d11511ab63dc769a0d931a7ca367739a7772c006ac6",
+      "size_bytes": 21949
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -309,6 +309,10 @@
     "docs/PHASE_9_UPDATE_MANIFEST.json": {
       "sha256": "7a542a445363d6baecd94ba79ee143c143af8ccde4cd7f0020574c37b9839959",
       "size_bytes": 1005
+    },
+    "docs/ROADMAP_DEPENDENCY_REVIEW.md": {
+      "sha256": "d681bf9b7a684c895b7b875534f75a32d43f87bd36e24d883e861a70de3c7468",
+      "size_bytes": 11973
     },
     "docs/baselines/L01_L21_EVIDENCE_MAP.md": {
       "sha256": "505321e64c7200d462b248837285b6ea8f1e0eff8c0927eb5638b5408f4ce095",
