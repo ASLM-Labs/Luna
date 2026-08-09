@@ -24,6 +24,7 @@ from luna.context import (
     LayeredContextBundle,
     LayeredContextCandidate,
     LayeredContextPolicy,
+    ReadinessDecision,
 )
 from luna.continuity import ResumeStatus
 from luna.contracts import (
@@ -194,19 +195,45 @@ class LunaRuntime:
                 + "; ".join(preparation.reasons)
             )
 
-        state = TaskState(task_id=request.task_id, contract=preparation.contract)
+        state = TaskState(
+            task_id=request.task_id,
+            contract=preparation.contract,
+            decision_state=self._deps.decision_state_service.ensure(request.task_id, None),
+        )
         state = state.transition_to(TaskPhase.CONTRACTED)
 
         context = self._compose_context(request=request, state=state)
-        if not context.ready:
+        readiness, state = self._deps.context_integrity_gate.evaluate(
+            state=state,
+            bundle=context,
+            claims=request.context_claims,
+            requirements=request.context_requirements,
+        )
+        if readiness.decision is not ReadinessDecision.READY:
+            stop_reason = (
+                RuntimeStopReason.CONFLICTING_EVIDENCE
+                if readiness.conflicting_critical_keys
+                else RuntimeStopReason.CONTEXT_INCOMPLETE
+            )
             return self._checkpoint_outcome(
                 request=request,
                 state=state,
                 usage=usage,
-                stop_reason=RuntimeStopReason.CONTEXT_INCOMPLETE,
-                reasons=tuple(f"missing_context:{item}" for item in context.missing_sources),
+                stop_reason=stop_reason,
+                reasons=(
+                    *readiness.reasons,
+                    *(f"missing_context:{item}" for item in readiness.raw_missing_sources),
+                    *(
+                        f"unresolved_context:{item}"
+                        for item in readiness.unresolved_critical_keys
+                    ),
+                    *(
+                        f"conflicting_context:{item}"
+                        for item in readiness.conflicting_critical_keys
+                    ),
+                ),
                 resume_phase=TaskPhase.CONTEXT_READY,
-                next_step="recompose required context",
+                next_step="reconcile required context",
                 started_at=started_at,
             )
 
@@ -291,6 +318,41 @@ class LunaRuntime:
             )
 
         state = decision.resumed_state
+        context = self._compose_context(request=request, state=state)
+        readiness, state = self._deps.context_integrity_gate.evaluate(
+            state=state,
+            bundle=context,
+            claims=request.context_claims,
+            requirements=request.context_requirements,
+        )
+        if readiness.decision is not ReadinessDecision.READY:
+            stop_reason = (
+                RuntimeStopReason.CONFLICTING_EVIDENCE
+                if readiness.conflicting_critical_keys
+                else RuntimeStopReason.CONTEXT_INCOMPLETE
+            )
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=stop_reason,
+                reasons=(
+                    *readiness.reasons,
+                    *(f"missing_context:{item}" for item in readiness.raw_missing_sources),
+                    *(
+                        f"unresolved_context:{item}"
+                        for item in readiness.unresolved_critical_keys
+                    ),
+                    *(
+                        f"conflicting_context:{item}"
+                        for item in readiness.conflicting_critical_keys
+                    ),
+                ),
+                resume_phase=state.phase,
+                next_step="reconcile required context before resume",
+                started_at=started_at,
+            )
+
         if state.phase is TaskPhase.VERIFYING:
             return self._phase12f_or_pending(
                 request=request,
@@ -1499,7 +1561,11 @@ class LunaRuntime:
             action_key=f"{proposal.kind.value}:{tool_request.tool_name}",
             context_fingerprint=context_fingerprint,
             evidence_refs=tuple(str(value) for value in state.observation_ids[-8:]),
-            assumption_revision=state.revision,
+            assumption_revision=(
+                state.decision_state.revision
+                if state.decision_state is not None
+                else 0
+            ),
             execution_strategy=tool_request.tool_name,
             verification_strategy=verification,
             scope_fingerprint=sha256(scope_payload.encode("utf-8")).hexdigest(),

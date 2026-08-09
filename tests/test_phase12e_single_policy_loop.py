@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import cast
@@ -10,9 +11,19 @@ import pytest
 
 from luna.actions import ActionResolver, ToolSelector, build_phase12c_routes
 from luna.autonomy import AutonomyLevel, AutonomyPolicy
-from luna.context import LayeredContextComposer
+from luna.context import (
+    ContextAuthorityRole,
+    ContextClaim,
+    ContextClaimType,
+    ContextFailureAction,
+    ContextIntegrityGate,
+    ContextRequirement,
+    ContextSourceKind,
+    LayeredContextComposer,
+)
 from luna.continuity import ContinuityService, SQLiteContinuityStore
 from luna.contracts import RiskLevel, TaskContract, TaskScope
+from luna.decision_state import DecisionStateService
 from luna.memory import VerifiedMemoryService
 from luna.modeling import (
     ModelFinishReason,
@@ -107,6 +118,8 @@ def _runtime(
         RuntimeLoopDependencies(
             core=core,
             context_composer=LayeredContextComposer(),
+            context_integrity_gate=ContextIntegrityGate(),
+            decision_state_service=DecisionStateService(),
             action_resolver=ActionResolver(selector),
             failure_classifier=FailureClassifier(),
             recovery_policy=RecoveryPolicy(),
@@ -588,3 +601,59 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     cancelled = runtime.resume(request=resume_request, tool_policy=policy)
     assert cancelled.stop_reason is RuntimeStopReason.CANCELLED
     assert not isolated_root.exists()
+
+
+def test_wave1_context_integrity_blocks_conflicting_critical_context(tmp_path) -> None:
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    request = _request(tmp_path, allowed_tools=("read_text_file",))
+    observed_at = datetime(2026, 8, 9, 17, 0, tzinfo=UTC)
+    claims = (
+        ContextClaim(
+            task_id=request.task_id,
+            key="current_branch",
+            value="main",
+            claim_type=ContextClaimType.REPOSITORY_STATE,
+            source_kind=ContextSourceKind.COMMAND_OUTPUT,
+            source_ref="git://branch/main",
+            authority_role=ContextAuthorityRole.CURRENT_OBSERVATION,
+            observed_at=observed_at,
+            verified=True,
+            evidence_refs=("git:branch:main",),
+        ),
+        ContextClaim(
+            task_id=request.task_id,
+            key="current_branch",
+            value="feature/wave1",
+            claim_type=ContextClaimType.REPOSITORY_STATE,
+            source_kind=ContextSourceKind.COMMAND_OUTPUT,
+            source_ref="git://branch/feature-wave1",
+            authority_role=ContextAuthorityRole.CURRENT_OBSERVATION,
+            observed_at=observed_at,
+            verified=True,
+            evidence_refs=("git:branch:feature-wave1",),
+        ),
+    )
+    payload = request.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [item.model_dump(mode="json") for item in claims],
+            "context_requirements": [
+                ContextRequirement(
+                    key="current_branch",
+                    claim_type=ContextClaimType.REPOSITORY_STATE,
+                    failure_action=ContextFailureAction.STOP,
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    request = RuntimeRequest.model_validate(payload)
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("read_text_file",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.CONFLICTING_EVIDENCE
+    assert "conflicting_context:current_branch" in outcome.reasons
+    assert backend.requests == [] if hasattr(backend, "requests") else True

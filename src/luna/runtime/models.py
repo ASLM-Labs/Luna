@@ -9,7 +9,13 @@ from uuid import UUID, uuid4
 from pydantic import Field, field_validator, model_validator
 
 from luna.autonomy import AutonomyLevel, AutonomyPolicy
-from luna.context import ContextBudget, ContextCandidate, LayeredContextCandidate
+from luna.context import (
+    ContextBudget,
+    ContextCandidate,
+    ContextClaim,
+    ContextRequirement,
+    LayeredContextCandidate,
+)
 from luna.contracts import CompletionStatus, RiskLevel, TaskScope, TaskState
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 from luna.contracts.enums import TaskPhase
@@ -70,6 +76,8 @@ class RuntimeRequest(LunaContractModel):
     runtime_budget: RuntimeBudget = Field(default_factory=RuntimeBudget)
     context_candidates: tuple[ContextCandidate, ...] = ()
     layered_context_candidates: tuple[LayeredContextCandidate, ...] = ()
+    context_claims: tuple[ContextClaim, ...] = ()
+    context_requirements: tuple[ContextRequirement, ...] = ()
     required_conditions: tuple[str, ...] = ()
     forbidden_outcomes: tuple[str, ...] = ()
     evidence_required: tuple[str, ...] = ()
@@ -102,6 +110,11 @@ class RuntimeRequest(LunaContractModel):
     def validate_boundary(self) -> RuntimeRequest:
         if self.autonomy.task_id != self.task_id:
             raise ValueError("autonomy policy task_id must match runtime request task_id")
+        if any(claim.task_id != self.task_id for claim in self.context_claims):
+            raise ValueError("context claim task_id must match runtime request task_id")
+        requirement_keys = tuple(item.key for item in self.context_requirements)
+        if len(requirement_keys) != len(set(requirement_keys)):
+            raise ValueError("context requirement keys must be unique")
         if self.mode is RuntimeMode.RESUME:
             if self.resume_task_id is None:
                 raise ValueError("RESUME mode requires resume_task_id")
