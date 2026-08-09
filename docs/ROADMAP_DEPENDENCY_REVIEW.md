@@ -332,4 +332,4 @@ C-002
 This order is intentionally conservative. It builds the map before adding more
 routes, teaches Luna to retrieve before asking parallel workers to retrieve, and
 teaches Luna to distill and verify experience before allowing that experience
-to influence inheritance or self-optimization.
+to influence inheritance or self-optimization.\n\n<!-- C002_IDENTITY_FINDING_BEGIN -->\n\n## C-002 identity-lineage finding\n\nC-002 source inspection detected that this review's shorthand entries `C-005 Advanced Debugging\nTransfer` and `C-006 Cross-Agent Experience Mining` do not match the explicit capability queue in\n`docs/LUNA_ROADMAP.md`, where C-005 is `Experience <-> Capability Flywheel`, C-006 is `Vicarious\nExperience Inheritance`, C-007 is the debugging capability, and C-009 is Cross-Agent Experience\nMining.\n\nThis review remains historical planning evidence, but those conflicting ID/title pairs are not\nauthoritative lineage edges. A Delta Review must resolve the numbering/order before a future\nimplementation relies on those edges.\n\n<!-- C002_IDENTITY_FINDING_END -->\n

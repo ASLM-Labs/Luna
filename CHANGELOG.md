@@ -1,4 +1,4 @@
-# Changelog
+## [0.1.0-c002-lineage-foundation] - 2026-08-09\n\n### Added\n\n- Canonical C-001..C-012 capability identity registry.\n- Hard/preferred dependency metadata and deterministic graph validation.\n- Source, implementation, verifier, evidence, freshness, authority, and rollback lineage metadata.\n- Direct/transitive blast-radius query with hard-only option.\n- C-002 deterministic verifier and CLI query.\n\n### Governance\n\n- C-002 remains read-only and cannot self-verify, mutate the roadmap, promote a candidate, or execute runtime actions.\n- A C-005/C-006 identity mismatch between the explicit capability queue and dependency-review shorthand is surfaced for Delta Review rather than silently remapped.\n\n# Changelog
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 

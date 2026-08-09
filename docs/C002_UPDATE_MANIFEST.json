@@ -1,0 +1,40 @@
+{
+  "capability": "C-002",
+  "scope": "CAPABILITY_LINEAGE_FOUNDATION",
+  "baseline": "legacy roadmap reconciliation merged; source archive sha256 6e9b7251a7429c5d3a781906de1c2dacd430257dc2ccac5448b39bbb70ff7cb8",
+  "target_branch": "capability/c002-lineage-foundation",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 22,
+  "scope_files": [
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "c002_verification.json",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/C002_CAPABILITY_LINEAGE_REPORT.md",
+    "docs/C002_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/ROADMAP_DEPENDENCY_REVIEW.md",
+    "docs/rfcs/RFC-C002_CAPABILITY_LINEAGE_MAPPING.md",
+    "scripts/check.bat",
+    "scripts/verify_c002.py",
+    "src/luna/cli.py",
+    "src/luna/capabilities/__init__.py",
+    "src/luna/capabilities/catalog.py",
+    "src/luna/capabilities/models.py",
+    "src/luna/capabilities/registry.py",
+    "tests/test_c002_capability_lineage.py",
+    "tests/test_cli.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "C-002 is a read-only capability metadata, validation, and impact-analysis layer with no runtime or promotion authority.",
+    "The canonical registry preserves the explicit C-001..C-012 identities from docs/LUNA_ROADMAP.md.",
+    "A C-005/C-006 shorthand mismatch in the dependency review is surfaced as a Delta Review finding and is not silently remapped.",
+    "VERIFIED status requires later merge containment and CI evidence; this update remains IMPLEMENTED_UNVERIFIED.",
+    "Automatic roadmap mutation, automatic capability promotion, model self-certification, C-011 execution, C-012 execution, and real training are out of scope.",
+    "Ruff and strict mypy must pass on the user Windows environment before commit or push."
+  ]
+}

@@ -24,6 +24,7 @@ from luna.actions import (
 )
 from luna.audit import AuditedToolDispatcher, AuditEventKind, AuditSession, EvidenceBuilder
 from luna.autonomy import AutonomyPolicy, FreeResearchContract
+from luna.capabilities import build_canonical_capability_registry
 from luna.cognition import (
     CognitiveDimension,
     CognitiveScorecard,
@@ -260,6 +261,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("status", help="Show the current project phase and capability state.")
+    capability_parser = subparsers.add_parser(
+        "capability-lineage",
+        help="Query canonical C-002 dependency and blast-radius metadata.",
+    )
+    capability_parser.add_argument("capability_id")
+    capability_parser.add_argument(
+        "--hard-only",
+        action="store_true",
+        help="Exclude preferred-dependency edges from blast radius.",
+    )
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
     subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
     subparsers.add_parser(
@@ -3038,6 +3049,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("phase19f_runtime_authority: none")
         print("phase19f_real_candidate_evaluation: not_executed_without_trained_candidate")
         print("phase19f_release_action_execution: not_performed_by_gate")
+        print("c002_capability_lineage: implemented_unverified_read_only")
+        print("c002_automatic_roadmap_mutation: disabled")
+        print("c002_runtime_authority: none")
+        return 0
+
+    if args.command == "capability-lineage":
+        capability_registry = build_canonical_capability_registry()
+        try:
+            record = capability_registry.get(args.capability_id)
+            impact = capability_registry.blast_radius(
+                args.capability_id,
+                include_preferred=not args.hard_only,
+            )
+        except KeyError as exc:
+            parser.error(str(exc))
+        print(
+            json.dumps(
+                {
+                    "record": record.model_dump(mode="json"),
+                    "impact": impact.model_dump(mode="json"),
+                },
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 0
 
     if args.command == "resolve-intent":

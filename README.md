@@ -584,4 +584,4 @@ Visible smoke:
 
 ```bat
 .venv\Scripts\python.exe -m luna phase19f-smoke
-```
+```\n\n## C-002 — Capability Lineage\n\nC-002 adds a read-only canonical capability registry and deterministic impact analysis.\n\n```bat\n.venv\Scripts\python.exe -m luna capability-lineage C-002\n.venv\Scripts\python.exe scripts\verify_c002.py\n```\n\nThe query reports explicit dependencies and downstream blast radius. C-002 cannot mutate the roadmap,\ngrant runtime authority, promote a model, execute workers, start training, or perform self-optimization.\n
