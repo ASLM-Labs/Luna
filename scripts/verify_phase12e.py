@@ -18,9 +18,10 @@ if str(SRC) not in sys.path:
 
 from luna.actions import ActionResolver, ToolSelector, build_phase12c_routes  # noqa: E402
 from luna.autonomy import AutonomyLevel, AutonomyPolicy  # noqa: E402
-from luna.context import LayeredContextComposer  # noqa: E402
+from luna.context import ContextIntegrityGate, LayeredContextComposer  # noqa: E402
 from luna.continuity import ContinuityService, SQLiteContinuityStore  # noqa: E402
 from luna.contracts import RiskLevel, TaskScope  # noqa: E402
+from luna.decision_state import DecisionStateService  # noqa: E402
 from luna.memory import VerifiedMemoryService  # noqa: E402
 from luna.modeling import (  # noqa: E402
     ModelFinishReason,
@@ -213,6 +214,8 @@ def _runtime_smoke() -> tuple[bool, bool, bool, bool, bool, bool]:
             RuntimeLoopDependencies(
                 core=core,
                 context_composer=LayeredContextComposer(),
+                context_integrity_gate=ContextIntegrityGate(),
+                decision_state_service=DecisionStateService(),
                 action_resolver=ActionResolver(selector),
                 failure_classifier=FailureClassifier(),
                 recovery_policy=RecoveryPolicy(),

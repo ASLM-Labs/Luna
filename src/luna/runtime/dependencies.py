@@ -10,9 +10,10 @@ from types import MappingProxyType
 from pydantic import field_validator, model_validator
 
 from luna.actions import ActionResolver
-from luna.context import LayeredContextComposer
+from luna.context import ContextIntegrityGate, LayeredContextComposer
 from luna.continuity import ContinuityService
 from luna.contracts.base import LunaContractModel
+from luna.decision_state import DecisionStateService
 from luna.memory import VerifiedMemoryService
 from luna.modeling import ModelBackend
 from luna.planning import AdaptivePlanner
@@ -135,6 +136,8 @@ class RuntimeLoopDependencies:
 
     core: RuntimeDependencies
     context_composer: LayeredContextComposer
+    context_integrity_gate: ContextIntegrityGate
+    decision_state_service: DecisionStateService
     action_resolver: ActionResolver
     failure_classifier: FailureClassifier
     recovery_policy: RecoveryPolicy

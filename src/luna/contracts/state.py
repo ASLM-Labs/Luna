@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import Field, field_validator, model_validator
 
 from luna.contracts.base import LunaContractModel, require_utc, stable_payload, utc_now
+from luna.contracts.decision import DecisionStateSnapshot
 from luna.contracts.enums import CompletionStatus, TaskPhase
 from luna.contracts.plan import PlanStep
 from luna.contracts.task import TaskContract
@@ -64,6 +65,7 @@ class TaskState(LunaContractModel):
     observation_ids: tuple[UUID, ...] = ()
     evidence_ids: tuple[UUID, ...] = ()
     failed_assumptions: tuple[str, ...] = ()
+    decision_state: DecisionStateSnapshot | None = None
     completion_status: CompletionStatus | None = None
     checkpoint_id: UUID | None = None
     revision: int = Field(default=0, ge=0)
@@ -88,6 +90,8 @@ class TaskState(LunaContractModel):
     def validate_coherence(self) -> TaskState:
         if self.task_id != self.contract.task_id:
             raise ValueError("TaskState.task_id must match TaskContract.task_id")
+        if self.decision_state is not None and self.decision_state.task_id != self.task_id:
+            raise ValueError("TaskState.decision_state task_id must match TaskState.task_id")
 
         step_ids = tuple(step.step_id for step in self.plan)
         sequences = tuple(step.sequence for step in self.plan)
@@ -118,6 +122,7 @@ class TaskState(LunaContractModel):
         observation_ids: tuple[UUID, ...] | None = None,
         evidence_ids: tuple[UUID, ...] | None = None,
         failed_assumptions: tuple[str, ...] | None = None,
+        decision_state: DecisionStateSnapshot | None = None,
         updated_at: datetime | None = None,
     ) -> TaskState:
         """Return the same phase with one validated authoritative-state revision."""
@@ -137,6 +142,11 @@ class TaskState(LunaContractModel):
                     failed_assumptions
                     if failed_assumptions is not None
                     else self.failed_assumptions
+                ),
+                "decision_state": (
+                    decision_state
+                    if decision_state is not None
+                    else self.decision_state
                 ),
                 "revision": self.revision + 1,
                 "updated_at": updated_at or utc_now(),

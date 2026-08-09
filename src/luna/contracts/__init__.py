@@ -1,6 +1,13 @@
 """Public Luna 0.1 runtime contracts."""
 
 from luna.contracts.checkpoint import Checkpoint
+from luna.contracts.decision import (
+    AssumptionRecord,
+    AssumptionStatus,
+    DecisionRecord,
+    DecisionStateSnapshot,
+    DecisionStatus,
+)
 from luna.contracts.enums import (
     CompletionStatus,
     EvidenceResult,
@@ -18,8 +25,13 @@ from luna.contracts.task import TaskContract, TaskScope
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "AssumptionRecord",
+    "AssumptionStatus",
     "Checkpoint",
     "CompletionStatus",
+    "DecisionRecord",
+    "DecisionStateSnapshot",
+    "DecisionStatus",
     "Evidence",
     "EvidenceResult",
     "EvidenceSourceKind",

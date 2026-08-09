@@ -13,11 +13,12 @@ from luna.actions import ActionResolver, ToolSelector, build_phase12c_routes
 from luna.audit import AuditSession, EvidenceLedger
 from luna.autonomy import AutonomyLevel, AutonomyPolicy
 from luna.conformance.models import ConformanceCase, ConformanceObservation
-from luna.context import LayeredContextComposer
+from luna.context import ContextIntegrityGate, LayeredContextComposer
 from luna.continuity import ContinuityService, SQLiteContinuityStore
 from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.contracts.enums import EvidenceResult, EvidenceSourceKind
 from luna.contracts.evidence import Evidence
+from luna.decision_state import DecisionStateService
 from luna.identity import IdentityProfile
 from luna.learning import LearningCandidateBuilder
 from luna.memory import VerifiedMemoryService
@@ -174,6 +175,8 @@ def _build_runtime(
             RuntimeLoopDependencies(
                 core=core,
                 context_composer=LayeredContextComposer(),
+                context_integrity_gate=ContextIntegrityGate(),
+                decision_state_service=DecisionStateService(),
                 action_resolver=ActionResolver(selector),
                 failure_classifier=FailureClassifier(),
                 recovery_policy=RecoveryPolicy(),
