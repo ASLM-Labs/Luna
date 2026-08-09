@@ -1,0 +1,26 @@
+{
+  "automatic_memory_commit": false,
+  "capability": "C-001",
+  "checks": {
+    "c001_implemented_unverified_not_self_verified": true,
+    "contradictory_evidence_stops_and_reinspects": true,
+    "current_request_without_fresh_source_stops": true,
+    "current_structured_prefers_api": true,
+    "document_specific_uses_project_rag": true,
+    "high_uncertainty_routes_to_research": true,
+    "metadata_integrity": true,
+    "required_files_present": true,
+    "retrieval_has_no_runtime_or_memory_commit_authority": true,
+    "routing_is_deterministic": true,
+    "stable_known_uses_internal_without_unnecessary_retrieval": true,
+    "user_specific_does_not_leak_to_public_research": true,
+    "user_specific_uses_verified_memory": true,
+    "working_context_is_used_when_sufficient": true
+  },
+  "external_action_authority": false,
+  "missing_files": [],
+  "name": "Adaptive Knowledge Retrieval",
+  "network_execution": false,
+  "runtime_authority": false,
+  "status": "PASS"
+}

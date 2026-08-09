@@ -1,10 +1,10 @@
 {
   "project": "Luna",
   "developer": "Novopic Intelligence",
-  "version": "0.1.0-c002-lineage-foundation",
+  "version": "0.1.0-c001-adaptive-knowledge-retrieval",
   "phase": "19F",
   "status": "IMPLEMENTED_UNVERIFIED",
-  "created_utc": "2026-08-09T07:59:00+00:00",
+  "created_utc": "2026-08-09T09:01:00+00:00",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
@@ -23,36 +23,48 @@
       "size_bytes": 243
     },
     "CHANGELOG.md": {
-      "sha256": "ea0f6c3f0fe75c24bf6a679ca49ac1a52e6d56faa6976721452ba06c4d7ae808",
-      "size_bytes": 27004
+      "sha256": "71558bf26adc45e2150c420ea6a46668d8e8ecdfa86359f464d298d037fd022e",
+      "size_bytes": 27393
     },
     "LICENSE": {
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
       "size_bytes": 11358
     },
     "LUNA_HANDOFF.md": {
-      "sha256": "7b06525dfc0649bfa8157a1b35fcd3cd79a8311f2a5fa98f77dd4c5712096348",
-      "size_bytes": 16161
+      "sha256": "5355b06cb79e73f0a757b69291c05fdd1dc1aa5c3c27a15f54abafbcfb292a0f",
+      "size_bytes": 17053
     },
     "NOTICE": {
       "sha256": "646f0597c250105de5a171ab2d9f5f0271efde0c10c758042af2968718b0a3cd",
       "size_bytes": 222
     },
     "README.md": {
-      "sha256": "a0ab7a99a181c7219bb32421bba1ce132e500fa44c9f395096d162ba0a9b609c",
-      "size_bytes": 28774
+      "sha256": "28a47e352d3563e638c8a8dcc15fc6b0ca5d4c8e9062007865c5e9473de07131",
+      "size_bytes": 29332
     },
     "UYGULAMA.txt": {
       "sha256": "6ae6d945cb8b0d7751a8cb618f59e7eef5818a03473d45448e891aeb257b1906",
       "size_bytes": 4678
+    },
+    "c001_verification.json": {
+      "sha256": "47d24090a5c56c88d2ad340869bd6ef6429e16c75df16a939d0394866a8e8245",
+      "size_bytes": 980
     },
     "c002_verification.json": {
       "sha256": "93ac6e65deab88ec18119d3cdc51e5ebe167dc10bd834c8fcd1356f1bfbf38bd",
       "size_bytes": 708
     },
     "docs/ARCHITECTURE_BOUNDARY.md": {
-      "sha256": "b96d83e0bc96b0c837c1722d6fd55d4bc69d13f77df0daa749333d8ff8308502",
-      "size_bytes": 29736
+      "sha256": "04a2b872f5c8a1860868d7c67e214ee3ef1cbcbd772b5ebed74ea5a846244042",
+      "size_bytes": 30576
+    },
+    "docs/C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL_REPORT.md": {
+      "sha256": "4584660e101b05d7c1328e43f29269f10c9976eecb989b08d37ad6cca9d49796",
+      "size_bytes": 2925
+    },
+    "docs/C001_UPDATE_MANIFEST.json": {
+      "sha256": "423501766564de666d0c02686b03f877117dec41408be08da4c4892f3857ca48",
+      "size_bytes": 2011
     },
     "docs/C002_CAPABILITY_LINEAGE_REPORT.md": {
       "sha256": "aa8fb5067d040c69034824a5317316bc3cbbf15b045def537d6ac4587f92fe82",
@@ -67,8 +79,8 @@
       "size_bytes": 6728
     },
     "docs/LUNA_ROADMAP.md": {
-      "sha256": "286dc1b03957eb4fcca578af7776d4c96d40c5f50bbcdd392b80ca3e0f5a2970",
-      "size_bytes": 23840
+      "sha256": "9ffca3cb883252a1947274c04938ec42f1f84d79c80ad2a8703762458ac6de5a",
+      "size_bytes": 24774
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -327,8 +339,8 @@
       "size_bytes": 1005
     },
     "docs/ROADMAP_DEPENDENCY_REVIEW.md": {
-      "sha256": "d5c49122ba035d73e4d9939f9c347729543ea1b5221b83abee67c21cf2e22a3f",
-      "size_bytes": 12723
+      "sha256": "48ec3c075557f5dafea09452134200ed7813dc17d4cebc099a7256d6c8bc72c5",
+      "size_bytes": 13268
     },
     "docs/baselines/L01_L21_EVIDENCE_MAP.md": {
       "sha256": "505321e64c7200d462b248837285b6ea8f1e0eff8c0927eb5638b5408f4ce095",
@@ -425,6 +437,10 @@
     "docs/rfcs/RFC-019_TRACE_DATASET_GOVERNANCE_COGNITIVE_QUALITY.md": {
       "sha256": "babfc4dabd281a92d6d43ad2f31f95cefdd0916fde22d6b41e095fc68a8c4a45",
       "size_bytes": 7348
+    },
+    "docs/rfcs/RFC-C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL.md": {
+      "sha256": "eb57e52b32997a90d1eae31ef9c16f7ec9c3e889faa519302517ad52df5ce68a",
+      "size_bytes": 3501
     },
     "docs/rfcs/RFC-C002_CAPABILITY_LINEAGE_MAPPING.md": {
       "sha256": "9dc3adb98f17721916835b7fb070367b55c96ea4d98ed1f1cd610887465ad750",
@@ -563,8 +579,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "adb5b2189538c6f62d84376ade85ac7029c4a7fcfd4a5ae7b44a6935b7565c1c",
-      "size_bytes": 6885
+      "sha256": "1ff7bde62699ea97b39e9f19e0cca5a7b5a2b923bc26c9335e4eb1b59473413a",
+      "size_bytes": 7079
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -578,9 +594,13 @@
       "sha256": "b703b96afd0500a2f557c538ab7ae6772a9f5f9f3076614b7db7b21ea1562663",
       "size_bytes": 373
     },
+    "scripts/verify_c001.py": {
+      "sha256": "9d379a01221fb341c548294d2ec300d6ff547efda7736e2190be5185cfc3d5d9",
+      "size_bytes": 8312
+    },
     "scripts/verify_c002.py": {
-      "sha256": "406a827fdecc35653ed2321f66dc9ea7b00f03018f05ca0f4178472e7ae2c52e",
-      "size_bytes": 5877
+      "sha256": "fa1ecb99a460e715ce0253b46fea127b535f0339032e3ad3b429589c321f0b24",
+      "size_bytes": 6176
     },
     "scripts/verify_phase0.py": {
       "sha256": "a9a8f8eab3a76f103110399ddd05b6e0fb1070bad618bbb7de7300d8cbd8589e",
@@ -799,8 +819,8 @@
       "size_bytes": 529
     },
     "src/luna/capabilities/catalog.py": {
-      "sha256": "fce2d8c4935a6dc84a27ceaab1768f64626f1d66a61e881b5cc0cb42c052c872",
-      "size_bytes": 7044
+      "sha256": "7912cc86ec4bc26f76f81947bf8d06fed6295ba21917eb1681c82f64ce78a43b",
+      "size_bytes": 9267
     },
     "src/luna/capabilities/models.py": {
       "sha256": "47523baac22658c5a188d3e1b404f9f0371ae24e8a42db014f89e279a9cd4414",
@@ -811,8 +831,8 @@
       "size_bytes": 5011
     },
     "src/luna/cli.py": {
-      "sha256": "3ce96b8bc00a3de57b5e7c03be2cbb8291efa40c820216c13022b0a8756d254f",
-      "size_bytes": 125593
+      "sha256": "eb415ad8107b617b858f1b1c2b9f09bdc46ef21a894ad5e1f25aa4c4942a1a87",
+      "size_bytes": 128867
     },
     "src/luna/cognition/__init__.py": {
       "sha256": "87d7dacb5498b960790df522df1a95c5ec436eed0bf98828f9ccdff6f57286de",
@@ -1278,6 +1298,18 @@
       "sha256": "e7ac0195615c843b77b7aeab6992f08eaef6f1c30f0ffb0d89ecc8e6885e512b",
       "size_bytes": 14546
     },
+    "src/luna/retrieval/__init__.py": {
+      "sha256": "22d424b3821e6c94d185b18104ef26bf008fc07bc707de2c35295fa02cf0acd5",
+      "size_bytes": 556
+    },
+    "src/luna/retrieval/models.py": {
+      "sha256": "3636dc9eabe1cae3ca80de12e5ee0180e03fbead0dd81704361547889898241b",
+      "size_bytes": 5301
+    },
+    "src/luna/retrieval/router.py": {
+      "sha256": "0e62ad4e7cc29ac830e67c7bcb2f759751933f0def80ee14682b839f21c4f039",
+      "size_bytes": 7638
+    },
     "src/luna/runtime/__init__.py": {
       "sha256": "09f59bfeff8ea0d13c8963fa0a75c8833b1e87aed73e36468b19a5a8fe1600e7",
       "size_bytes": 2536
@@ -1526,13 +1558,17 @@
       "sha256": "df81ad3ff0a844817b478e605752cf22ef6a13207df80031ff9c36c5fc15131b",
       "size_bytes": 3481
     },
+    "tests/test_c001_adaptive_knowledge_retrieval.py": {
+      "sha256": "5e92524efad51096eef23eb8d261d665f5e9fbfa3ef3b72bafdbd33d02a16675",
+      "size_bytes": 6441
+    },
     "tests/test_c002_capability_lineage.py": {
       "sha256": "3653d93e1fee08e42f3a12f8f3264d4d58acca747366570650edea3f4cea1a32",
       "size_bytes": 4670
     },
     "tests/test_cli.py": {
-      "sha256": "42d7c5137f282e849c4c757528ebd7513dda9e16b4ec78bb5a187bb0ca0b15e1",
-      "size_bytes": 31603
+      "sha256": "b8ddc01bd4f2b3421347ee2e95a602733a5cc1f33b58fba70d5fcc7584cf310c",
+      "size_bytes": 32517
     },
     "tests/test_context_collection.py": {
       "sha256": "785dc4b9469eeb8b8877cc3718b05c4d10c01d8bbd0a49565d2b8e0158153648",
@@ -1719,8 +1755,8 @@
       "size_bytes": 775
     },
     "tests/test_project_metadata.py": {
-      "sha256": "4cbdd3f21b5afa371c00cfc3a0aef2fba0e18180868ef3a8cd157dcf7ea58938",
-      "size_bytes": 14261
+      "sha256": "7c9f3846f5d997cc5647e90060db14c90541780f32a693cc40b8d5f3d4dddd5e",
+      "size_bytes": 14840
     },
     "tests/test_replanner.py": {
       "sha256": "31703b6feb1f7fa41292d557033b866369fcec67ac2929573db2ec81168123ce",
@@ -1761,6 +1797,6 @@
   },
   "hash_normalization": "utf8_text_lf_v1",
   "metadata_scope": "release_artifact_allowlist_v2",
-  "capability": "C-002",
+  "capability": "C-001",
   "capability_status": "IMPLEMENTED_UNVERIFIED"
 }

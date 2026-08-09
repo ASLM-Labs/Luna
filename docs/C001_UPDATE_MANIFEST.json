@@ -1,0 +1,43 @@
+{
+  "capability": "C-001",
+  "scope": "ADAPTIVE_KNOWLEDGE_RETRIEVAL",
+  "baseline": "C-002 merged main; source archive sha256 acb9eff681d42c1d66815aeebb2e10622558901048eb5ca3f544f7954b5fe75a",
+  "target_branch": "capability/c001-adaptive-knowledge-retrieval",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "scope_file_count": 23,
+  "scope_files": [
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "README.md",
+    "SHA256SUMS.txt",
+    "c001_verification.json",
+    "docs/ARCHITECTURE_BOUNDARY.md",
+    "docs/C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL_REPORT.md",
+    "docs/C001_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/ROADMAP_DEPENDENCY_REVIEW.md",
+    "docs/rfcs/RFC-C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL.md",
+    "scripts/check.bat",
+    "scripts/verify_c002.py",
+    "scripts/verify_c001.py",
+    "src/luna/cli.py",
+    "src/luna/capabilities/catalog.py",
+    "src/luna/retrieval/__init__.py",
+    "src/luna/retrieval/models.py",
+    "src/luna/retrieval/router.py",
+    "tests/test_c001_adaptive_knowledge_retrieval.py",
+    "tests/test_cli.py",
+    "tests/test_project_metadata.py"
+  ],
+  "notes": [
+    "C-001 is a deterministic source-selection layer and grants no runtime, network, external-action, memory-commit, or promotion authority.",
+    "Contradictory evidence returns STOP_REINSPECT before source selection.",
+    "Current or high-uncertainty requests require a fresh governed source or stop.",
+    "Public research is not used as a fallback for missing private user-specific knowledge.",
+    "Retrieval results cannot become long-term memory automatically; reviewed memory-candidate policy remains authoritative.",
+    "Project/document RAG and structured APIs are selected only when governed caller state reports them available.",
+    "Ruff and strict mypy must pass on the user Windows environment before commit or push.",
+    "C-002 verifier metadata checks were made forward-compatible so later capability metadata does not invalidate the earlier lineage gate."
+  ]
+}

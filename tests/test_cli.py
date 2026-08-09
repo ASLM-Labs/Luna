@@ -94,6 +94,10 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "c002_capability_lineage: implemented_unverified_read_only" in output
     assert "c002_automatic_roadmap_mutation: disabled" in output
     assert "c002_runtime_authority: none" in output
+    assert "c001_adaptive_retrieval: implemented_unverified_routing_only" in output
+    assert "c001_contradictory_evidence: stop_and_reinspect" in output
+    assert "c001_automatic_memory_commit: disabled" in output
+    assert "c001_runtime_authority: none" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -714,6 +718,21 @@ def test_phase19f_smoke_command(
     assert payload["action_executed"] is False
     assert payload["real_training_run_executed"] is False
     assert payload["real_candidate_evaluation_executed"] is False
+
+def test_c001_smoke_command(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["c001-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["stable_source"] == "INTERNAL"
+    assert payload["stable_decision"] == "ANSWER_DIRECT"
+    assert payload["current_source"] == "STRUCTURED_API"
+    assert payload["research_source"] == "RESEARCH_GATEWAY"
+    assert payload["contradiction_decision"] == "STOP_REINSPECT"
+    assert payload["automatic_memory_commit_allowed"] is False
+    assert payload["runtime_authority"] is False
+    assert payload["external_action_allowed"] is False
+
 
 def test_capability_lineage_command(capsys: pytest.CaptureFixture[str]) -> None:
     exit_code = main(["capability-lineage", "C-002"])

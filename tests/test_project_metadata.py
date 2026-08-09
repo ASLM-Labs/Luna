@@ -306,3 +306,19 @@ def test_c002_capability_lineage_files_are_present() -> None:
     assert (project_root / "scripts" / "verify_c002.py").is_file()
     assert (project_root / "docs" / "rfcs" / "RFC-C002_CAPABILITY_LINEAGE_MAPPING.md").is_file()
     assert (project_root / "docs" / "C002_CAPABILITY_LINEAGE_REPORT.md").is_file()
+
+
+def test_c001_adaptive_knowledge_retrieval_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "retrieval" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "retrieval" / "router.py").is_file()
+    assert (project_root / "scripts" / "verify_c001.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL.md"
+    ).is_file()
+    assert (
+        project_root / "docs" / "C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL_REPORT.md"
+    ).is_file()
