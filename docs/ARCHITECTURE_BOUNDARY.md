@@ -793,4 +793,4 @@ verified Phase 19E candidate
 
 Critical regressions remain zero-tolerance. Non-critical deltas require frozen thresholds and confidence
 intervals. Missing real candidate evidence is `INSUFFICIENT_EVIDENCE`, not success. A single aggregate
-score cannot authorize promotion.
+score cannot authorize promotion.\n\n## C-002 Capability Lineage Boundary\n\nC-002 is a read-only governance and impact-analysis layer. It may validate capability metadata and\nquery explicit dependency/blast-radius relationships. It cannot dispatch tools, grant permissions,\nchange runtime state, rewrite the roadmap automatically, certify improvement, promote a model, start\ntraining, or execute C-011/C-012 behavior.\n\nCanonical identity conflicts are surfaced as planning findings rather than silently remapped.\n

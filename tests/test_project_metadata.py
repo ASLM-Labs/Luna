@@ -296,3 +296,13 @@ def test_phase_nineteen_f_improvement_gate_files_are_present() -> None:
     assert (
         project_root / "docs" / "rfcs" / "RFC-019F_IMPROVEMENT_GATE.md"
     ).is_file()
+
+
+def test_c002_capability_lineage_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "capabilities" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "capabilities" / "registry.py").is_file()
+    assert (project_root / "src" / "luna" / "capabilities" / "catalog.py").is_file()
+    assert (project_root / "scripts" / "verify_c002.py").is_file()
+    assert (project_root / "docs" / "rfcs" / "RFC-C002_CAPABILITY_LINEAGE_MAPPING.md").is_file()
+    assert (project_root / "docs" / "C002_CAPABILITY_LINEAGE_REPORT.md").is_file()

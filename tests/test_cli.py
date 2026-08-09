@@ -91,6 +91,9 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
         in output
     )
     assert "phase19f_release_action_execution: not_performed_by_gate" in output
+    assert "c002_capability_lineage: implemented_unverified_read_only" in output
+    assert "c002_automatic_roadmap_mutation: disabled" in output
+    assert "c002_runtime_authority: none" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -711,3 +714,24 @@ def test_phase19f_smoke_command(
     assert payload["action_executed"] is False
     assert payload["real_training_run_executed"] is False
     assert payload["real_candidate_evaluation_executed"] is False
+
+def test_capability_lineage_command(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["capability-lineage", "C-002"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["record"]["capability_id"] == "C-002"
+    assert payload["record"]["status"] == "IMPLEMENTED_UNVERIFIED"
+    assert payload["impact"]["direct_dependents"]
+    assert payload["impact"]["includes_preferred_edges"] is True
+
+
+def test_capability_lineage_hard_only_excludes_preferred_edges(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["capability-lineage", "C-002", "--hard-only"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["impact"]["direct_dependents"] == []
+    assert payload["impact"]["includes_preferred_edges"] is False

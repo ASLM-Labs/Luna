@@ -1,0 +1,20 @@
+{
+  "automatic_roadmap_mutation": false,
+  "capability": "C-002",
+  "checks": {
+    "blast_radius_query_is_nonempty_and_deterministic": true,
+    "c002_implemented_unverified_not_self_verified": true,
+    "canonical_identity_inventory_c001_c012": true,
+    "canonical_roadmap_titles_preserved": true,
+    "metadata_integrity": true,
+    "required_files_present": true,
+    "roadmap_identity_conflict_is_explicit_not_silently_remapped": true,
+    "runtime_and_promotion_authority_remain_absent": true,
+    "unknown_dependency_is_rejected": true
+  },
+  "missing_files": [],
+  "name": "Capability Lineage & Dependency Mapping",
+  "promotion_authority": false,
+  "runtime_authority": false,
+  "status": "PASS"
+}
