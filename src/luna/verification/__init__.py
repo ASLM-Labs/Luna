@@ -27,6 +27,11 @@ from luna.verification.models import (
     VerificationPolicy,
     VerificationReport,
 )
+from luna.verification.strategy import (
+    VerificationDepth,
+    VerificationStrategy,
+    VerificationStrategySelector,
+)
 from luna.verification.verifier import DeterministicVerifier
 
 __all__ = [
@@ -48,8 +53,11 @@ __all__ = [
     "EvidenceStrengthAssessment",
     "SQLiteEvidenceStore",
     "VerificationClaim",
+    "VerificationDepth",
     "VerificationPolicy",
     "VerificationReport",
+    "VerificationStrategy",
+    "VerificationStrategySelector",
     "VerifiedEvidenceRegistry",
     "forbidden_absence_claim_id",
     "required_condition_claim_id",

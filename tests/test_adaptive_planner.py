@@ -48,6 +48,7 @@ def test_simple_task_does_not_create_a_long_plan() -> None:
 
     assert first.complexity is TaskComplexity.SIMPLE
     assert len(first.steps) == 1
+    assert first.acceptance_target_ids
     assert first.semantic_outline() == second.semantic_outline()
 
 

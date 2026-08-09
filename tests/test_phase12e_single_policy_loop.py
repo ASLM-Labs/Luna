@@ -586,6 +586,9 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     second_turn_text = "\n".join(message.content for message in backend.requests[1].messages)
     assert "runtime://observation/" in second_turn_text
     assert str(observations[0].observation_id) in second_turn_text
+    assert '"local_judgment"' in second_turn_text
+    assert '"tool_advice"' in second_turn_text
+    assert "advisory_only_no_authority" in second_turn_text
     assert "expected_sha256" not in second_turn_text
 
     runtime.cancel(task_id=request.task_id, reason="test cleanup")

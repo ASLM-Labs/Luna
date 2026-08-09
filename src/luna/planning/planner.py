@@ -8,6 +8,7 @@ from uuid import UUID
 from luna.contracts.enums import ObservationStatus, RiskLevel
 from luna.contracts.plan import ExpectedObservation, PlanStep
 from luna.intent.models import IntentKind, RequestedAction
+from luna.planning.judgment import LocalJudgmentBuilder
 from luna.planning.models import TaskComplexity, TaskPlan
 from luna.preparation import PreparationStatus, TaskPreparation
 
@@ -79,6 +80,7 @@ class AdaptivePlanner:
             raise ValueError("planning requires READY_FOR_PLANNING preparation")
 
         complexity = self.classify(preparation)
+        acceptance = LocalJudgmentBuilder().acceptance_from_contract(contract)
         actions = set(preparation.intent.actions)
         write_actions = {
             RequestedAction.MODIFY,
@@ -144,5 +146,6 @@ class AdaptivePlanner:
             complexity=complexity,
             steps=final_steps,
             significant_step_ids=significant_ids,
+            acceptance_target_ids=tuple(item.target_id for item in acceptance.targets),
             assumptions=assumptions,
         )

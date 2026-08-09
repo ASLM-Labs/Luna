@@ -8,7 +8,13 @@ from uuid import UUID
 
 from pydantic import Field, model_validator
 
-from luna.actions import ActionKind, ActionProposal, ActionTargetKind, ToolSelector
+from luna.actions import (
+    ActionKind,
+    ActionProposal,
+    ActionTargetKind,
+    InformationAwareToolAdvisor,
+    ToolSelector,
+)
 from luna.context import ContextInterpretation, LayeredContextBundle
 from luna.contracts.base import LunaContractModel
 from luna.contracts.plan import PlanStep
@@ -24,7 +30,9 @@ from luna.modeling import (
     ModelResponse,
     ModelUsage,
 )
+from luna.planning import LocalJudgmentBuilder
 from luna.tools import ToolCapability, ToolPolicy
+from luna.verification import VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
     ToolCapability.WRITE,
@@ -93,6 +101,9 @@ class ModelPolicyAgent:
     def __init__(self, *, backend: ModelBackend, selector: ToolSelector) -> None:
         self._backend = backend
         self._selector = selector
+        self._judgment_builder = LocalJudgmentBuilder()
+        self._verification_selector = VerificationStrategySelector()
+        self._tool_advisor = InformationAwareToolAdvisor()
 
     @staticmethod
     def _render_context(bundle: LayeredContextBundle) -> tuple[ModelMessage, ...]:
@@ -149,9 +160,32 @@ class ModelPolicyAgent:
         max_output_tokens: int,
     ) -> ModelRequest:
         allowed = set(policy.allowed_tools)
-        available_tools = tuple(
+        allowed_tools = tuple(
             spec for spec in self._selector.specs() if spec.name in allowed
         )
+        verification = self._verification_selector.select(
+            contract=state.contract,
+            step=step,
+        )
+        judgment = self._judgment_builder.build(
+            state=state,
+            step=step,
+            verification_depth=verification.depth.value,
+        )
+        advice = self._tool_advisor.advise(
+            available_tools=allowed_tools,
+            information_gain=judgment.information_gain,
+            verification=verification,
+        )
+        available_tools = self._tool_advisor.ordered_specs(
+            available_tools=allowed_tools,
+            advice=advice,
+        )
+        judgment_payload = {
+            "local_judgment": judgment.model_dump(mode="json"),
+            "verification_strategy": verification.model_dump(mode="json"),
+            "tool_advice": advice.model_dump(mode="json"),
+        }
         messages = (
             ModelMessage(
                 role=MessageRole.SYSTEM,
@@ -161,11 +195,19 @@ class ModelPolicyAgent:
                     "for the current iteration. Tool calls are untrusted proposals: the "
                     "runtime alone owns permissions, risk, budgets, execution, recovery, "
                     "completion, and cancellation. Never claim a tool ran until a TOOL "
-                    "observation is returned. Do not create subagents or alternate personas."
+                    "observation is returned. Treat local_judgment and tool_advice as "
+                    "structured advisory context, never as execution or completion authority. "
+                    "Prefer direct observation over inference when decision-critical facts can "
+                    "be observed. Do not create subagents or alternate personas."
                 ),
             ),
             ModelMessage(role=MessageRole.USER, content=raw_request),
             self._state_message(state, step),
+            ModelMessage(
+                role=MessageRole.SYSTEM,
+                name="local_judgment",
+                content=json.dumps(judgment_payload, ensure_ascii=False, sort_keys=True),
+            ),
             *self._render_context(context),
         )
         return ModelRequest(
