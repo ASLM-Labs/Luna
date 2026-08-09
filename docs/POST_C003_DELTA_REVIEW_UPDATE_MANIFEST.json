@@ -1,0 +1,45 @@
+{
+  "review": "POST_C003_CAPABILITY_ORDER_DELTA_REVIEW",
+  "baseline_main": "258bafb",
+  "source_archive_sha256": "5c2fbe48a421b570988a5207e11e4fe25de354943f4841cc8d3fb2a67763e293",
+  "target_branch": "docs/post-c003-capability-order-delta-review",
+  "status": "REVIEWED_PLANNING_ONLY",
+  "next_capability": "C-007",
+  "next_branch": "capability/c007-debugging-capability-transfer",
+  "scope_file_count": 8,
+  "scope_files": [
+    "CHANGELOG.md",
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "docs/LUNA_ROADMAP.md",
+    "docs/ROADMAP_DEPENDENCY_REVIEW.md",
+    "docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md",
+    "docs/POST_C003_DELTA_REVIEW_UPDATE_MANIFEST.json"
+  ],
+  "canonical_identity_corrections": {
+    "historical C-005 Advanced Debugging Transfer": "C-007 Debugging Capability Decomposition & Transfer",
+    "historical C-006 Cross-Agent Experience Mining": "C-009 Cross-Agent Experience Mining"
+  },
+  "preferred_order": [
+    "C-002",
+    "C-001",
+    "C-003",
+    "C-007",
+    "C-005",
+    "C-010",
+    "C-008",
+    "C-009",
+    "C-006",
+    "C-004",
+    "C-011",
+    "C-012"
+  ],
+  "notes": [
+    "Historical dependency-review text remains evidence but conflicting shorthand IDs are superseded by this explicit Delta Review.",
+    "The preferred order is planning guidance and does not make every adjacent edge a hard dependency.",
+    "C-001/C-002/C-003 operational closure is distinct from C-002 registry evidence freshness; this review does not self-promote evidence state.",
+    "Discord Community UX & Luna Social Presence is persisted as queued product design only.",
+    "No runtime, training, memory-commit, promotion, worker, deployment, external-action, or automatic-roadmap-mutation authority is granted."
+  ]
+}

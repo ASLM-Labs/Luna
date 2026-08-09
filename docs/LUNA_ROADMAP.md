@@ -84,6 +84,7 @@ A single aggregate "Luna Score" may be dashboard-only and must never authorize p
 ## C-001 — Adaptive Knowledge Retrieval
 
 Status: IMPLEMENTED_UNVERIFIED
+Lifecycle: MERGED / CI VERIFIED / CLOSED
 Priority: HIGH
 
 Goal:
@@ -125,6 +126,7 @@ Evaluation candidates:
 ## C-002 — Capability Lineage & Dependency Mapping
 
 Status: IMPLEMENTED_UNVERIFIED
+Lifecycle: MERGED / CI VERIFIED / CLOSED
 Priority: HIGH
 
 For each important Luna capability, record:
@@ -142,7 +144,8 @@ Core question:
 
 ## C-003 — Experience Distillation
 
-Status: QUEUED
+Status: IMPLEMENTED_UNVERIFIED
+Lifecycle: MERGED / CI VERIFIED / CLOSED
 Priority: HIGH
 
 Transform experience into reusable lessons rather than storing isolated anecdotes.
@@ -367,6 +370,22 @@ No learning component may grant itself runtime authority.
 # Design / Identity Queue
 
 These are product-design reminders, not runtime claims.
+
+## Discord Community UX & Luna Social Presence
+
+Status: QUEUED PRODUCT DESIGN
+
+Design intent:
+- drastically reduce visible channel count;
+- one obvious place per common action, with `#genel` as the default community chat;
+- Luna may be invoked by mention/reply in allowed community channels instead of requiring a separate bot-chat silo;
+- an explicit invitation such as `@Luna bize katıl` may open a bounded temporary participation session;
+- temporary participation ends on explicit dismissal, topic departure, inactivity, or bounded session limits;
+- useful user preferences may be recognized through governed, user-controllable memory, while unnecessary profiling is prohibited;
+- Discord remains a community/support surface, not a heavy repository coding or IDE surface;
+- channel tree, roles, permissions, onboarding, public release communication, and private developer surfaces must be designed together.
+
+This item must not be interpreted as implemented Discord social-session behavior. Phase 17 remains the implemented gateway boundary until a future reviewed capability/product update changes it.
 
 - Luna remains the model name.
 - Company/organization naming remains unresolved.
@@ -738,18 +757,25 @@ optimization candidates that must still pass an evidence-based gate.
 The queued capability implementation order is now governed by
 `docs/ROADMAP_DEPENDENCY_REVIEW.md`.
 
-Current recommended sequence:
+Current recommended sequence (superseded by the post-C-003 Delta Review):
 
 ```text
-C-002 Capability Lineage Mapping
+C-002 Capability Lineage & Dependency Mapping
  -> C-001 Adaptive Knowledge Retrieval
  -> C-003 Experience Distillation
- -> C-005 Advanced Debugging Transfer
- -> C-006 Cross-Agent Experience Mining
- -> C-004 Pre-deployment Inheritance
+ -> C-007 Debugging Capability Decomposition & Transfer
+ -> C-005 Experience <-> Capability Flywheel
+ -> C-010 External Mentor / Review Boundary
+ -> C-008 Sol -> Luna Capability Mining
+ -> C-009 Cross-Agent Experience Mining
+ -> C-006 Vicarious Experience Inheritance
+ -> C-004 Pre-deployment Experience Inheritance
  -> C-011 Single-Voice Parallel Cognition
  -> C-012 Self-Optimization Sandbox
 ```
+
+This is a preferred implementation sequence, not a declaration that every adjacent edge is a hard runtime dependency.
+`docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md` is authoritative for the identity correction and ordering rationale.
 
 This sequence is a planning recommendation, not an implementation claim.
 
@@ -838,3 +864,24 @@ The historical dependency-review C-005/C-006 shorthand conflict remains a Delta 
 does not silently remap canonical capability IDs.
 
 <!-- C003_EXPERIENCE_DISTILLATION_IMPLEMENTATION_END -->
+<!-- POST_C003_CAPABILITY_ORDER_DELTA_REVIEW_BEGIN -->
+
+## Post-C-003 Capability Order Delta Review
+
+Baseline: merged C-003 main at `258bafb`.
+
+The historical dependency review used shorthand labels that no longer match the canonical queue identities. This Delta Review resolves the mismatch without renumbering capabilities:
+
+- historical `C-005 Advanced Debugging Transfer` maps to canonical **C-007 — Debugging Capability Decomposition & Transfer**;
+- historical `C-006 Cross-Agent Experience Mining` maps to canonical **C-009 — Cross-Agent Experience Mining**;
+- canonical C-005 remains **Experience <-> Capability Flywheel**;
+- canonical C-006 remains **Vicarious Experience Inheritance**.
+
+Next implementation after this review is merged: **C-007 — Debugging Capability Decomposition & Transfer**.
+Recommended branch: `capability/c007-debugging-capability-transfer`.
+
+The complete preferred order and rationale are recorded in `docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md`. Historical conflicting order text remains planning evidence only and must not override this Delta Review.
+
+No capability status is self-promoted by this planning review, and no runtime/training/promotion authority is added.
+
+<!-- POST_C003_CAPABILITY_ORDER_DELTA_REVIEW_END -->

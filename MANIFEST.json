@@ -1,10 +1,10 @@
 {
   "project": "Luna",
   "developer": "Novopic Intelligence",
-  "version": "0.1.0-c003-experience-distillation",
+  "version": "0.1.0-post-c003-capability-order-delta-review",
   "phase": "19F",
   "status": "IMPLEMENTED_UNVERIFIED",
-  "created_utc": "2026-08-09T10:04:00+00:00",
+  "created_utc": "2026-08-09T13:39:00+00:00",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
@@ -23,16 +23,16 @@
       "size_bytes": 243
     },
     "CHANGELOG.md": {
-      "sha256": "4f9f5ca8d4db9bad2b1f85635ffc23e126cb9ea3a005de7cb896fb0f5c42aca5",
-      "size_bytes": 28164
+      "sha256": "6a1804d037cdaf8f362f8787ebaafc470e84db76ce13051beea6ffba1b8a97f6",
+      "size_bytes": 29078
     },
     "LICENSE": {
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
       "size_bytes": 11358
     },
     "LUNA_HANDOFF.md": {
-      "sha256": "51272e120095fe1d6b65f24d2a6ffd6c20aef03a6b457ebbd12da0cc2282036f",
-      "size_bytes": 18233
+      "sha256": "5262f4ae115ec87c2904771876f409f0e245067c5d32c8ce8bb0c2588f0ad1ed",
+      "size_bytes": 19770
     },
     "NOTICE": {
       "sha256": "646f0597c250105de5a171ab2d9f5f0271efde0c10c758042af2968718b0a3cd",
@@ -91,8 +91,8 @@
       "size_bytes": 6728
     },
     "docs/LUNA_ROADMAP.md": {
-      "sha256": "39b05cc69fb9b73a630ab15e9bc6248b505fe0d84843abb4cdd674a54df8a2fb",
-      "size_bytes": 26010
+      "sha256": "d9f324027f5726678ca680c435f4454dd596472663f4adc9eb52149799b7356f",
+      "size_bytes": 29022
     },
     "docs/PHASE_0_REPORT.md": {
       "sha256": "e6666f6c18c24c856b921ac5b9d42218a254a9e755448534b02f47dd4f052c5c",
@@ -350,9 +350,17 @@
       "sha256": "7a542a445363d6baecd94ba79ee143c143af8ccde4cd7f0020574c37b9839959",
       "size_bytes": 1005
     },
+    "docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md": {
+      "sha256": "378b8eb86a4935f8cd81c8694ef0ab2c4d36f5bfcb305bed77e334b9cb8f12b2",
+      "size_bytes": 6614
+    },
+    "docs/POST_C003_DELTA_REVIEW_UPDATE_MANIFEST.json": {
+      "sha256": "0ade01dec378aeb4a25d8b914090fa4c2672556fe43b321fd03307e2024f445a",
+      "size_bytes": 1765
+    },
     "docs/ROADMAP_DEPENDENCY_REVIEW.md": {
-      "sha256": "c4ade4f74454888cac46b7cd115683699bf4f620b19192722bf2b79d6ab9deca",
-      "size_bytes": 13962
+      "sha256": "649880a0617a0abe9b64adffcdf08273f58070878f392b14762554186aa88e29",
+      "size_bytes": 16956
     },
     "docs/baselines/L01_L21_EVIDENCE_MAP.md": {
       "sha256": "505321e64c7200d462b248837285b6ea8f1e0eff8c0927eb5638b5408f4ce095",

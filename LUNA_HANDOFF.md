@@ -73,22 +73,27 @@ IMPLEMENTED_UNVERIFIED / REAL CANDIDATE EVALUATION PENDING.
 
 ## Next Engineering Step
 
-Current working branch: `phase-19f-improvement-gate`.
-Baseline: merged C-011 documentation completion at `4f0784e`.
+Current working branch: `docs/post-c003-capability-order-delta-review`.
+Baseline: merged C-003 main at `258bafb`.
 
-Before merge:
-1. apply the exact Phase 19F kit scope;
-2. run `scripts/verify_phase19f.py` and targeted Phase 19F tests;
-3. run the full Windows `scripts/check.bat`;
-4. require Ruff + strict mypy + all deterministic gates green;
-5. commit/push only after the full local gate passes;
-6. require GitHub Actions Python 3.12/3.13 push + PR checks green;
-7. merge, sync main, verify implementation containment and clean status.
+Current task: close the historical capability-ID shorthand debt with an explicit post-C-003 Delta Review.
 
-Important evidence boundary: Phase 19F can implement the promotion/reject/rollback evidence gate before a
-real trained candidate exists, but it must return `INSUFFICIENT_EVIDENCE` when the Phase 19E real
-training receipt/artifact or real governed evaluation snapshots are absent. No Luna improvement claim is
-valid until a real candidate passes the frozen gate.
+Before any new capability implementation:
+1. preserve canonical C-001..C-012 identities;
+2. map historical `C-005 Advanced Debugging Transfer` to canonical C-007;
+3. map historical `C-006 Cross-Agent Experience Mining` to canonical C-009;
+4. publish the corrected preferred implementation order;
+5. keep Phase 20 / Phase 21 numbering unchanged;
+6. run the normal local quality gate and GitHub Actions;
+7. merge, sync main, verify containment, and require clean status.
+
+If the Delta Review closes cleanly, the next implementation is:
+
+`C-007 — Debugging Capability Decomposition & Transfer`
+
+Recommended branch: `capability/c007-debugging-capability-transfer`.
+
+Do not start C-007 implementation on the Delta Review branch.
 
 ## Phase 19 Program Boundaries
 
@@ -561,3 +566,32 @@ C-003 uses the canonical capability identities from `docs/LUNA_ROADMAP.md` and d
 renumber later capabilities.
 
 <!-- HANDOFF_C003_DISTILLATION_END -->
+<!-- HANDOFF_POST_C003_DELTA_REVIEW_BEGIN -->
+
+## Post-C-003 Capability Order Delta Review Checkpoint
+
+Baseline main: `258bafb`
+Review branch: `docs/post-c003-capability-order-delta-review`
+Source archive SHA256: `5c2fbe48a421b570988a5207e11e4fe25de354943f4841cc8d3fb2a67763e293`
+
+Canonical identity correction:
+
+```text
+historical C-005 Advanced Debugging Transfer -> canonical C-007
+historical C-006 Cross-Agent Experience Mining -> canonical C-009
+```
+
+Preferred implementation sequence after the review:
+
+```text
+C-002 -> C-001 -> C-003 -> C-007 -> C-005 -> C-010 -> C-008 -> C-009 -> C-006 -> C-004 -> C-011 -> C-012
+```
+
+Next implementation: **C-007 — Debugging Capability Decomposition & Transfer**.
+Recommended branch after review merge: `capability/c007-debugging-capability-transfer`.
+
+C-001/C-002/C-003 are operationally closed project checkpoints. Their C-002 registry evidence state is not self-promoted by this planning review; repository-stored verification evidence must govern any future `CapabilityStatus.VERIFIED` transition.
+
+Queued product-design item: **Discord Community UX & Luna Social Presence**. It preserves the agreed direction of fewer channels, one obvious place per action, Luna mention/reply invocation in allowed channels, bounded temporary discussion participation, user-controllable useful memory, and no heavy coding/IDE role for Discord. This is design queue state only, not implemented Phase 17 behavior.
+
+<!-- HANDOFF_POST_C003_DELTA_REVIEW_END -->
