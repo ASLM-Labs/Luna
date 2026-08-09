@@ -794,3 +794,26 @@ verified Phase 19E candidate
 Critical regressions remain zero-tolerance. Non-critical deltas require frozen thresholds and confidence
 intervals. Missing real candidate evidence is `INSUFFICIENT_EVIDENCE`, not success. A single aggregate
 score cannot authorize promotion.\n\n## C-002 Capability Lineage Boundary\n\nC-002 is a read-only governance and impact-analysis layer. It may validate capability metadata and\nquery explicit dependency/blast-radius relationships. It cannot dispatch tools, grant permissions,\nchange runtime state, rewrite the roadmap automatically, certify improvement, promote a model, start\ntraining, or execute C-011/C-012 behavior.\n\nCanonical identity conflicts are surfaced as planning findings rather than silently remapped.\n
+
+<!-- C001_ADAPTIVE_RETRIEVAL_BOUNDARY_BEGIN -->
+
+## C-001 Adaptive Knowledge Retrieval Boundary
+
+```text
+request profile + governed source availability
+-> deterministic source route
+-> existing source-specific boundary
+-> observation/evidence
+-> working context
+-> optional reviewed memory candidate
+```
+
+C-001 is a source-selection layer, not an authority layer. It does not fetch the web directly, bypass
+Research Gateway policy, create API credentials, invent unavailable RAG sources, execute external
+actions, or commit retrieved material to verified memory.
+
+Contradictory evidence forces `STOP_REINSPECT`. Current/fast-changing and high-uncertainty requests
+require a fresh governed source or stop. Public research is not used as a fallback for missing private
+user-specific knowledge.
+
+<!-- C001_ADAPTIVE_RETRIEVAL_BOUNDARY_END -->

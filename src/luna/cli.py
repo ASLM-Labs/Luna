@@ -186,6 +186,14 @@ from luna.research import (
     ResearchTarget,
     ScriptedResearchBackend,
 )
+from luna.retrieval import (
+    AdaptiveKnowledgeRouter,
+    KnowledgeRequestProfile,
+    KnowledgeSource,
+    KnowledgeUncertainty,
+    KnowledgeVolatility,
+    RetrievalDecision,
+)
 from luna.runtime import (
     JOURNAL_SCHEMA_VERSION,
     RequestSource,
@@ -270,6 +278,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--hard-only",
         action="store_true",
         help="Exclude preferred-dependency edges from blast radius.",
+    )
+    subparsers.add_parser(
+        "c001-smoke",
+        help="Verify deterministic C-001 adaptive knowledge source routing.",
     )
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
     subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
@@ -1629,6 +1641,72 @@ def _run_phase13_smoke() -> int:
             payload["active_authorized"] is True,
             payload["tripwire_authorized"] is False,
             payload["live_probe_authority"] == "none",
+        )
+    ) else 2
+
+
+def _run_c001_smoke() -> int:
+    router = AdaptiveKnowledgeRouter()
+    stable = router.route(
+        KnowledgeRequestProfile(
+            task_id=uuid4(),
+            query="Explain a stable known Python language property.",
+            volatility=KnowledgeVolatility.STABLE,
+            uncertainty=KnowledgeUncertainty.LOW,
+            internal_knowledge_sufficient=True,
+        )
+    )
+    current = router.route(
+        KnowledgeRequestProfile(
+            task_id=uuid4(),
+            query="Read the current structured service value.",
+            volatility=KnowledgeVolatility.DYNAMIC,
+            currentness_required=True,
+            structured_data_suitable=True,
+            structured_api_available=True,
+            research_gateway_available=True,
+        )
+    )
+    research = router.route(
+        KnowledgeRequestProfile(
+            task_id=uuid4(),
+            query="Verify an uncertain externally checkable claim.",
+            uncertainty=KnowledgeUncertainty.HIGH,
+            research_gateway_available=True,
+        )
+    )
+    contradiction = router.route(
+        KnowledgeRequestProfile(
+            task_id=uuid4(),
+            query="Resolve contradictory evidence.",
+            contradictory_evidence=True,
+            working_context_sufficient=True,
+            research_gateway_available=True,
+        )
+    )
+    payload = {
+        "stable_source": stable.primary_source.value if stable.primary_source else None,
+        "stable_decision": stable.decision.value,
+        "current_source": current.primary_source.value if current.primary_source else None,
+        "research_source": (
+            research.primary_source.value if research.primary_source else None
+        ),
+        "contradiction_decision": contradiction.decision.value,
+        "automatic_memory_commit_allowed": research.automatic_memory_commit_allowed,
+        "runtime_authority": research.runtime_authority,
+        "external_action_allowed": research.external_action_allowed,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True))
+    return 0 if all(
+        (
+            stable.decision is RetrievalDecision.ANSWER_DIRECT,
+            stable.primary_source is KnowledgeSource.INTERNAL,
+            current.primary_source is KnowledgeSource.STRUCTURED_API,
+            research.primary_source is KnowledgeSource.RESEARCH_GATEWAY,
+            contradiction.decision is RetrievalDecision.STOP_REINSPECT,
+            research.automatic_memory_commit_allowed is False,
+            research.runtime_authority is False,
+            research.external_action_allowed is False,
         )
     ) else 2
 
@@ -3052,6 +3130,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("c002_capability_lineage: implemented_unverified_read_only")
         print("c002_automatic_roadmap_mutation: disabled")
         print("c002_runtime_authority: none")
+        print("c001_adaptive_retrieval: implemented_unverified_routing_only")
+        print("c001_contradictory_evidence: stop_and_reinspect")
+        print("c001_automatic_memory_commit: disabled")
+        print("c001_runtime_authority: none")
         return 0
 
     if args.command == "capability-lineage":
@@ -3121,6 +3203,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_phase12g_smoke()
     if args.command == "phase13-smoke":
         return _run_phase13_smoke()
+    if args.command == "c001-smoke":
+        return _run_c001_smoke()
+
     if args.command == "phase14-smoke":
         return _run_phase14_smoke()
 

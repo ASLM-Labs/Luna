@@ -83,7 +83,7 @@ A single aggregate "Luna Score" may be dashboard-only and must never authorize p
 
 ## C-001 — Adaptive Knowledge Retrieval
 
-Status: QUEUED
+Status: IMPLEMENTED_UNVERIFIED
 Priority: HIGH
 
 Goal:
@@ -789,3 +789,21 @@ Full reconciliation and Phase 20/21 contracts:
 `docs/LEGACY_ROADMAP_RECONCILIATION.md`
 
 <!-- LEGACY_ROADMAP_RECONCILIATION_END -->\n\n<!-- C002_LINEAGE_IMPLEMENTATION_BEGIN -->\n\n## C-002 Capability Lineage Implementation Checkpoint\n\nC-002 now has a read-only canonical registry, dependency validation, repository evidence/freshness\nmetadata, and deterministic blast-radius queries. It remains `IMPLEMENTED_UNVERIFIED` until final\nmerge/CI evidence supports a separate verified status transition.\n\nSource inspection also found that the dependency-review shorthand labels for C-005/C-006 conflict\nwith the explicit capability-queue identities C-005/C-006/C-007/C-009 above. C-002 preserves the\nexplicit queue identities and does not silently renumber them. Any correction to the recommended\nimplementation order requires a Delta Review.\n\nC-002 grants no runtime authority, promotion authority, automatic roadmap mutation, training, worker\nexecution, or self-optimization execution.\n\n<!-- C002_LINEAGE_IMPLEMENTATION_END -->\n
+
+<!-- C001_ADAPTIVE_RETRIEVAL_IMPLEMENTATION_BEGIN -->
+
+## C-001 Adaptive Knowledge Retrieval Implementation Checkpoint
+
+C-001 now has a deterministic, non-executing source router covering internal knowledge, working
+context, verified memory, project/document RAG availability, Phase 14 Research Gateway/web, and
+structured API availability. Contradictory evidence returns `STOP_REINSPECT`; current or high-
+uncertainty requests cannot silently fall back to stale internal knowledge.
+
+Research/API routes require freshness and citation/provenance. Retrieval results remain evidence/
+working context and cannot become long-term memory automatically. C-001 grants no runtime, network,
+external-action, memory-commit, or promotion authority.
+
+C-001 remains `IMPLEMENTED_UNVERIFIED` until final merge containment and CI evidence support a
+separate verified transition.
+
+<!-- C001_ADAPTIVE_RETRIEVAL_IMPLEMENTATION_END -->

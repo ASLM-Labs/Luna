@@ -39,11 +39,60 @@ def build_canonical_capability_registry() -> CapabilityRegistry:
     """Build the repository's current capability identity/lineage registry."""
 
     records = (
-        _queued(
-            "C-001",
-            "Adaptive Knowledge Retrieval",
-            "Evidence-aware routing among internal, memory, RAG, research, web, and API sources.",
-            preferred=("C-002",),
+        CapabilityRecord(
+            capability_id="C-001",
+            name="Adaptive Knowledge Retrieval",
+            status=CapabilityStatus.IMPLEMENTED_UNVERIFIED,
+            scope=(
+                "Evidence-aware deterministic routing among internal knowledge, working context, "
+                "verified memory, project RAG, Research Gateway/web, and structured APIs."
+            ),
+            preferred_prerequisites=("C-002",),
+            source_refs=(
+                "docs/LUNA_ROADMAP.md#C-001",
+                "docs/ROADMAP_DEPENDENCY_REVIEW.md#C-001",
+            ),
+            foundation_refs=(
+                "Phase 9 verified memory",
+                "Phase 12B layered context",
+                "Phase 14 Research Gateway / evidence RAG",
+                "C-002 capability lineage",
+            ),
+            implementation_components=(
+                "src/luna/retrieval/models.py",
+                "src/luna/retrieval/router.py",
+            ),
+            verifier_refs=(
+                "tests/test_c001_adaptive_knowledge_retrieval.py",
+                "scripts/verify_c001.py",
+            ),
+            evidence_refs=(
+                "docs/C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL_REPORT.md",
+                "c001_verification.json",
+            ),
+            metrics=(
+                "source_selection_accuracy",
+                "unnecessary_retrieval_rate",
+                "missed_retrieval_rate",
+                "stale_answer_rate",
+                "evidence_sufficiency",
+                "contradiction_detection_rate",
+                "provenance_citation_correctness",
+                "retrieval_latency",
+                "retrieval_cost",
+            ),
+            authority_boundary=(
+                "C-001 is a read-only routing layer with no runtime or promotion authority. It "
+                "does not fetch network data directly, authorize external actions, or commit "
+                "retrieval results to long-term memory automatically."
+            ),
+            rollback_or_disable_path=(
+                "Disable C-001 routing and fall back to explicit caller-selected sources; existing "
+                "Phase 9 memory, Phase 12B context, and Phase 14 research boundaries remain intact."
+            ),
+            source_revision="c001-adaptive-retrieval-foundation",
+            evidence_revision="c001-local-gate",
+            evidence_freshness=EvidenceFreshness.PARTIAL,
         ),
         CapabilityRecord(
             capability_id="C-002",

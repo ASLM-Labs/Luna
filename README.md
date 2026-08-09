@@ -585,3 +585,15 @@ Visible smoke:
 ```bat
 .venv\Scripts\python.exe -m luna phase19f-smoke
 ```\n\n## C-002 — Capability Lineage\n\nC-002 adds a read-only canonical capability registry and deterministic impact analysis.\n\n```bat\n.venv\Scripts\python.exe -m luna capability-lineage C-002\n.venv\Scripts\python.exe scripts\verify_c002.py\n```\n\nThe query reports explicit dependencies and downstream blast radius. C-002 cannot mutate the roadmap,\ngrant runtime authority, promote a model, execute workers, start training, or perform self-optimization.\n
+
+<!-- C001_ADAPTIVE_RETRIEVAL_BEGIN -->
+
+## C-001 Adaptive Knowledge Retrieval
+
+C-001 adds deterministic evidence-aware source routing across internal knowledge, observed working
+context, verified memory, available project/document RAG, Phase 14 Research Gateway/web, and suitable
+structured APIs. Contradictory evidence stops and reinspects; current/high-uncertainty requests require
+fresh governed evidence. The router performs no direct network execution and never auto-commits
+retrieval results to long-term memory.
+
+<!-- C001_ADAPTIVE_RETRIEVAL_END -->
