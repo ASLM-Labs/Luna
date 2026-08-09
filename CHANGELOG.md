@@ -1,3 +1,17 @@
+## [0.1.0-post-c003-capability-order-delta-review] - 2026-08-09
+
+### Changed
+
+- Resolved the historical C-005/C-006 shorthand identity drift against the canonical C-001..C-012 queue.
+- Selected C-007 Debugging Capability Decomposition & Transfer as the next implementation after C-003.
+- Added a canonical preferred implementation sequence covering C-004 through C-010 before C-011/C-012.
+- Persisted Discord Community UX & Luna Social Presence as a queued product-design item, not a runtime claim.
+
+### Governance
+
+- Historical planning text remains evidence but no longer authorizes conflicting capability IDs.
+- The Delta Review changes planning order only; it grants no runtime, training, promotion, memory, worker, or external-action authority.
+- C-001/C-002/C-003 operational closure is recorded separately from C-002 registry evidence freshness; this review does not self-promote capability evidence state.
 
 ## [0.1.0-c003-experience-distillation] - 2026-08-09
 

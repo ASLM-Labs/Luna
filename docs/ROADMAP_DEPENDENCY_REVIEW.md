@@ -364,3 +364,58 @@ The earlier C-005/C-006 shorthand identity conflict remains historical planning 
 resolved or silently renumbered by C-003.
 
 <!-- C003_IMPLEMENTATION_CHECKPOINT_END -->
+<!-- POST_C003_ORDER_DELTA_BEGIN -->
+
+## Post-C-003 identity/order Delta Review
+
+Status: CURRENT PLANNING DECISION
+Baseline: merged C-003 main `258bafb`
+Detailed decision record: `docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md`
+
+The original review remains historical evidence, but its shorthand IDs are not authoritative where they conflict with the canonical queue. The following identity corrections are now explicit:
+
+```text
+historical C-005 Advanced Debugging Transfer
+-> canonical C-007 Debugging Capability Decomposition & Transfer
+
+historical C-006 Cross-Agent Experience Mining
+-> canonical C-009 Cross-Agent Experience Mining
+```
+
+Canonical C-005 and C-006 keep their roadmap identities and are not renumbered.
+
+Current preferred implementation order:
+
+```text
+C-002 Capability Lineage & Dependency Mapping       CLOSED
+ -> C-001 Adaptive Knowledge Retrieval              CLOSED
+ -> C-003 Experience Distillation                   CLOSED
+ -> C-007 Debugging Capability Decomposition & Transfer   NEXT
+ -> C-005 Experience <-> Capability Flywheel
+ -> C-010 External Mentor / Review Boundary
+ -> C-008 Sol -> Luna Capability Mining
+ -> C-009 Cross-Agent Experience Mining
+ -> C-006 Vicarious Experience Inheritance
+ -> C-004 Pre-deployment Experience Inheritance
+ -> C-011 Single-Voice Parallel Cognition
+ -> C-012 Self-Optimization Sandbox
+```
+
+Ordering rationale:
+
+1. C-007 is the narrowest measurable proof that C-003 distilled lessons can support a real capability: diagnosis, broken-assumption detection, minimal repair, changed-basis replanning, targeted verification, and full regression.
+2. C-005 follows after one concrete transfer vertical exists, so the experience/capability flywheel is grounded in measurable behavior rather than an abstract loop.
+3. C-010 establishes the external-mentor review boundary before external-agent mining becomes a routine learning source.
+4. C-008 starts with a single explicit source contract (Sol -> Luna) before C-009 generalizes the mining process across multiple agents and trace sources.
+5. C-009 produces validated cross-agent comparisons before C-006 attempts vicarious inheritance of lessons from other actors.
+6. C-006 validates learning-from-others as a transfer/prevention mechanism before C-004 becomes the broader pre-deployment adoption layer.
+7. C-004 remains an adoption layer guarded by provenance, evaluation, and Phase 19F-style evidence rather than a mining shortcut.
+8. C-011 and C-012 remain later composition capabilities; C-012 continues to reuse Phase 19F and must not self-certify improvement.
+
+This sequence is preferred planning order, not a claim that every adjacent step is a hard dependency. Hard/preferred capability edges remain governed by C-002 lineage records and must be updated deliberately when implementation evidence justifies a stronger edge.
+
+Next branch after this Delta Review is merged and contained in main:
+
+`capability/c007-debugging-capability-transfer`
+
+<!-- POST_C003_ORDER_DELTA_END -->
