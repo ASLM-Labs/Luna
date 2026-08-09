@@ -74,6 +74,7 @@ class TaskPlan(LunaContractModel):
     complexity: TaskComplexity
     steps: tuple[PlanStep, ...] = Field(min_length=1, max_length=8)
     significant_step_ids: tuple[UUID, ...] = ()
+    acceptance_target_ids: tuple[str, ...] = ()
     assumptions: tuple[str, ...] = ()
     failed_assumptions: tuple[FailedAssumption, ...] = ()
     status: PlanStatus = PlanStatus.READY
@@ -103,6 +104,16 @@ class TaskPlan(LunaContractModel):
         if len(values) != len(set(values)):
             raise ValueError("significant_step_ids must be unique")
         return values
+
+    @field_validator("acceptance_target_ids")
+    @classmethod
+    def validate_acceptance_target_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(value.strip() for value in values)
+        if any(not value for value in cleaned):
+            raise ValueError("acceptance target IDs must not be blank")
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("acceptance target IDs must be unique")
+        return cleaned
 
     @model_validator(mode="after")
     def validate_plan(self) -> TaskPlan:

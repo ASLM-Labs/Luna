@@ -61,7 +61,7 @@ from luna.runtime.models import (
 )
 from luna.runtime.policy_agent import ModelPolicyAgent, PolicyTurnStatus
 from luna.tools import ToolCapability, ToolPolicy, ToolRequest, ToolResultStatus
-from luna.verification import VerificationPolicy
+from luna.verification import VerificationPolicy, VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
     ToolCapability.WRITE,
@@ -126,6 +126,7 @@ class LunaRuntime:
             selector=dependencies.action_resolver.selector,
         )
         self._expectations = ExpectationEvaluator()
+        self._verification_strategy = VerificationStrategySelector()
 
     def suspend(
         self,
@@ -1552,11 +1553,16 @@ class LunaRuntime:
             separators=(",", ":"),
         )
         active = self._active_step(state)
-        verification = (
+        strategy = self._verification_strategy.select(
+            contract=state.contract,
+            step=active,
+        )
+        verification_method = (
             active.expectation.verification_method
             if active.expectation is not None
             else "structured observation"
         )
+        verification = f"{strategy.depth.value}:{verification_method}"
         return AttemptBasis(
             action_key=f"{proposal.kind.value}:{tool_request.tool_name}",
             context_fingerprint=context_fingerprint,
@@ -1624,9 +1630,11 @@ class LunaRuntime:
             workspace_root=workspace_root,
         )
         environment = self._deps.fingerprint_provider.environment_fingerprint()
+        strategy = self._verification_strategy.select(contract=state.contract)
         policy = VerificationPolicy(
             current_revision=workspace_revision,
             expected_environment_fingerprint=environment,
+            minimum_strength=strategy.minimum_strength_floor,
         )
         observations = self._deps.runtime_journal.list_observations(
             request.task_id,
