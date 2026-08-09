@@ -322,3 +322,15 @@ def test_c001_adaptive_knowledge_retrieval_files_are_present() -> None:
     assert (
         project_root / "docs" / "C001_ADAPTIVE_KNOWLEDGE_RETRIEVAL_REPORT.md"
     ).is_file()
+
+def test_c003_experience_distillation_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "experience" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "experience" / "distillation.py").is_file()
+    assert (project_root / "scripts" / "verify_c003.py").is_file()
+    assert (
+        project_root / "docs" / "rfcs" / "RFC-C003_EXPERIENCE_DISTILLATION.md"
+    ).is_file()
+    assert (
+        project_root / "docs" / "C003_EXPERIENCE_DISTILLATION_REPORT.md"
+    ).is_file()

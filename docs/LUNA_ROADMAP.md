@@ -807,3 +807,34 @@ C-001 remains `IMPLEMENTED_UNVERIFIED` until final merge containment and CI evid
 separate verified transition.
 
 <!-- C001_ADAPTIVE_RETRIEVAL_IMPLEMENTATION_END -->
+
+<!-- C003_EXPERIENCE_DISTILLATION_IMPLEMENTATION_BEGIN -->
+
+## C-003 Experience Distillation Implementation Checkpoint
+
+C-003 now implements the canonical transformation from governed experience to evidence-backed reusable
+lesson candidates without treating model narration as proof.
+
+```text
+governed experience
+-> evidence-backed case relation
+-> lesson proposal
+-> cross-case generalization test
+-> contradiction check
+-> review-required reusable candidate
+```
+
+The foundation requires TRAIN-only source assignments, evidence refs present in the source trace,
+license/PII-reviewed inputs, and at least two independent split groups for a reusable candidate.
+
+Generalization remains bounded to observed task-family coverage. Any contradiction rejects the
+candidate. `MODEL_SELF_REPORT` cannot certify a lesson.
+
+C-003 grants no runtime, training, memory-commit, promotion, or roadmap-mutation authority and remains
+`IMPLEMENTED_UNVERIFIED` until final merge containment and CI evidence support a separate verified
+transition.
+
+The historical dependency-review C-005/C-006 shorthand conflict remains a Delta Review item; C-003
+does not silently remap canonical capability IDs.
+
+<!-- C003_EXPERIENCE_DISTILLATION_IMPLEMENTATION_END -->

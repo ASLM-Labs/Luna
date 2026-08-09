@@ -143,12 +143,59 @@ def build_canonical_capability_registry() -> CapabilityRegistry:
             evidence_revision="c002-local-gate",
             evidence_freshness=EvidenceFreshness.PARTIAL,
         ),
-        _queued(
-            "C-003",
-            "Experience Distillation",
-            "Transform governed experience into evidence-backed reusable lessons and invariants.",
-            preferred=("C-002", "C-001"),
-            foundation_refs=("Phase 19 governed traces",),
+        CapabilityRecord(
+            capability_id="C-003",
+            name="Experience Distillation",
+            status=CapabilityStatus.IMPLEMENTED_UNVERIFIED,
+            scope=(
+                "Transform governed Phase 19 experience into evidence-backed, cross-case reusable "
+                "lesson candidates without hidden reasoning, held-out contamination, or "
+                "self-certification."
+            ),
+            preferred_prerequisites=("C-002", "C-001"),
+            source_refs=(
+                "docs/LUNA_ROADMAP.md#C-003",
+                "docs/ROADMAP_DEPENDENCY_REVIEW.md#C-003",
+            ),
+            foundation_refs=(
+                "Phase 19 governed structured traces",
+                "Phase 19 leak-free split governance",
+                "C-001 adaptive knowledge retrieval",
+                "C-002 capability lineage",
+            ),
+            implementation_components=(
+                "src/luna/experience/models.py",
+                "src/luna/experience/distillation.py",
+            ),
+            verifier_refs=(
+                "tests/test_c003_experience_distillation.py",
+                "scripts/verify_c003.py",
+            ),
+            evidence_refs=(
+                "docs/C003_EXPERIENCE_DISTILLATION_REPORT.md",
+                "c003_verification.json",
+            ),
+            metrics=(
+                "cross_case_support_group_count",
+                "cross_task_support_family_count",
+                "contradiction_rejection_rate",
+                "unobserved_evidence_rejection_rate",
+                "heldout_contamination_rejection_rate",
+                "self_report_rejection_rate",
+                "review_candidate_rate",
+            ),
+            authority_boundary=(
+                "C-003 produces review-required lesson candidates only. It grants no runtime, "
+                "training, memory-commit, or promotion authority and cannot use model self-report "
+                "as independent evidence."
+            ),
+            rollback_or_disable_path=(
+                "Disable C-003 distillation and retain the original governed traces; no distilled "
+                "candidate is automatically committed to memory, training, runtime, or promotion."
+            ),
+            source_revision="c003-experience-distillation-foundation",
+            evidence_revision="c003-local-gate",
+            evidence_freshness=EvidenceFreshness.PARTIAL,
         ),
         _queued(
             "C-004",

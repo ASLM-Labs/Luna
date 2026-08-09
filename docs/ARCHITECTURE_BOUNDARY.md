@@ -817,3 +817,33 @@ require a fresh governed source or stop. Public research is not used as a fallba
 user-specific knowledge.
 
 <!-- C001_ADAPTIVE_RETRIEVAL_BOUNDARY_END -->
+
+<!-- C003_EXPERIENCE_DISTILLATION_BOUNDARY_BEGIN -->
+
+## C-003 Experience Distillation Boundary
+
+C-003 is a learning-governance layer, not a runtime executor.
+
+Allowed:
+
+- read already-governed Phase 19 structured traces;
+- consume governed TRAIN split assignments;
+- validate case evidence refs against observable source events;
+- reject contradictions and insufficient cross-case support;
+- emit bounded, review-required reusable lesson candidates.
+
+Forbidden:
+
+- consuming validation/held-out cases for lesson distillation;
+- accepting model self-report as independent evidence;
+- inventing missing evidence or hidden reasoning;
+- direct long-term memory commit;
+- direct model training;
+- runtime tool execution or permission expansion;
+- self-promotion, self-certification, or automatic roadmap mutation.
+
+The output of C-003 is evidence/provenance-bearing candidate material only. Any later use in memory,
+training, capability inheritance, or promotion must pass the authority and evaluation boundaries owned
+by those systems.
+
+<!-- C003_EXPERIENCE_DISTILLATION_BOUNDARY_END -->

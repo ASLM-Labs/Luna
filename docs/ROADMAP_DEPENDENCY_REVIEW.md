@@ -346,3 +346,21 @@ The C-002 identity-lineage finding above remains unresolved planning history; C-
 renumber later capability IDs.
 
 <!-- C001_IMPLEMENTATION_CHECKPOINT_END -->
+
+<!-- C003_IMPLEMENTATION_CHECKPOINT_BEGIN -->
+
+## C-003 implementation checkpoint
+
+C-003 implements the review's evidence-backed experience-distillation step using Phase 19 governed
+traces and split lineage.
+
+A reusable lesson candidate now requires observable evidence references, TRAIN-only inputs, at least
+two independent split groups, no contradictory case, and non-self-report evidence provenance.
+
+The result remains review-required and has no runtime, training, memory-commit, or promotion
+authority.
+
+The earlier C-005/C-006 shorthand identity conflict remains historical planning debt and is not
+resolved or silently renumbered by C-003.
+
+<!-- C003_IMPLEMENTATION_CHECKPOINT_END -->

@@ -103,6 +103,18 @@ from luna.evaluation_governance import (
     detect_benchmark_contamination,
     freeze_regression_suite,
 )
+from luna.experience import (
+    CaseRelation,
+    DistillationDisposition,
+    ExperienceDistiller,
+    ExperienceLessonProposal,
+    GeneralizationScope,
+    LessonCaseEvidence,
+    LessonKind,
+)
+from luna.experience import (
+    EvidenceOrigin as ExperienceEvidenceOrigin,
+)
 from luna.identity import IdentityProfile
 from luna.improvement_gate import (
     ImprovementGateDecision,
@@ -114,7 +126,6 @@ from luna.learning import LearningCandidateBuilder
 from luna.learning_integrity import (
     ClaimEvidenceReview,
     EvaluatorAgreementProbe,
-    EvidenceOrigin,
     GeneralizationProfile,
     IntegrityEvidence,
     LearningExposureRecord,
@@ -124,6 +135,9 @@ from luna.learning_integrity import (
     ShortcutSliceProbe,
     assess_learning_integrity,
     build_default_learning_integrity_policy,
+)
+from luna.learning_integrity import (
+    EvidenceOrigin as IntegrityEvidenceOrigin,
 )
 from luna.memory import (
     MemoryCandidate,
@@ -229,8 +243,11 @@ from luna.tools.policy import evaluate_tool_policy
 from luna.trajectories import (
     DatasetSplit,
     DatasetTaxonomy,
+    LeakFreeSplitReport,
     LeakFreeSplitter,
+    ObservableDecisionEvent,
     SourceTraceRow,
+    SplitAssignment,
     StructuredDecisionTrace,
     TraceStage,
     TrainingTransformer,
@@ -282,6 +299,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "c001-smoke",
         help="Verify deterministic C-001 adaptive knowledge source routing.",
+    )
+    subparsers.add_parser(
+        "c003-smoke",
+        help="Verify governed C-003 experience distillation and authority boundaries.",
     )
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
     subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
@@ -1711,6 +1732,133 @@ def _run_c001_smoke() -> int:
     ) else 2
 
 
+
+def _run_c003_smoke() -> int:
+    def trace(
+        *,
+        source_id: str,
+        trajectory_family: str,
+        task_family: str,
+        evidence_ref: str,
+    ) -> StructuredDecisionTrace:
+        return StructuredDecisionTrace(
+            source_trajectory_id=source_id,
+            trajectory_family=trajectory_family,
+            task_family=task_family,
+            repository_family="repo-luna",
+            taxonomy=DatasetTaxonomy.IMPLEMENTATION_CODING,
+            task_summary="C-003 smoke fixture",
+            events=(
+                ObservableDecisionEvent(
+                    sequence=0,
+                    stage=TraceStage.TASK,
+                    summary="Perform a bounded task.",
+                ),
+                ObservableDecisionEvent(
+                    sequence=1,
+                    stage=TraceStage.EVIDENCE,
+                    summary="Record observable evidence.",
+                    evidence_refs=(evidence_ref,),
+                ),
+                ObservableDecisionEvent(
+                    sequence=2,
+                    stage=TraceStage.VERIFICATION,
+                    summary="Verify the observed result.",
+                    evidence_refs=(evidence_ref,),
+                ),
+                ObservableDecisionEvent(
+                    sequence=3,
+                    stage=TraceStage.FINAL,
+                    summary="Report the verified result.",
+                ),
+            ),
+            outcome=TrajectoryOutcome.SUCCESS,
+            provenance_refs=(f"source:{source_id}",),
+            license_reviewed=True,
+            pii_reviewed=True,
+        )
+
+    first = trace(
+        source_id="c003-smoke-a",
+        trajectory_family="family-a",
+        task_family="debugging",
+        evidence_ref="ev:a",
+    )
+    second = trace(
+        source_id="c003-smoke-b",
+        trajectory_family="family-b",
+        task_family="debugging",
+        evidence_ref="ev:b",
+    )
+    split_report = LeakFreeSplitReport(
+        assignments=tuple(
+            SplitAssignment(
+                trajectory_id=str(item.trajectory_id),
+                source_trajectory_id=item.source_trajectory_id,
+                split_group_key=item.split_group_key,
+                task_family=item.task_family,
+                split=DatasetSplit.TRAIN,
+            )
+            for item in (first, second)
+        ),
+        held_out_task_families=("reserved-heldout-family",),
+    )
+    proposal = ExperienceLessonProposal(
+        lesson_id="c003.smoke.verify-before-done",
+        statement="Completion claims require observable verification evidence.",
+        kind=LessonKind.INVARIANT,
+        applicability_scope=("bounded implementation tasks",),
+        cases=(
+            LessonCaseEvidence(
+                source_trajectory_id=first.source_trajectory_id,
+                relation=CaseRelation.SUPPORTS,
+                evidence_refs=("ev:a",),
+                evidence_origin=ExperienceEvidenceOrigin.DETERMINISTIC_VERIFIER,
+                evaluator_ref="verifier:c003-smoke",
+                observation_summary="First independent observable support case.",
+            ),
+            LessonCaseEvidence(
+                source_trajectory_id=second.source_trajectory_id,
+                relation=CaseRelation.SUPPORTS,
+                evidence_refs=("ev:b",),
+                evidence_origin=ExperienceEvidenceOrigin.DETERMINISTIC_VERIFIER,
+                evaluator_ref="verifier:c003-smoke",
+                observation_summary="Second independent observable support case.",
+            ),
+        ),
+    )
+    result = ExperienceDistiller().distill(
+        proposal=proposal,
+        traces=(first, second),
+        split_report=split_report,
+    )
+    payload = {
+        "disposition": result.disposition.value,
+        "generalization_scope": result.generalization_scope.value,
+        "generalization_test_passed": result.generalization_test_passed,
+        "support_group_count": len(result.supporting_split_groups),
+        "review_required": result.review_required,
+        "automatic_memory_commit_allowed": result.automatic_memory_commit_allowed,
+        "runtime_authority": result.runtime_authority,
+        "training_authority": result.training_authority,
+        "promotion_authority": result.promotion_authority,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True))
+    return 0 if all(
+        (
+            result.disposition is DistillationDisposition.REVIEW_REQUIRED_CANDIDATE,
+            result.generalization_scope is GeneralizationScope.WITHIN_TASK_FAMILY,
+            result.generalization_test_passed is True,
+            len(result.supporting_split_groups) == 2,
+            result.review_required is True,
+            result.automatic_memory_commit_allowed is False,
+            result.runtime_authority is False,
+            result.training_authority is False,
+            result.promotion_authority is False,
+        )
+    ) else 2
+
+
 def _run_phase14_smoke() -> int:
     now = datetime(2026, 8, 8, tzinfo=UTC)
     task_id = uuid4()
@@ -2564,12 +2712,12 @@ def _run_phase19c_smoke() -> int:
     policy = build_default_learning_integrity_policy()
     candidate_evidence = IntegrityEvidence(
         evidence_id="candidate-self",
-        origin=EvidenceOrigin.CANDIDATE_OUTPUT,
+        origin=IntegrityEvidenceOrigin.CANDIDATE_OUTPUT,
         independent_from_candidate=False,
     )
     contradiction_evidence = IntegrityEvidence(
         evidence_id="independent-contradiction",
-        origin=EvidenceOrigin.DETERMINISTIC_VERIFIER,
+        origin=IntegrityEvidenceOrigin.DETERMINISTIC_VERIFIER,
         independent_from_candidate=True,
     )
     report = assess_learning_integrity(
@@ -3134,6 +3282,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("c001_contradictory_evidence: stop_and_reinspect")
         print("c001_automatic_memory_commit: disabled")
         print("c001_runtime_authority: none")
+        print("c003_experience_distillation: implemented_unverified_review_required")
+        print("c003_cross_case_generalization: evidence_bounded")
+        print("c003_model_self_certification: blocked")
+        print("c003_automatic_memory_commit: disabled")
+        print("c003_runtime_training_promotion_authority: none")
         return 0
 
     if args.command == "capability-lineage":
@@ -3205,6 +3358,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_phase13_smoke()
     if args.command == "c001-smoke":
         return _run_c001_smoke()
+    if args.command == "c003-smoke":
+        return _run_c003_smoke()
 
     if args.command == "phase14-smoke":
         return _run_phase14_smoke()
