@@ -68,9 +68,11 @@ def _metadata_integrity() -> bool:
     manifest = json.loads((ROOT / "MANIFEST.json").read_text(encoding="utf-8"))
     if manifest.get("phase") != "19F":
         return False
-    if manifest.get("capability") != "C-003":
+    capability = str(manifest.get("capability", ""))
+    match = re.fullmatch(r"C-([0-9]{3})", capability)
+    if match is None or int(match.group(1)) < 3:
         return False
-    if manifest.get("capability_status") != "IMPLEMENTED_UNVERIFIED":
+    if manifest.get("capability_status") not in {"IMPLEMENTED_UNVERIFIED", "VERIFIED"}:
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False

@@ -249,7 +249,7 @@ failure recovery -> failure prevention.
 
 ## C-007 — Debugging Capability Decomposition & Transfer
 
-Status: QUEUED
+Status: IMPLEMENTED_UNVERIFIED
 Priority: HIGH
 
 Treat debugging as a capability stack rather than one feature:
@@ -885,3 +885,22 @@ The complete preferred order and rationale are recorded in `docs/POST_C003_CAPAB
 No capability status is self-promoted by this planning review, and no runtime/training/promotion authority is added.
 
 <!-- POST_C003_CAPABILITY_ORDER_DELTA_REVIEW_END -->
+
+
+<!-- C007_DEBUGGING_TRANSFER_IMPLEMENTATION_BEGIN -->
+
+## C-007 Debugging Capability Transfer Implementation Checkpoint
+
+C-007 now decomposes debugging into an observable stage stack and evaluates reviewed C-003 lesson
+candidates on paired unseen held-out cases. Transfer evaluation measures repair success and diagnosis
+quality alongside stage-specific diagnosis, repair, verification, changed-basis replan, and prevention
+metrics. C-003 supporting split groups are forbidden from transfer evaluation.
+
+A `SUPPORTED` verdict is evidence for the bounded transfer hypothesis only. It grants no runtime,
+training, automatic memory-commit, promotion, deployment, external-action, or roadmap-mutation
+authority. Real-model transfer quality is not claimed by the deterministic foundation fixture.
+
+After C-007 is independently verified and merged, the preferred next capability remains
+**C-005 — Experience <-> Capability Flywheel**.
+
+<!-- C007_DEBUGGING_TRANSFER_IMPLEMENTATION_END -->

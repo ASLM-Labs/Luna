@@ -334,3 +334,19 @@ def test_c003_experience_distillation_files_are_present() -> None:
     assert (
         project_root / "docs" / "C003_EXPERIENCE_DISTILLATION_REPORT.md"
     ).is_file()
+
+
+def test_c007_debugging_capability_transfer_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "debugging" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "debugging" / "evaluator.py").is_file()
+    assert (project_root / "scripts" / "verify_c007.py").is_file()
+    assert (
+        project_root
+        / "docs"
+        / "rfcs"
+        / "RFC-C007_DEBUGGING_CAPABILITY_DECOMPOSITION_TRANSFER.md"
+    ).is_file()
+    assert (
+        project_root / "docs" / "C007_DEBUGGING_CAPABILITY_TRANSFER_REPORT.md"
+    ).is_file()

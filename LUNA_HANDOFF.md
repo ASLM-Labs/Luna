@@ -595,3 +595,39 @@ C-001/C-002/C-003 are operationally closed project checkpoints. Their C-002 regi
 Queued product-design item: **Discord Community UX & Luna Social Presence**. It preserves the agreed direction of fewer channels, one obvious place per action, Luna mention/reply invocation in allowed channels, bounded temporary discussion participation, user-controllable useful memory, and no heavy coding/IDE role for Discord. This is design queue state only, not implemented Phase 17 behavior.
 
 <!-- HANDOFF_POST_C003_DELTA_REVIEW_END -->
+
+
+<!-- HANDOFF_C007_DEBUGGING_TRANSFER_BEGIN -->
+
+## C-007 Debugging Capability Decomposition & Transfer Checkpoint
+
+Baseline source archive SHA256:
+`32b0955ea25496bcaf525f3ab8f08fa6392e45fc5f44de180738c527a4416133`
+
+Target branch:
+`capability/c007-debugging-capability-transfer`
+
+C-007 foundation state: `IMPLEMENTED_UNVERIFIED`.
+
+Implemented boundary:
+
+```text
+reviewed C-003 lesson candidate
+ -> explicit controlled-evaluation binding
+ -> paired unseen HELD_OUT debugging cases
+ -> observable debugging-stage scores
+ -> repair + diagnosis + stage deltas
+ -> SUPPORTED / NOT_SUPPORTED / INSUFFICIENT_EVIDENCE
+```
+
+No result grants runtime, training, memory-commit, promotion, deployment, external-action, or automatic
+roadmap authority. A deterministic positive fixture validates the evaluation contract only; real-model
+transfer improvement remains unclaimed until independent real held-out evaluation exists.
+
+Before commit/push on Windows, run the full `scripts/check.bat` gate including Ruff and strict mypy.
+After C-007 is independently verified, merged, contained in `origin/main`, and the working tree is
+clean, preferred next capability: **C-005 — Experience <-> Capability Flywheel**.
+
+Discord Community UX and Memory Continuity dependency review remain queued product/design work.
+
+<!-- HANDOFF_C007_DEBUGGING_TRANSFER_END -->

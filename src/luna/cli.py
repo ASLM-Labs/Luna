@@ -75,6 +75,16 @@ from luna.counterfactual import (
     assess_counterfactual,
     build_default_counterfactual_policy,
 )
+from luna.debugging import (
+    ControlledLessonTransferBinding,
+    DebuggingEvaluationCase,
+    DebuggingMetric,
+    DebuggingStage,
+    DebuggingStageAssessment,
+    DebuggingTransferEvaluator,
+    DebuggingTransferVerdict,
+    build_default_debugging_transfer_policy,
+)
 from luna.desktop import (
     THEME_TOKENS,
     DesktopAccessMode,
@@ -106,6 +116,7 @@ from luna.evaluation_governance import (
 from luna.experience import (
     CaseRelation,
     DistillationDisposition,
+    DistilledExperienceCandidate,
     ExperienceDistiller,
     ExperienceLessonProposal,
     GeneralizationScope,
@@ -303,6 +314,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "c003-smoke",
         help="Verify governed C-003 experience distillation and authority boundaries.",
+    )
+    subparsers.add_parser(
+        "c007-smoke",
+        help="Verify governed C-007 debugging decomposition and held-out transfer evaluation.",
     )
     subparsers.add_parser("list-tools", help="List registered Phase 5 tools.")
     subparsers.add_parser("audit-smoke", help="Verify redacted append-only Phase 6 audit.")
@@ -1859,6 +1874,118 @@ def _run_c003_smoke() -> int:
     ) else 2
 
 
+def _run_c007_smoke() -> int:
+    lesson = DistilledExperienceCandidate(
+        lesson_id="c007.smoke.root-cause-first",
+        statement="Localize and falsify the broken assumption before repair.",
+        kind=LessonKind.STRATEGY,
+        applicability_scope=("debugging tasks",),
+        disposition=DistillationDisposition.REVIEW_REQUIRED_CANDIDATE,
+        generalization_scope=GeneralizationScope.WITHIN_TASK_FAMILY,
+        generalization_test_passed=True,
+        supporting_source_trajectories=("train-a", "train-b"),
+        supporting_split_groups=("train-group-a", "train-group-b"),
+        supporting_task_families=("debugging",),
+        evidence_refs=("train:ev:a", "train:ev:b"),
+        provenance_refs=("source:train-a", "source:train-b"),
+        decision_basis=("independent_support_groups_satisfied",),
+    )
+    binding = ControlledLessonTransferBinding(
+        lesson_id=lesson.lesson_id,
+        reviewer_ref="human-review:c007-smoke",
+        approval_scope=("held-out debugging evaluation",),
+    )
+    base_stages = (
+        DebuggingStage.ERROR_OBSERVATION,
+        DebuggingStage.FAILURE_LOCALIZATION,
+        DebuggingStage.HYPOTHESIS_GENERATION_RANKING,
+        DebuggingStage.BROKEN_ASSUMPTION_DETECTION,
+        DebuggingStage.STATE_CONTEXT_INSPECTION,
+        DebuggingStage.MINIMAL_REPAIR_PLANNING,
+        DebuggingStage.TOOL_SELECTION,
+        DebuggingStage.PATCH_ACTION,
+        DebuggingStage.TARGETED_VERIFICATION,
+        DebuggingStage.FULL_REGRESSION_VERIFICATION,
+        DebuggingStage.PREVENTION_PROCESS_LESSON,
+    )
+
+    def case(
+        case_id: str,
+        *,
+        score: float,
+        diagnosis: bool,
+        repair: bool,
+        applied: bool,
+    ) -> DebuggingEvaluationCase:
+        assessments = tuple(
+            DebuggingStageAssessment(
+                stage=stage,
+                score=score,
+                evidence_refs=(f"ev:{case_id}:{'after' if applied else 'before'}:{stage.value}",),
+                observation_summary=f"Observed {stage.value} behavior.",
+            )
+            for stage in base_stages
+        )
+        return DebuggingEvaluationCase(
+            case_id=case_id,
+            task_family="heldout-debugging-family",
+            split_group_key=f"heldout-group:{case_id}",
+            dataset_split=DatasetSplit.HELD_OUT,
+            stage_assessments=assessments,
+            diagnosis_correct=diagnosis,
+            repair_succeeded=repair,
+            applied_lesson_ids=(lesson.lesson_id,) if applied else (),
+            evaluator_ref="deterministic-evaluator:c007-smoke",
+            evidence_origin=ExperienceEvidenceOrigin.DETERMINISTIC_VERIFIER,
+        )
+
+    baseline = (
+        case("debug-a", score=0.40, diagnosis=False, repair=False, applied=False),
+        case("debug-b", score=0.55, diagnosis=True, repair=True, applied=False),
+    )
+    transfer = (
+        case("debug-a", score=0.80, diagnosis=True, repair=True, applied=True),
+        case("debug-b", score=0.85, diagnosis=True, repair=True, applied=True),
+    )
+    result = DebuggingTransferEvaluator().evaluate(
+        lesson=lesson,
+        binding=binding,
+        policy=build_default_debugging_transfer_policy(),
+        baseline_cases=baseline,
+        transfer_cases=transfer,
+    )
+    payload = {
+        "verdict": result.verdict.value,
+        "held_out_case_count": len(result.held_out_case_ids),
+        "repair_improved": DebuggingMetric.REPAIR_SUCCESS in result.meaningfully_improved_metrics,
+        "diagnosis_improved": DebuggingMetric.DIAGNOSIS_QUALITY
+        in result.meaningfully_improved_metrics,
+        "regressed_metrics": [metric.value for metric in result.regressed_metrics],
+        "review_required": result.review_required,
+        "automatic_memory_commit_allowed": result.automatic_memory_commit_allowed,
+        "runtime_authority": result.runtime_authority,
+        "training_authority": result.training_authority,
+        "promotion_authority": result.promotion_authority,
+        "action_executed": result.action_executed,
+    }
+    print(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True))
+    return 0 if all(
+        (
+            result.verdict is DebuggingTransferVerdict.SUPPORTED,
+            len(result.held_out_case_ids) == 2,
+            DebuggingMetric.REPAIR_SUCCESS in result.meaningfully_improved_metrics,
+            DebuggingMetric.DIAGNOSIS_QUALITY in result.meaningfully_improved_metrics,
+            not result.regressed_metrics,
+            result.review_required is True,
+            result.automatic_memory_commit_allowed is False,
+            result.runtime_authority is False,
+            result.training_authority is False,
+            result.promotion_authority is False,
+            result.action_executed is False,
+        )
+    ) else 2
+
+
 def _run_phase14_smoke() -> int:
     now = datetime(2026, 8, 8, tzinfo=UTC)
     task_id = uuid4()
@@ -3287,6 +3414,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("c003_model_self_certification: blocked")
         print("c003_automatic_memory_commit: disabled")
         print("c003_runtime_training_promotion_authority: none")
+        print("c007_debugging_transfer: implemented_unverified_paired_heldout")
+        print("c007_repair_and_diagnosis_metrics: required")
+        print("c007_changed_basis_replan: explicit_when_initial_repair_fails")
+        print("c007_runtime_training_memory_promotion_authority: none")
         return 0
 
     if args.command == "capability-lineage":
@@ -3360,6 +3491,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_c001_smoke()
     if args.command == "c003-smoke":
         return _run_c003_smoke()
+    if args.command == "c007-smoke":
+        return _run_c007_smoke()
 
     if args.command == "phase14-smoke":
         return _run_phase14_smoke()

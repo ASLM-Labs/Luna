@@ -847,3 +847,20 @@ training, capability inheritance, or promotion must pass the authority and evalu
 by those systems.
 
 <!-- C003_EXPERIENCE_DISTILLATION_BOUNDARY_END -->
+
+
+<!-- C007_DEBUGGING_TRANSFER_BOUNDARY_BEGIN -->
+
+## C-007 Debugging Transfer Boundary
+
+C-007 is a decomposition and controlled-evaluation layer, not an autonomous patch executor. It may
+score observable debugging stages and compare paired held-out before/after cases for an explicitly
+reviewed C-003 lesson. It may not grant tool/runtime authority, execute a patch by itself, train a
+model, write long-term memory automatically, promote a model/capability, or convert held-out evidence
+into learning data.
+
+Changed-basis replan evidence is mandatory when the initial repair failed; blind retry is not accepted
+as debugging transfer. Model self-report cannot independently score transfer quality, and any reused
+C-003 support split group invalidates the transfer evaluation basis.
+
+<!-- C007_DEBUGGING_TRANSFER_BOUNDARY_END -->
