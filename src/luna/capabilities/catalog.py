@@ -225,14 +225,64 @@ def build_canonical_capability_registry() -> CapabilityRegistry:
             ),
             preferred=("C-002", "C-003"),
         ),
-        _queued(
-            "C-007",
-            "Debugging Capability Decomposition & Transfer",
-            (
-                "Treat debugging as a measurable stack from observation through diagnosis, repair, "
-                "and regression."
+        CapabilityRecord(
+            capability_id="C-007",
+            name="Debugging Capability Decomposition & Transfer",
+            status=CapabilityStatus.IMPLEMENTED_UNVERIFIED,
+            scope=(
+                "Decompose debugging into observable diagnosis, repair, verification, "
+                "changed-basis replanning, and prevention stages, then test reviewed C-003 "
+                "lessons on unseen paired held-out debugging cases."
             ),
-            preferred=("C-002", "C-003", "C-001"),
+            preferred_prerequisites=("C-002", "C-003", "C-001"),
+            source_refs=(
+                "docs/LUNA_ROADMAP.md#C-007",
+                "docs/POST_C003_CAPABILITY_ORDER_DELTA_REVIEW.md#Decision-C-007-is-next",
+            ),
+            foundation_refs=(
+                "C-003 Experience Distillation",
+                "Phase 12D failure recovery and minimal change",
+                "Phase 19 cognitive quality and failure taxonomy",
+                "Phase 19F improvement governance",
+            ),
+            implementation_components=(
+                "src/luna/debugging/models.py",
+                "src/luna/debugging/evaluator.py",
+            ),
+            verifier_refs=(
+                "tests/test_c007_debugging_capability_transfer.py",
+                "scripts/verify_c007.py",
+            ),
+            evidence_refs=(
+                "docs/C007_DEBUGGING_CAPABILITY_TRANSFER_REPORT.md",
+                "c007_verification.json",
+            ),
+            metrics=(
+                "repair_success_delta",
+                "diagnosis_quality_delta",
+                "failure_localization_delta",
+                "hypothesis_quality_delta",
+                "broken_assumption_detection_delta",
+                "minimal_repair_planning_delta",
+                "tool_selection_delta",
+                "targeted_verification_delta",
+                "full_regression_verification_delta",
+                "changed_basis_replan_delta",
+                "prevention_lesson_delta",
+                "heldout_contamination_rejection_rate",
+            ),
+            authority_boundary=(
+                "C-007 evaluates controlled lesson-to-debugging transfer only. A C-003 candidate "
+                "requires explicit review binding; transfer evidence grants no runtime, training, "
+                "memory-commit, promotion, deployment, or external-action authority."
+            ),
+            rollback_or_disable_path=(
+                "Disable the C-007 evaluator and retain C-003 lesson candidates plus the existing "
+                "Phase 12D/19 debugging foundations; no evaluated lesson is automatically adopted."
+            ),
+            source_revision="c007-debugging-capability-transfer-foundation",
+            evidence_revision="c007-local-gate",
+            evidence_freshness=EvidenceFreshness.PARTIAL,
         ),
         _queued(
             "C-008",

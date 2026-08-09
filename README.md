@@ -629,3 +629,20 @@ Visible smoke:
 ```
 
 <!-- C003_EXPERIENCE_DISTILLATION_END -->
+
+
+<!-- C007_DEBUGGING_TRANSFER_BEGIN -->
+
+## C-007 Debugging Capability Decomposition & Transfer
+
+C-007 is implemented as a non-executing, review-bound transfer evaluator. Debugging is measured as an
+observable stack from error observation through diagnosis, minimal repair, targeted/full verification,
+changed-basis replanning when needed, and prevention/process lessons. Reviewed C-003 lesson candidates
+are tested only on paired unseen `HELD_OUT` cases; training-support groups cannot be reused as transfer
+evidence.
+
+The gate measures both **repair success** and **diagnosis quality** plus stage-specific deltas. A
+`SUPPORTED` result is bounded evidence for that lesson/case set and never grants runtime, training,
+memory, promotion, deployment, or external-action authority.
+
+<!-- C007_DEBUGGING_TRANSFER_END -->

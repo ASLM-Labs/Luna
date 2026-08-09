@@ -1,3 +1,20 @@
+## [0.1.0-c007-debugging-capability-transfer] - 2026-08-09
+
+### Added
+
+- Canonical observable C-007 debugging stage stack from error observation through prevention lesson.
+- Stage-level evidence scoring and mandatory changed-basis replan evidence after failed initial repair.
+- Explicit review-only binding from C-003 lesson candidates into controlled debugging evaluation.
+- Paired unseen held-out before/after transfer evaluation with C-003 support-group contamination blocking.
+- Repair-success, diagnosis-quality, and stage-specific transfer deltas.
+- C-007 deterministic verifier and governed CLI smoke.
+
+### Governance
+
+- C-007 grants no runtime, training, automatic memory-commit, promotion, deployment, or external-action authority.
+- Model self-report cannot independently score debugging transfer.
+- `SUPPORTED` is bounded transfer evidence, not a generic improvement or promotion claim.
+
 ## [0.1.0-post-c003-capability-order-delta-review] - 2026-08-09
 
 ### Changed

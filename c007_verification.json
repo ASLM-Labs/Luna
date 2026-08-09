@@ -1,0 +1,24 @@
+{
+  "action_executed": false,
+  "automatic_memory_commit": false,
+  "capability": "C-007",
+  "checks": {
+    "additional_lesson_confounds_are_blocked": true,
+    "c007_implemented_unverified_not_self_verified": true,
+    "changed_basis_replan_is_explicit_after_failed_initial_repair": true,
+    "controlled_transfer_requires_explicit_human_review": true,
+    "metadata_integrity": true,
+    "model_self_report_cannot_score_debugging_transfer": true,
+    "required_files_present": true,
+    "reviewed_lesson_supports_paired_heldout_transfer_evaluation": true,
+    "runtime_training_memory_promotion_authority_absent": true,
+    "training_group_contamination_is_blocked": true
+  },
+  "missing_files": [],
+  "name": "Debugging Capability Decomposition & Transfer",
+  "promotion_authority": false,
+  "runtime_authority": false,
+  "status": "PASS",
+  "training_authority": false,
+  "transfer_verdict": "SUPPORTED"
+}
