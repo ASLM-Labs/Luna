@@ -1,0 +1,26 @@
+{
+  "automatic_memory_commit": false,
+  "candidate_disposition": "REVIEW_REQUIRED_CANDIDATE",
+  "capability": "C-003",
+  "checks": {
+    "c003_implemented_unverified_not_self_verified": true,
+    "cross_case_support_produces_review_candidate": true,
+    "distillation_is_deterministic": true,
+    "generalization_is_scoped_not_universal": true,
+    "lesson_evidence_must_exist_in_source_trace": true,
+    "metadata_integrity": true,
+    "model_self_report_cannot_certify_lesson": true,
+    "observable_contradiction_rejects_candidate": true,
+    "raw_hidden_chain_of_thought_not_required_or_ingested": true,
+    "required_files_present": true,
+    "runtime_training_memory_promotion_authority_absent": true,
+    "single_case_is_insufficient_evidence": true,
+    "validation_and_heldout_remain_evaluation_only": true
+  },
+  "missing_files": [],
+  "name": "Experience Distillation",
+  "promotion_authority": false,
+  "runtime_authority": false,
+  "status": "PASS",
+  "training_authority": false
+}

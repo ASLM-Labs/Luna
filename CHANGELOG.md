@@ -1,3 +1,21 @@
+
+## [0.1.0-c003-experience-distillation] - 2026-08-09
+
+### Added
+
+- Evidence-bound C-003 lesson proposal and case-relation contracts.
+- Deterministic cross-case experience distillation over Phase 19 governed traces.
+- TRAIN-only distillation boundary with validation/held-out rejection.
+- Observable evidence-ref validation, contradiction rejection, and scoped generalization.
+- Model self-report rejection and review-required reusable lesson candidates.
+- C-003 deterministic verifier and CLI smoke.
+
+### Governance
+
+- C-003 grants no runtime, training, memory-commit, or promotion authority.
+- Distilled candidates cannot self-certify improvement or become long-term memory automatically.
+- Cross-case support is evidence-bounded; contradictory evidence blocks reuse.
+
 ## [0.1.0-c002-lineage-foundation] - 2026-08-09\n\n### Added\n\n- Canonical C-001..C-012 capability identity registry.\n- Hard/preferred dependency metadata and deterministic graph validation.\n- Source, implementation, verifier, evidence, freshness, authority, and rollback lineage metadata.\n- Direct/transitive blast-radius query with hard-only option.\n- C-002 deterministic verifier and CLI query.\n\n### Governance\n\n- C-002 remains read-only and cannot self-verify, mutate the roadmap, promote a candidate, or execute runtime actions.\n- A C-005/C-006 identity mismatch between the explicit capability queue and dependency-review shorthand is surfaced for Delta Review rather than silently remapped.\n\n# Changelog
 
 ## C-001 Adaptive Knowledge Retrieval

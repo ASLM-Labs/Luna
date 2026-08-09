@@ -597,3 +597,35 @@ fresh governed evidence. The router performs no direct network execution and nev
 retrieval results to long-term memory.
 
 <!-- C001_ADAPTIVE_RETRIEVAL_END -->
+
+<!-- C003_EXPERIENCE_DISTILLATION_BEGIN -->
+
+## C-003 Experience Distillation
+
+C-003 converts governed observable experience into reusable **review-required** lesson candidates.
+
+```text
+governed TRAIN experience
+-> evidence-bound case relation
+-> cross-case support check
+-> contradiction check
+-> bounded generalization
+-> review-required candidate
+```
+
+A single case is insufficient. At least two independent split groups are required by the default
+foundation. Validation and held-out data remain evaluation-only.
+
+Model self-report cannot certify a lesson. Evidence refs must exist in the source trajectory, and cited
+traces must already be license-reviewed and PII-reviewed.
+
+C-003 does not execute runtime actions, train models, commit memory, promote candidates, or grant
+authority.
+
+Visible smoke:
+
+```bat
+.venv\Scripts\python.exe -m luna c003-smoke
+```
+
+<!-- C003_EXPERIENCE_DISTILLATION_END -->

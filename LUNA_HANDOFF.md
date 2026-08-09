@@ -526,3 +526,38 @@ a separate `VERIFIED` transition. Existing Phase 9 verified memory, Phase 12B la
 Phase 14 Research Gateway remain authoritative execution boundaries.
 
 <!-- HANDOFF_C001_RETRIEVAL_END -->
+
+<!-- HANDOFF_C003_DISTILLATION_BEGIN -->
+
+## C-003 Experience Distillation Checkpoint
+
+Current implementation target: **C-003 — Experience Distillation**.
+
+Branch: `capability/c003-experience-distillation`
+
+Implemented boundary:
+
+```text
+Phase 19 governed TRAIN traces
+-> explicit evidence-bound lesson cases
+-> source evidence-ref validation
+-> independent split-group support
+-> contradiction rejection
+-> bounded generalization scope
+-> REVIEW_REQUIRED_CANDIDATE
+```
+
+C-003 rejects validation/held-out contamination and `MODEL_SELF_REPORT` as lesson evidence. It does
+not require or preserve raw hidden chain-of-thought.
+
+C-003 status is `IMPLEMENTED_UNVERIFIED`; final merge containment and CI evidence are required before
+a separate `VERIFIED` transition.
+
+Authority remains absent: no runtime execution, no training execution, no automatic memory commit,
+no promotion, and no automatic roadmap mutation.
+
+The C-005/C-006 shorthand identity conflict in the historical dependency review remains unresolved.
+C-003 uses the canonical capability identities from `docs/LUNA_ROADMAP.md` and does not silently
+renumber later capabilities.
+
+<!-- HANDOFF_C003_DISTILLATION_END -->

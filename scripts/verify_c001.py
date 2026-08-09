@@ -55,9 +55,10 @@ def _metadata_integrity() -> bool:
     manifest = json.loads((ROOT / "MANIFEST.json").read_text(encoding="utf-8"))
     if manifest.get("phase") != "19F":
         return False
-    if manifest.get("capability") != "C-001":
+    capability = str(manifest.get("capability", ""))
+    if re.fullmatch(r"C-[0-9]{3}", capability) is None:
         return False
-    if manifest.get("capability_status") != "IMPLEMENTED_UNVERIFIED":
+    if manifest.get("capability_status") not in {"IMPLEMENTED_UNVERIFIED", "VERIFIED"}:
         return False
     if manifest.get("hash_normalization") != "utf8_text_lf_v1":
         return False
@@ -235,11 +236,19 @@ def main() -> int:
         "external_action_authority": False,
         "automatic_memory_commit": False,
     }
-    (ROOT / "c001_verification.json").write_text(
-        json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    verification_path = ROOT / "c001_verification.json"
+    existing_payload: object | None = None
+    if verification_path.is_file():
+        try:
+            existing_payload = json.loads(verification_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            existing_payload = None
+    if existing_payload != payload:
+        verification_path.write_text(
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
     print(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True))
     return 0 if passed else 1
 

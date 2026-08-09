@@ -98,6 +98,11 @@ def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert "c001_contradictory_evidence: stop_and_reinspect" in output
     assert "c001_automatic_memory_commit: disabled" in output
     assert "c001_runtime_authority: none" in output
+    assert "c003_experience_distillation: implemented_unverified_review_required" in output
+    assert "c003_cross_case_generalization: evidence_bounded" in output
+    assert "c003_model_self_certification: blocked" in output
+    assert "c003_automatic_memory_commit: disabled" in output
+    assert "c003_runtime_training_promotion_authority: none" in output
     assert "action_proposal: untrusted_no_authority" in output
     assert "tool_selection: two_stage_runtime_owned" in output
     assert "structured_denial: blocked_observation" in output
@@ -732,6 +737,23 @@ def test_c001_smoke_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert payload["automatic_memory_commit_allowed"] is False
     assert payload["runtime_authority"] is False
     assert payload["external_action_allowed"] is False
+
+
+
+def test_c003_smoke_command(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["c003-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["disposition"] == "REVIEW_REQUIRED_CANDIDATE"
+    assert payload["generalization_scope"] == "WITHIN_TASK_FAMILY"
+    assert payload["generalization_test_passed"] is True
+    assert payload["support_group_count"] == 2
+    assert payload["review_required"] is True
+    assert payload["automatic_memory_commit_allowed"] is False
+    assert payload["runtime_authority"] is False
+    assert payload["training_authority"] is False
+    assert payload["promotion_authority"] is False
 
 
 def test_capability_lineage_command(capsys: pytest.CaptureFixture[str]) -> None:
