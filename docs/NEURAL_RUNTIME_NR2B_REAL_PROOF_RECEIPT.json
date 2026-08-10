@@ -1,0 +1,33 @@
+{
+  "scope": "NR2B_DIRECT_NATIVE_WORKER_SLICE1_REAL_PROOF",
+  "status": "PASS_LUNA_NATIVE_WORKER_FULL_CHAIN",
+  "proof_source": "chat_uploaded_full_chain_proof",
+  "proof_artifact": "Luna_NR2B_LunaNativeWorker_Full_Chain_Proof(1).txt",
+  "proof_raw_sha256": "A10416330716D36E3B8869F5097FEC8DD599F2FC57A68F561A71EF1D957895DE",
+  "proof_normalized_sha256": "0F3899AABFB8BE52BE1E4380AC43C6E4E55FD5D9ED80CFE126CA40554B4EF654",
+  "proof_size_bytes": 1187,
+  "branch": "runtime/nr2b-direct-native-worker",
+  "frozen_merged_main_basis": "639bb5ddead055eec9b04d868370364218496cba",
+  "shim_sha256": "2DF2BFD44498A48C6724A1479F9023E52A7127DD956882D675730D081B4AFFF7",
+  "model": "ggml-org/gpt-oss-20b-GGUF:gpt-oss-20b-MXFP4.gguf",
+  "cpu_only_runtime_staging": true,
+  "cuda_backend_staged": false,
+  "worker_state_before": "STOPPED",
+  "response_request_id_match": true,
+  "response_backend_id": "luna-direct-native-proof",
+  "response_finish_reason": "STOP",
+  "worker_state_after": "STOPPED",
+  "stream_event_count": 2,
+  "stream_event_types": [
+    "TEXT_DELTA",
+    "FINISH"
+  ],
+  "canonical_final": "Yes, I'm ready to work today.",
+  "analysis_content_emitted": false,
+  "llama_cli_required_for_this_path": false,
+  "persistent_residency_claimed": false,
+  "gpu_budget_enforcement_claimed": false,
+  "primary_path_promoted": false,
+  "identity_test_executed": false,
+  "probe_exit_code": 0
+}
