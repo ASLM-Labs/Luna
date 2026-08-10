@@ -104,12 +104,28 @@
       "sha256": "fc8f458c4dc3b40a8e9565771c05a298dca0137f2ad69208d2445c67f1d450ce",
       "size_bytes": 30024
     },
+    "docs/NEURAL_NATIVE_BRIDGE_BUILD_GOVERNANCE.md": {
+      "sha256": "348f34d3429528a8a2e8cdeaf9eb3aee76ba1f48c0eab795cdf0147256cc0280",
+      "size_bytes": 3318
+    },
+    "docs/NEURAL_NATIVE_BRIDGE_REAL_PROOF_RECEIPT.json": {
+      "sha256": "c19dd8e746c44024ec6a9328fda2ee5c2a528994f8eb7e94e4889d19c503eeeb",
+      "size_bytes": 1882
+    },
+    "docs/NEURAL_NATIVE_BRIDGE_REPORT.md": {
+      "sha256": "a67f5015b374151a54dc492a84d42c6b81e533cb53b41a6aeeac03af4f7d1a09",
+      "size_bytes": 2507
+    },
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json": {
+      "sha256": "889e17dfa3c3afb0b0f68d45c0d5e5d2aa598eb3e739dcfed8d826057cdba74c",
+      "size_bytes": 2049
+    },
     "docs/NEURAL_RUNTIME_FOUNDATION_UPDATE_MANIFEST.json": {
-      "sha256": "badc6434ae2ad208c0f9de947b09b7a726489d1f2d53c9e566f53bc478c9695b",
+      "sha256": "74a72f4c782b5994c5b410048aaee5e6712ec9c663a0f33d35cbf161a1fbb778",
       "size_bytes": 2262
     },
     "docs/NEURAL_RUNTIME_NR2A_UPDATE_MANIFEST.json": {
-      "sha256": "f13f6591e71fe5c13b2be80e9ab717eb24b300ee939084c8f7c4968be786df3b",
+      "sha256": "df876d41892c5e1e62477aaa2797b3a50eeaa668b6f8b07d8a5a81122fef8ce3",
       "size_bytes": 1710
     },
     "docs/NEURAL_RUNTIME_NR2B_REAL_PROOF_RECEIPT.json": {
@@ -121,7 +137,7 @@
       "size_bytes": 5515
     },
     "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json": {
-      "sha256": "cd3644084463eea8d6f8a5852d4c67948c3b39fa5ee01ada59aca7bc21a78b7a",
+      "sha256": "7c3729d4d242ded6e29cf0c67bc0616028778f4984fd97b95987c74bd83610ec",
       "size_bytes": 1633
     },
     "docs/PHASE_0_REPORT.md": {
@@ -504,6 +520,14 @@
       "sha256": "9b10ded5f59ad4d6725dc2ff6d3631d819fcbbe41eec5675a0bccec04d2fe73f",
       "size_bytes": 4928
     },
+    "native/neural_bridge/bridge_contract.json": {
+      "sha256": "ef0b19eae783b1673be8d416a2a48134e23441d06392b54729c10774ac025911",
+      "size_bytes": 2930
+    },
+    "native/neural_bridge/luna_nr2b_shim_harmony.cpp": {
+      "sha256": "6d130a9b53b6014ecbae91276e15478e4424de7ea72ccfc35e087d8ddafa8ff1",
+      "size_bytes": 19479
+    },
     "phase_0_verification.json": {
       "sha256": "3db71600e460533b6180076a6d83e1ecf0aa02286ea29912b8c62e6ea534c244",
       "size_bytes": 919
@@ -636,9 +660,13 @@
       "sha256": "31c6e7a2ac982af5ce6c339d334884118d367fb966b4a8eaed3d28fb1bc842d3",
       "size_bytes": 680
     },
+    "scripts/build_neural_native_bridge.ps1": {
+      "sha256": "1d560dd660bfc7f8b779ab5aeb7151cc0a0ef67bbe65d928f7c8bc444687febb",
+      "size_bytes": 10041
+    },
     "scripts/check.bat": {
-      "sha256": "b7027b6bcca099ed8cfd9d2459697fd8dbcb54b9bf44628d51ece4e64b4cba86",
-      "size_bytes": 8463
+      "sha256": "04e8ca1876f826835d3cd6c5040d36d6e9b5ef655aba6eceda7f5f82891d1333",
+      "size_bytes": 8638
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -667,6 +695,10 @@
     "scripts/verify_c007.py": {
       "sha256": "44925157248fb074c045dbfde95c0e4920622cf255951870b24e93ed2504c63e",
       "size_bytes": 12852
+    },
+    "scripts/verify_neural_native_bridge.py": {
+      "sha256": "3a0b5ef32e047bde97beb275ae9d0ddacde6154be1f410790d914918ae1593fd",
+      "size_bytes": 9834
     },
     "scripts/verify_neural_native_transport.py": {
       "sha256": "db32193a4c6bd2990e73ddff5b1fec200373fa4c4c608f559bf3fa1be6521fdb",
@@ -1795,6 +1827,10 @@
     "tests/test_model_tool_boundary.py": {
       "sha256": "0b8e75889979100e86965809ee958661e9deaf3b8b7e0ed228e87884ea2fe323",
       "size_bytes": 2014
+    },
+    "tests/test_neural_native_bridge_contract.py": {
+      "sha256": "04ee6a209aa448a3d6f531af391c5c95e221f6f6663b1fb968fae81a0777cb25",
+      "size_bytes": 3406
     },
     "tests/test_neural_native_transport.py": {
       "sha256": "b0d646fef19f3daad274071737a2982d7977b29e93fb88feeaf97158f3c8de01",

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "scope": "LUNA_NATIVE_BRIDGE_BUILD_GOVERNANCE",
+  "status": "IMPLEMENTED_VERIFIED_FOR_SCOPE",
+  "bridge_source": "native/neural_bridge/luna_nr2b_shim_harmony.cpp",
+  "bridge_source_sha256": "6D130A9B53B6014ECBAE91276E15478E4424DE7EA72CCFC35E087D8DDAFA8FF1",
+  "bridge_source_provenance": {
+    "external_proof_source_sha256": "EE88E17E52565FA0B12634E41CFC1F908F9C2898677B3F67745116B178562804",
+    "normalization": "append_final_lf_if_missing_only",
+    "byte_changes_other_than_final_lf": false
+  },
+  "abi_version": 1,
+  "required_exports": [
+    "luna_nr2b_abi_version",
+    "luna_nr2b_engine_create",
+    "luna_nr2b_generate",
+    "luna_nr2b_engine_destroy"
+  ],
+  "llama_cpp": {
+    "repository": "https://github.com/ggml-org/llama.cpp.git",
+    "tag": "b10333",
+    "commit": "08659901c43b51de735740f1cf61bb82fbe0c4e4",
+    "vendored": false,
+    "locked_files": {
+      "include/llama.h": "9670030D4ABDAACBB847CAA94279C77396D350E38F53400722EFEA5641647775",
+      "ggml/include/ggml.h": "B8AF90F5415EC9442E05DBCF9CF0C34E9351EF0CED6805E4D41174BEE213F148",
+      "ggml/include/ggml-backend.h": "B376D5CE489E642B4A52EA6DCC440157876FA9940E4ECFC8F3991C7FD47CA194"
+    }
+  },
+  "runtime_assets": {
+    "vendored": false,
+    "cpu_only_rebuild_scope": true,
+    "locked_files": {
+      "llama.dll": "CB34CF39D2D0A8BF9784A506A6943C7246C419514F6596FA6C752983434E0FFD",
+      "ggml.dll": "43260B2802808B7ADD13E5838AC7BF2ED12450A8B102425B43A3BCD9F518AE5F",
+      "ggml-base.dll": "54BC2ABFAE49963AAE75C7A19DF66910AF68EEA9B70FC60B479843882F87BDBF"
+    }
+  },
+  "build": {
+    "platform": "windows_x64",
+    "compiler": "msvc",
+    "cxx_standard": "c++17",
+    "optimization": "O2",
+    "reproducible_link_flag": "/Brepro",
+    "import_libraries": "reconstructed from locked DLL exports",
+    "object_output_must_be_inside_build_dir": true,
+    "model_load_required_for_build": false,
+    "inference_required_for_build": false
+  },
+  "authority": {
+    "primary_path_promoted": false,
+    "gpu_promotion": false,
+    "persistent_residency": false,
+    "identity_test": false,
+    "tool_authority_transfer": false,
+    "memory_authority_transfer": false,
+    "training_authority_transfer": false,
+    "promotion_authority_transfer": false
+  },
+  "verification": {
+    "real_full_chain_proof_locked": true,
+    "proof_receipt": "docs/NEURAL_NATIVE_BRIDGE_REAL_PROOF_RECEIPT.json",
+    "proof_status": "PASS_REPO_OWNED_BRIDGE_LUNANATIVEWORKER_FULL_CHAIN",
+    "repo_built_bridge_sha256": "506D320F0D811E54192B852F81E62330DE9662F26DCEB3C7BEFE788BF9BFADFB",
+    "proof_raw_sha256": "0A2B8B406F2CFED3C82A81FA4F3CC564701CDDF0C0AF44B56348E71605A60694",
+    "proof_normalized_sha256": "6033E8F60F6A40239545526EADF1B088DB81C2B01FD47FC6B3FDEF7F3C05EE83",
+    "primary_path_promoted": false,
+    "persistent_residency_claimed": false,
+    "gpu_budget_enforcement_claimed": false,
+    "identity_test_executed": false
+  }
+}

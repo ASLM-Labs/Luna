@@ -27,8 +27,8 @@
       "size_bytes": 4338
     },
     "scripts/check.bat": {
-      "sha256": "b7027b6bcca099ed8cfd9d2459697fd8dbcb54b9bf44628d51ece4e64b4cba86",
-      "size_bytes": 8463
+      "sha256": "04e8ca1876f826835d3cd6c5040d36d6e9b5ef655aba6eceda7f5f82891d1333",
+      "size_bytes": 8638
     }
   },
   "frozen_head": "639bb5ddead055eec9b04d868370364218496cba",

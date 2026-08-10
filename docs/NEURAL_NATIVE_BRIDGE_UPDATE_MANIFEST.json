@@ -1,0 +1,46 @@
+{
+  "authority": "Repository-owned Luna native bridge build governance and verified CPU-only full-chain inference only; no primary-path promotion, tool authority, memory authority, training authority, promotion authority, persistent residency, production GPU-budget guarantee, or identity-test claim.",
+  "developer": "Novopic Intelligence",
+  "files": {
+    "docs/NEURAL_NATIVE_BRIDGE_BUILD_GOVERNANCE.md": {
+      "sha256": "348f34d3429528a8a2e8cdeaf9eb3aee76ba1f48c0eab795cdf0147256cc0280",
+      "size_bytes": 3318
+    },
+    "docs/NEURAL_NATIVE_BRIDGE_REPORT.md": {
+      "sha256": "a67f5015b374151a54dc492a84d42c6b81e533cb53b41a6aeeac03af4f7d1a09",
+      "size_bytes": 2507
+    },
+    "docs/NEURAL_NATIVE_BRIDGE_REAL_PROOF_RECEIPT.json": {
+      "sha256": "c19dd8e746c44024ec6a9328fda2ee5c2a528994f8eb7e94e4889d19c503eeeb",
+      "size_bytes": 1882
+    },
+    "native/neural_bridge/bridge_contract.json": {
+      "sha256": "ef0b19eae783b1673be8d416a2a48134e23441d06392b54729c10774ac025911",
+      "size_bytes": 2930
+    },
+    "native/neural_bridge/luna_nr2b_shim_harmony.cpp": {
+      "sha256": "6d130a9b53b6014ecbae91276e15478e4424de7ea72ccfc35e087d8ddafa8ff1",
+      "size_bytes": 19479
+    },
+    "scripts/build_neural_native_bridge.ps1": {
+      "sha256": "1d560dd660bfc7f8b779ab5aeb7151cc0a0ef67bbe65d928f7c8bc444687febb",
+      "size_bytes": 10041
+    },
+    "scripts/verify_neural_native_bridge.py": {
+      "sha256": "3a0b5ef32e047bde97beb275ae9d0ddacde6154be1f410790d914918ae1593fd",
+      "size_bytes": 9834
+    },
+    "tests/test_neural_native_bridge_contract.py": {
+      "sha256": "04ee6a209aa448a3d6f531af391c5c95e221f6f6663b1fb968fae81a0777cb25",
+      "size_bytes": 3406
+    },
+    "scripts/check.bat": {
+      "sha256": "04e8ca1876f826835d3cd6c5040d36d6e9b5ef655aba6eceda7f5f82891d1333",
+      "size_bytes": 8638
+    }
+  },
+  "frozen_head": "ced6089c377151d15b3637cbd5e0f9cf42f63b43",
+  "hash_normalization": "utf8_text_lf_v1",
+  "scope": "LUNA_NATIVE_BRIDGE_BUILD_GOVERNANCE",
+  "status": "IMPLEMENTED_VERIFIED_FOR_SCOPE"
+}
