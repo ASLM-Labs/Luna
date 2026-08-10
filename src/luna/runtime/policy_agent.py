@@ -46,6 +46,7 @@ class PolicyTurnStatus(StrEnum):
 
     ACTION = "ACTION"
     YIELD = "YIELD"
+    INCOMPLETE = "INCOMPLETE"
     INVALID = "INVALID"
     BACKEND_FAILURE = "BACKEND_FAILURE"
 
@@ -304,6 +305,17 @@ class ModelPolicyAgent:
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason="model backend returned ERROR finish reason",
+                usage=response.usage,
+            )
+        if response.finish_reason is ModelFinishReason.LENGTH:
+            return PolicyTurn(
+                task_id=task_id,
+                trace_id=trace_id,
+                status=PolicyTurnStatus.INCOMPLETE,
+                model_request_id=request.request_id,
+                model_request_fingerprint=fingerprint,
+                model_response_id=response.response_id,
+                response_text=response.text,
                 usage=response.usage,
             )
         if not response.tool_calls:

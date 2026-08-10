@@ -95,9 +95,14 @@ class ModelResponse(LunaContractModel):
         if (
             not self.text
             and not self.tool_calls
-            and self.finish_reason is not ModelFinishReason.ERROR
+            and self.finish_reason not in {
+                ModelFinishReason.ERROR,
+                ModelFinishReason.LENGTH,
+            }
         ):
-            raise ValueError("model response must contain text, tool calls, or an error finish")
+            raise ValueError(
+                "model response must contain text, tool calls, or an error/incomplete finish"
+            )
         if self.finish_reason is ModelFinishReason.TOOL_CALLS and not self.tool_calls:
             raise ValueError("TOOL_CALLS finish requires at least one tool call")
         call_ids = tuple(call.call_id for call in self.tool_calls)

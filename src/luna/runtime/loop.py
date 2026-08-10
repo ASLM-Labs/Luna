@@ -613,6 +613,31 @@ class LunaRuntime:
                     started_at=started_at,
                 )
 
+            if turn.status is PolicyTurnStatus.INCOMPLETE:
+                state = self._deactivate_step(state, reason=None)
+                state = state.transition_to(TaskPhase.OBSERVING)
+                output_budget_exhausted = (
+                    "model_output_tokens" in usage.snapshot().exhausted_reasons()
+                )
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    stop_reason=(
+                        RuntimeStopReason.BUDGET_EXHAUSTED
+                        if output_budget_exhausted
+                        else RuntimeStopReason.BLOCKED
+                    ),
+                    reasons=(
+                        "model response ended with LENGTH and is incomplete",
+                        "incomplete model output is never executed or treated as completion",
+                        "incomplete model output is never blindly retried",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step="owner/model output-budget or strategy decision required",
+                    started_at=started_at,
+                )
+
             if turn.status is PolicyTurnStatus.YIELD:
                 state = self._deactivate_step(state, reason=None)
                 state = state.transition_to(TaskPhase.OBSERVING)
