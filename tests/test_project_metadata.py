@@ -357,3 +357,10 @@ def test_wave2_local_judgment_foundation_files_are_present() -> None:
     assert (project_root / "src" / "luna" / "actions" / "advisory.py").is_file()
     assert (project_root / "src" / "luna" / "verification" / "strategy.py").is_file()
     assert (project_root / "scripts" / "verify_wave2.py").is_file()
+
+def test_r7b_working_session_continuity_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "sessions" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "sessions" / "store.py").is_file()
+    assert (project_root / "src" / "luna" / "sessions" / "service.py").is_file()
+    assert (project_root / "scripts" / "verify_r7b.py").is_file()
