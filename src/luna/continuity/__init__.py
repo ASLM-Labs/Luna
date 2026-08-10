@@ -3,6 +3,8 @@
 from luna.continuity.models import (
     CheckpointEnvelope,
     ContinuityIntegrity,
+    ResumeCompatibilityDimension,
+    ResumeCompatibilityVector,
     ResumeDecision,
     ResumePolicy,
     ResumeStatus,
@@ -25,6 +27,8 @@ __all__ = [
     "ContinuityIntegrity",
     "ContinuityIntegrityError",
     "ContinuityService",
+    "ResumeCompatibilityDimension",
+    "ResumeCompatibilityVector",
     "ResumeDecision",
     "ResumePolicy",
     "ResumeStatus",

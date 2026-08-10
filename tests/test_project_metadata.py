@@ -364,3 +364,12 @@ def test_r7b_working_session_continuity_files_are_present() -> None:
     assert (project_root / "src" / "luna" / "sessions" / "store.py").is_file()
     assert (project_root / "src" / "luna" / "sessions" / "service.py").is_file()
     assert (project_root / "scripts" / "verify_r7b.py").is_file()
+
+def test_r7c_resume_compatibility_vector_files_are_present() -> None:
+    project_root = PROJECT_ROOT
+    assert (project_root / "src" / "luna" / "continuity" / "models.py").is_file()
+    assert (project_root / "src" / "luna" / "continuity" / "service.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "environment.py").is_file()
+    assert (project_root / "src" / "luna" / "runtime" / "journal.py").is_file()
+    assert (project_root / "scripts" / "verify_r7c.py").is_file()
+    assert (project_root / "tests" / "test_r7c_resume_compatibility.py").is_file()

@@ -9,6 +9,8 @@ from luna.audit.models import AuditEventKind
 from luna.audit.session import AuditSession
 from luna.continuity.models import (
     CheckpointEnvelope,
+    ResumeCompatibilityDimension,
+    ResumeCompatibilityVector,
     ResumeDecision,
     ResumePolicy,
     ResumeStatus,
@@ -91,6 +93,7 @@ class ContinuityService:
         environment_fingerprint: str,
         runtime_revision: str,
         next_step: str | None,
+        compatibility_vector: ResumeCompatibilityVector | None = None,
         risks: Iterable[str] = (),
         attempts: Iterable[AttemptRecord] = (),
         resume_phase: TaskPhase | None = None,
@@ -167,6 +170,7 @@ class ContinuityService:
             checkpoint=checkpoint,
             state=persisted_state,
             runtime_revision=runtime_revision,
+            compatibility_vector=compatibility_vector,
             resume_phase=target_phase,
             previous_checkpoint_id=(
                 latest.envelope.checkpoint.checkpoint_id
@@ -188,6 +192,11 @@ class ContinuityService:
                 payload={
                     "checkpoint": stable_payload(checkpoint),
                     "runtime_revision": runtime_revision,
+                    "compatibility_vector": (
+                        stable_payload(compatibility_vector)
+                        if compatibility_vector is not None
+                        else None
+                    ),
                     "resume_phase": (
                         target_phase.value if target_phase is not None else None
                     ),
@@ -240,15 +249,56 @@ class ContinuityService:
             return decision
 
         reasons: list[str] = []
+        compatibility_mismatches: list[ResumeCompatibilityDimension] = []
         if envelope.runtime_revision != policy.runtime_revision:
             reasons.append("runtime revision mismatch")
+            compatibility_mismatches.append(
+                ResumeCompatibilityDimension.RUNTIME_REVISION
+            )
         if checkpoint.workspace_fingerprint != policy.workspace_fingerprint:
             reasons.append("workspace fingerprint mismatch")
+            compatibility_mismatches.append(
+                ResumeCompatibilityDimension.WORKSPACE_FINGERPRINT
+            )
         if (
             checkpoint.environment_fingerprint
             != policy.environment_fingerprint
         ):
             reasons.append("environment fingerprint mismatch")
+            compatibility_mismatches.append(
+                ResumeCompatibilityDimension.ENVIRONMENT_FINGERPRINT
+            )
+
+        persisted_vector = envelope.compatibility_vector
+        current_vector = policy.compatibility_vector
+        if (persisted_vector is None) != (current_vector is None):
+            reasons.append("resume compatibility vector missing")
+            compatibility_mismatches.append(ResumeCompatibilityDimension.VECTOR)
+        elif persisted_vector is not None and current_vector is not None:
+            schema_dimensions = (
+                (
+                    persisted_vector.continuity_schema_version,
+                    current_vector.continuity_schema_version,
+                    "continuity schema version mismatch",
+                    ResumeCompatibilityDimension.CONTINUITY_SCHEMA_VERSION,
+                ),
+                (
+                    persisted_vector.runtime_journal_schema_version,
+                    current_vector.runtime_journal_schema_version,
+                    "runtime journal schema version mismatch",
+                    ResumeCompatibilityDimension.RUNTIME_JOURNAL_SCHEMA_VERSION,
+                ),
+                (
+                    persisted_vector.contract_schema_version,
+                    current_vector.contract_schema_version,
+                    "contract schema version mismatch",
+                    ResumeCompatibilityDimension.CONTRACT_SCHEMA_VERSION,
+                ),
+            )
+            for persisted, current, reason, dimension in schema_dimensions:
+                if persisted != current:
+                    reasons.append(reason)
+                    compatibility_mismatches.append(dimension)
 
         current_state = self.store.load_task_state(task_id)
         if (
@@ -278,6 +328,9 @@ class ContinuityService:
                 status=ResumeStatus.BLOCKED,
                 reasons=tuple(dict.fromkeys(reasons)),
                 policy=policy,
+                compatibility_mismatches=tuple(
+                    dict.fromkeys(compatibility_mismatches)
+                ),
                 resume_phase=envelope.resume_phase,
                 replay_prohibited_step_ids=replay_prohibited,
             )
@@ -301,7 +354,11 @@ class ContinuityService:
             checkpoint_id=checkpoint.checkpoint_id,
             status=ResumeStatus.READY,
             reasons=(
-                "revision, workspace, and environment fingerprints match",
+                (
+                    "extended resume compatibility vector matched"
+                    if envelope.compatibility_vector is not None
+                    else "revision, workspace, and environment fingerprints match"
+                ),
                 "persisted task state resumed without replaying completed actions",
             ),
             policy=policy,

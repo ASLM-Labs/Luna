@@ -11,7 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
 
-from luna.continuity import ResumePolicy
+from luna.continuity import ResumeCompatibilityVector, ResumePolicy
 from luna.contracts.task import TaskContract
 from luna.tools.paths import canonical_workspace_path
 
@@ -46,6 +46,9 @@ class RuntimeFingerprintProvider(Protocol):
         *,
         task_contract: TaskContract,
         workspace_root: str | None = None,
+        continuity_schema_version: int | None = None,
+        runtime_journal_schema_version: int | None = None,
+        contract_schema_version: str | None = None,
     ) -> ResumePolicy:
         """Build the exact policy consumed by ContinuityService.resume_latest."""
         ...
@@ -221,12 +224,40 @@ class DeterministicFingerprintProvider:
         *,
         task_contract: TaskContract,
         workspace_root: str | None = None,
+        continuity_schema_version: int | None = None,
+        runtime_journal_schema_version: int | None = None,
+        contract_schema_version: str | None = None,
     ) -> ResumePolicy:
+        workspace = self.workspace_fingerprint(
+            task_contract=task_contract,
+            workspace_root=workspace_root,
+        )
+        environment = self.environment_fingerprint()
+        schema_values = (
+            continuity_schema_version,
+            runtime_journal_schema_version,
+            contract_schema_version,
+        )
+        compatibility_vector: ResumeCompatibilityVector | None = None
+        if any(value is not None for value in schema_values):
+            if any(value is None for value in schema_values):
+                raise ValueError(
+                    "extended resume compatibility requires all schema versions"
+                )
+            assert continuity_schema_version is not None
+            assert runtime_journal_schema_version is not None
+            assert contract_schema_version is not None
+            compatibility_vector = ResumeCompatibilityVector(
+                runtime_revision=self.runtime_revision,
+                continuity_schema_version=continuity_schema_version,
+                runtime_journal_schema_version=runtime_journal_schema_version,
+                contract_schema_version=contract_schema_version,
+                workspace_fingerprint=workspace,
+                environment_fingerprint=environment,
+            )
         return ResumePolicy(
             runtime_revision=self.runtime_revision,
-            workspace_fingerprint=self.workspace_fingerprint(
-                task_contract=task_contract,
-                workspace_root=workspace_root,
-            ),
-            environment_fingerprint=self.environment_fingerprint(),
+            workspace_fingerprint=workspace,
+            environment_fingerprint=environment,
+            compatibility_vector=compatibility_vector,
         )

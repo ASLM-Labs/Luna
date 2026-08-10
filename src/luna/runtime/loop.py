@@ -26,7 +26,7 @@ from luna.context import (
     LayeredContextPolicy,
     ReadinessDecision,
 )
-from luna.continuity import ResumeStatus
+from luna.continuity import ResumePolicy, ResumeStatus
 from luna.contracts import (
     CompletionStatus,
     ObservationStatus,
@@ -35,6 +35,7 @@ from luna.contracts import (
     TaskContract,
     TaskState,
 )
+from luna.contracts.base import SCHEMA_VERSION as CONTRACT_SCHEMA_VERSION
 from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
 from luna.contracts.evidence import Evidence
@@ -296,7 +297,7 @@ class LunaRuntime:
             )
 
         stored = self._deps.core.continuity_service.store.load_latest(request.task_id)
-        policy = self._deps.fingerprint_provider.resume_policy(
+        policy = self._current_resume_policy(
             task_contract=stored.envelope.state.contract,
             workspace_root=self._effective_workspace_root(
                 request.task_id,
@@ -1166,7 +1167,7 @@ class LunaRuntime:
                         idempotency_key=current.idempotency_key,
                         checkpoint_id=checkpoint_id,
                     )
-            resume_policy = self._deps.fingerprint_provider.resume_policy(
+            resume_policy = self._current_resume_policy(
                 task_contract=checkpointed.contract,
                 workspace_root=self._effective_workspace_root(
                     request.task_id,
@@ -1206,7 +1207,7 @@ class LunaRuntime:
                 idempotency_key=receipt.idempotency_key,
                 checkpoint_id=checkpoint_id,
             )
-        resume_policy = self._deps.fingerprint_provider.resume_policy(
+        resume_policy = self._current_resume_policy(
             task_contract=checkpointed.contract,
             workspace_root=self._effective_workspace_root(
                 request.task_id,
@@ -1726,15 +1727,16 @@ class LunaRuntime:
             TaskPhase.CLOSED,
             completion_status=status,
         )
-        workspace = self._deps.fingerprint_provider.workspace_fingerprint(
+        resume_policy = self._current_resume_policy(
             task_contract=closed.contract,
             workspace_root=workspace_root,
         )
         terminal = self._deps.core.continuity_service.create_checkpoint(
             state=closed,
-            workspace_fingerprint=workspace,
-            environment_fingerprint=environment,
-            runtime_revision=self._deps.fingerprint_provider.runtime_revision,
+            workspace_fingerprint=resume_policy.workspace_fingerprint,
+            environment_fingerprint=resume_policy.environment_fingerprint,
+            runtime_revision=resume_policy.runtime_revision,
+            compatibility_vector=resume_policy.compatibility_vector,
             next_step=None,
             trace_id=request.trace_id,
         )
@@ -1753,6 +1755,23 @@ class LunaRuntime:
             learning_candidate_ids=learning_candidate_ids,
         )
 
+    def _current_resume_policy(
+        self,
+        *,
+        task_contract: TaskContract,
+        workspace_root: str | None,
+    ) -> ResumePolicy:
+        """Bind fresh component-owned versions into one non-authoritative vector."""
+        return self._deps.fingerprint_provider.resume_policy(
+            task_contract=task_contract,
+            workspace_root=workspace_root,
+            continuity_schema_version=(
+                self._deps.core.continuity_service.store.schema_version()
+            ),
+            runtime_journal_schema_version=self._deps.runtime_journal.schema_version(),
+            contract_schema_version=CONTRACT_SCHEMA_VERSION,
+        )
+
     def _checkpoint(
         self,
         *,
@@ -1762,19 +1781,19 @@ class LunaRuntime:
         next_step: str,
         attempts: tuple[AttemptRecord, ...] = (),
     ) -> tuple[TaskState, UUID]:
-        workspace = self._deps.fingerprint_provider.workspace_fingerprint(
+        resume_policy = self._current_resume_policy(
             task_contract=state.contract,
             workspace_root=self._effective_workspace_root(
                 request.task_id,
                 fallback_root=state.contract.scope.workspace_root,
             ),
         )
-        environment = self._deps.fingerprint_provider.environment_fingerprint()
         stored = self._deps.core.continuity_service.create_checkpoint(
             state=state,
-            workspace_fingerprint=workspace,
-            environment_fingerprint=environment,
-            runtime_revision=self._deps.fingerprint_provider.runtime_revision,
+            workspace_fingerprint=resume_policy.workspace_fingerprint,
+            environment_fingerprint=resume_policy.environment_fingerprint,
+            runtime_revision=resume_policy.runtime_revision,
+            compatibility_vector=resume_policy.compatibility_vector,
             next_step=next_step,
             attempts=attempts,
             resume_phase=resume_phase,
