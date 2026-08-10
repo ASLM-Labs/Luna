@@ -352,6 +352,14 @@ class SQLiteRuntimeJournal:
                     (2, utc_now().isoformat()),
                 )
 
+    def schema_version(self) -> int:
+        """Return the applied runtime-journal schema version."""
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT COALESCE(MAX(version), 0) AS version FROM journal_schema"
+            ).fetchone()
+        return int(row["version"]) if row is not None else 0
+
     @staticmethod
     def _receipt_from_row(row: sqlite3.Row) -> SideEffectReceipt:
         payload = str(row["payload_json"])

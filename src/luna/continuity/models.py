@@ -40,12 +40,36 @@ class ResumeStatus(StrEnum):
     TERMINAL = "TERMINAL"
 
 
+class ResumeCompatibilityDimension(StrEnum):
+    """Observable compatibility dimension used to explain a blocked resume."""
+
+    VECTOR = "VECTOR"
+    RUNTIME_REVISION = "RUNTIME_REVISION"
+    CONTINUITY_SCHEMA_VERSION = "CONTINUITY_SCHEMA_VERSION"
+    RUNTIME_JOURNAL_SCHEMA_VERSION = "RUNTIME_JOURNAL_SCHEMA_VERSION"
+    CONTRACT_SCHEMA_VERSION = "CONTRACT_SCHEMA_VERSION"
+    WORKSPACE_FINGERPRINT = "WORKSPACE_FINGERPRINT"
+    ENVIRONMENT_FINGERPRINT = "ENVIRONMENT_FINGERPRINT"
+
+
+class ResumeCompatibilityVector(LunaContractModel):
+    """Versioned runtime facts that must remain compatible for automatic resume."""
+
+    runtime_revision: str = Field(min_length=1, max_length=500)
+    continuity_schema_version: int = Field(ge=1)
+    runtime_journal_schema_version: int = Field(ge=1)
+    contract_schema_version: str = Field(min_length=1, max_length=100)
+    workspace_fingerprint: str = Field(min_length=1, max_length=2000)
+    environment_fingerprint: str = Field(min_length=1, max_length=2000)
+
+
 class CheckpointEnvelope(LunaContractModel):
     """Checkpoint, authoritative state, and retry history stored atomically."""
 
     checkpoint: Checkpoint
     state: TaskState
     runtime_revision: str = Field(min_length=1, max_length=500)
+    compatibility_vector: ResumeCompatibilityVector | None = None
     resume_phase: TaskPhase | None = None
     previous_checkpoint_id: UUID | None = None
     attempt_records: tuple[AttemptRecord, ...] = ()
@@ -57,6 +81,19 @@ class CheckpointEnvelope(LunaContractModel):
             raise ValueError("checkpoint and state task IDs must match")
         if self.previous_checkpoint_id == self.checkpoint.checkpoint_id:
             raise ValueError("checkpoint cannot supersede itself")
+        if self.compatibility_vector is not None:
+            if self.compatibility_vector.runtime_revision != self.runtime_revision:
+                raise ValueError("compatibility vector runtime revision mismatch")
+            if (
+                self.compatibility_vector.workspace_fingerprint
+                != self.checkpoint.workspace_fingerprint
+            ):
+                raise ValueError("compatibility vector workspace fingerprint mismatch")
+            if (
+                self.compatibility_vector.environment_fingerprint
+                != self.checkpoint.environment_fingerprint
+            ):
+                raise ValueError("compatibility vector environment fingerprint mismatch")
 
         completed = {
             step.step_id
@@ -144,6 +181,22 @@ class ResumePolicy(LunaContractModel):
     runtime_revision: str = Field(min_length=1, max_length=500)
     workspace_fingerprint: str = Field(min_length=1, max_length=2000)
     environment_fingerprint: str = Field(min_length=1, max_length=2000)
+    compatibility_vector: ResumeCompatibilityVector | None = None
+
+    @model_validator(mode="after")
+    def validate_compatibility_vector(self) -> ResumePolicy:
+        if self.compatibility_vector is None:
+            return self
+        if self.compatibility_vector.runtime_revision != self.runtime_revision:
+            raise ValueError("resume policy runtime revision mismatch")
+        if self.compatibility_vector.workspace_fingerprint != self.workspace_fingerprint:
+            raise ValueError("resume policy workspace fingerprint mismatch")
+        if (
+            self.compatibility_vector.environment_fingerprint
+            != self.environment_fingerprint
+        ):
+            raise ValueError("resume policy environment fingerprint mismatch")
+        return self
 
 
 class ResumeDecision(LunaContractModel):
@@ -155,6 +208,7 @@ class ResumeDecision(LunaContractModel):
     status: ResumeStatus
     reasons: tuple[str, ...]
     policy: ResumePolicy
+    compatibility_mismatches: tuple[ResumeCompatibilityDimension, ...] = ()
     resume_phase: TaskPhase | None = None
     resumed_state: TaskState | None = None
     replay_prohibited_step_ids: tuple[UUID, ...] = ()
@@ -175,6 +229,16 @@ class ResumeDecision(LunaContractModel):
             raise ValueError("resume reasons must be unique")
         return cleaned
 
+    @field_validator("compatibility_mismatches")
+    @classmethod
+    def validate_unique_mismatches(
+        cls,
+        values: tuple[ResumeCompatibilityDimension, ...],
+    ) -> tuple[ResumeCompatibilityDimension, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("resume compatibility mismatches must be unique")
+        return values
+
     @field_validator("replay_prohibited_step_ids")
     @classmethod
     def validate_unique_steps(cls, values: tuple[UUID, ...]) -> tuple[UUID, ...]:
@@ -185,6 +249,8 @@ class ResumeDecision(LunaContractModel):
     @model_validator(mode="after")
     def validate_status(self) -> ResumeDecision:
         if self.status is ResumeStatus.READY:
+            if self.compatibility_mismatches:
+                raise ValueError("READY resume cannot carry compatibility mismatches")
             if self.resumed_state is None or self.resume_phase is None:
                 raise ValueError("READY resume requires state and resume phase")
             if self.resumed_state.task_id != self.task_id:
