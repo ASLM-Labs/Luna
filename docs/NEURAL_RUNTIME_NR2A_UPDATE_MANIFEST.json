@@ -1,0 +1,42 @@
+{
+  "authority": "NR-2A transport only; no primary-path promotion, tool authority, memory authority, training authority, promotion authority, persistent residency, or production GPU-budget guarantee.",
+  "developer": "Novopic Intelligence",
+  "files": {
+    "docs/NEURAL_RUNTIME_NR2A_REPORT.md": {
+      "sha256": "8c642196cf9811d1d10a6ef361507a1a798a33c14135e504d9e771c402c61def",
+      "size_bytes": 6707
+    },
+    "scripts/check.bat": {
+      "sha256": "1f308477eac96c6bb97ee44af497b173b028107c30b444e15fd77d4d6d7e233c",
+      "size_bytes": 8297
+    },
+    "scripts/probe_neural_cli_worker.py": {
+      "sha256": "17fbbd307789675fa064c937abe37814a2f2163b00630a93639bd786849f1e5c",
+      "size_bytes": 3112
+    },
+    "scripts/verify_neural_cli_transport.py": {
+      "sha256": "9d0856a5d5ba957720a35c158fad03e0110e354036d553511132211799e59b73",
+      "size_bytes": 5206
+    },
+    "src/luna/neural/cli_worker.py": {
+      "sha256": "6b8f1c4abc324c09d2de3fc8b1808187dc8e0937be3d587dd4c814658133acf3",
+      "size_bytes": 13353
+    },
+    "src/luna/neural/cli_worker_process.py": {
+      "sha256": "bf05fce381938487b7ebd2370f7c0cee4b56656bb892c0638b60c60d0e22e39f",
+      "size_bytes": 10980
+    },
+    "src/luna/neural/streaming.py": {
+      "sha256": "67e0229cabd37b1a9d57f52cdeef057cb2929b0838279d617453e45592673764",
+      "size_bytes": 817
+    },
+    "tests/test_neural_cli_transport.py": {
+      "sha256": "499a35e0bec6e41b9d60d152e3577939b3bfd769de49a72c434a17348ecb9a8a",
+      "size_bytes": 9298
+    }
+  },
+  "frozen_head": "75bc6c390286fc1eb2543e2a80793d009f46d64a",
+  "hash_normalization": "utf8_text_lf_v1",
+  "scope": "NR-2A_NATIVE_CLI_TRANSPORT",
+  "status": "IMPLEMENTED_VERIFIED_FOR_SCOPE"
+}
