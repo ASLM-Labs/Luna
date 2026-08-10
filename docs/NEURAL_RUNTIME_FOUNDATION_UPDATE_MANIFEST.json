@@ -7,8 +7,8 @@
       "size_bytes": 3276
     },
     "scripts/check.bat": {
-      "sha256": "e2828db775714a80a82a902899c99a2b5d86d0ce101749a109da225394faf983",
-      "size_bytes": 8143
+      "sha256": "1f308477eac96c6bb97ee44af497b173b028107c30b444e15fd77d4d6d7e233c",
+      "size_bytes": 8297
     },
     "scripts/verify_neural_runtime.py": {
       "sha256": "fb7492d5b3a7e4877f16e74c4fd1e9a7ad24ac47d9661bd3b3c5f9073fd700f4",

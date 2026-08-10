@@ -617,8 +617,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "e2828db775714a80a82a902899c99a2b5d86d0ce101749a109da225394faf983",
-      "size_bytes": 8143
+      "sha256": "1f308477eac96c6bb97ee44af497b173b028107c30b444e15fd77d4d6d7e233c",
+      "size_bytes": 8297
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
