@@ -1255,8 +1255,8 @@
       "size_bytes": 10896
     },
     "src/luna/modeling/contracts.py": {
-      "sha256": "dcb20d15dcda4796f0ed82106988e73a45b8cb6602d09dc5e762913736c9d157",
-      "size_bytes": 3691
+      "sha256": "0851804d62753499ec0ea8a49234a46fa12b6fd11bed98f7ea5182b104d8201c",
+      "size_bytes": 3807
     },
     "src/luna/modeling/errors.py": {
       "sha256": "1854b95e20445064870c5fc0a3eab6d8626a620f726d3d5d178f12d95411f2cb",
@@ -1459,16 +1459,16 @@
       "size_bytes": 30372
     },
     "src/luna/runtime/loop.py": {
-      "sha256": "8bc4f6385e72754b1c9dff981a48c7c4a511c926dd4269683b0c09b3502a2129",
-      "size_bytes": 82751
+      "sha256": "fe68145cc2b4b4fee895b1dde01e1d2ee0e566aea28da2b08d930d7cbffdb10d",
+      "size_bytes": 83963
     },
     "src/luna/runtime/models.py": {
       "sha256": "6f6dfac160d6aca803c58627e5213f719a32a13315782bc49b9e43b65e378a64",
       "size_bytes": 13287
     },
     "src/luna/runtime/policy_agent.py": {
-      "sha256": "5472ad03a8b2b3b39f6ff29906c3a704896f8ee64399e057c86608df212c152f",
-      "size_bytes": 15133
+      "sha256": "d65d516967419b5e90250fdc5f9926591afe1b354e277ecf917fdd90f0db44fb",
+      "size_bytes": 15638
     },
     "src/luna/sft/__init__.py": {
       "sha256": "5fac5b12f820325c39b1fae4973e6f73186aeb9136ec1ee59a9291e7c0eede96",
@@ -1735,8 +1735,8 @@
       "size_bytes": 1692
     },
     "tests/test_model_backend.py": {
-      "sha256": "3a55a6a728f304ea529ed4b6b2ea32c4b1571df4369fcae20a40206b7c2f034f",
-      "size_bytes": 4438
+      "sha256": "cba0c6c98cb8dea99f42daddee9d16fd9444fb87cfb3f60b255aac94806e89df",
+      "size_bytes": 5296
     },
     "tests/test_model_tool_boundary.py": {
       "sha256": "0b8e75889979100e86965809ee958661e9deaf3b8b7e0ed228e87884ea2fe323",
@@ -1779,8 +1779,8 @@
       "size_bytes": 13094
     },
     "tests/test_phase12e_single_policy_loop.py": {
-      "sha256": "b0aa7e7d71568cceaed98b9ec04239c2f2294106b68529cb663819f2546fa45b",
-      "size_bytes": 23671
+      "sha256": "6b911bbe42ad97873556199217d4487cc2ceeecad0106f7e1f9968dcb20f22bb",
+      "size_bytes": 26764
     },
     "tests/test_phase12f_verification_learning.py": {
       "sha256": "bfcc8c12beea2eb603b79e07d13259f7acd2a9df9f590c23c0964301d426db7a",

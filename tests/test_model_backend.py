@@ -150,3 +150,31 @@ def test_local_adapter_parses_tool_call_and_exports_schema() -> None:
     assert transport.last_payload is not None
     tools = transport.last_payload["tools"]
     assert isinstance(tools, list)
+
+
+def test_local_adapter_preserves_empty_length_as_incomplete_response() -> None:
+    transport = FakeTransport(
+        {
+            "choices": [
+                {
+                    "finish_reason": "length",
+                    "message": {"content": None, "tool_calls": []},
+                }
+            ],
+            "usage": {"prompt_tokens": 7, "completion_tokens": 64},
+        }
+    )
+    backend = LocalOpenAICompatibleBackend(
+        endpoint="http://127.0.0.1:1234/v1/chat/completions",
+        model="local-test",
+        transport=transport,
+        timeout_seconds=5.0,
+        max_response_bytes=100_000,
+    )
+
+    response = backend.generate(make_request())
+
+    assert response.finish_reason is ModelFinishReason.LENGTH
+    assert response.text == ""
+    assert response.tool_calls == ()
+    assert response.usage.output_tokens == 64

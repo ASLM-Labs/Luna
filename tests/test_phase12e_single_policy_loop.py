@@ -29,6 +29,7 @@ from luna.modeling import (
     ModelFinishReason,
     ModelRequest,
     ModelToolCall,
+    ModelUsage,
     ScriptedModelOutput,
     ScriptedTestBackend,
     ScriptedTurn,
@@ -330,6 +331,95 @@ def test_multiple_model_tool_calls_are_blocked_before_dispatch(tmp_path) -> None
     assert outcome.stop_reason is RuntimeStopReason.BLOCKED
     assert outcome.usage.tool_calls == 0
     assert "exactly one proposed action" in " ".join(outcome.reasons)
+
+
+def test_length_response_is_checkpointed_as_incomplete_without_dispatch(tmp_path) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    finish_reason=ModelFinishReason.LENGTH,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(tmp_path, allowed_tools=("filesystem.read_text",))
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 1
+    assert outcome.usage.tool_calls == 0
+    assert backend.call_count == 1
+    assert "ended with LENGTH and is incomplete" in " ".join(outcome.reasons)
+    assert "never blindly retried" in " ".join(outcome.reasons)
+
+
+def test_length_response_with_partial_tool_call_is_never_dispatched(tmp_path) -> None:
+    (tmp_path / "note.txt").write_text("hello", encoding="utf-8")
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Partial proposal",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="partial-read",
+                            tool_name="filesystem.read_text",
+                            arguments={"path": "note.txt"},
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.LENGTH,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(tmp_path, allowed_tools=("filesystem.read_text",))
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 1
+    assert outcome.usage.tool_calls == 0
+    assert runtime._deps.runtime_journal.list_observations(request.task_id) == ()
+    assert "never executed" in " ".join(outcome.reasons)
+
+
+def test_length_response_at_runtime_output_limit_reports_budget_exhausted(tmp_path) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    finish_reason=ModelFinishReason.LENGTH,
+                    usage=ModelUsage(output_tokens=1),
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_output_tokens=1),
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BUDGET_EXHAUSTED
+    assert outcome.usage.model_output_tokens == 1
+    assert outcome.usage.tool_calls == 0
+    assert "ended with LENGTH and is incomplete" in " ".join(outcome.reasons)
 
 
 def test_pending_cancel_is_acknowledged_at_safe_boundary_without_model_or_tool_call(
