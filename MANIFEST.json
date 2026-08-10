@@ -617,8 +617,8 @@
       "size_bytes": 680
     },
     "scripts/check.bat": {
-      "sha256": "474075f7d512f741bde8c6daa5780235dcb0d269c1981f22887dbe35519f6a94",
-      "size_bytes": 8026
+      "sha256": "e2828db775714a80a82a902899c99a2b5d86d0ce101749a109da225394faf983",
+      "size_bytes": 8143
     },
     "scripts/check_hold.bat": {
       "sha256": "ae8ce34fc20888d9599841dd11180a35e3efc217828942da80e78cd7d79460c6",
@@ -1249,8 +1249,8 @@
       "size_bytes": 17235
     },
     "src/luna/modeling/__init__.py": {
-      "sha256": "e23cda48776dd80d6f06b9bc363d0b0439440f29a3635b7cdadad317a2d07123",
-      "size_bytes": 1593
+      "sha256": "28f1e37fd0448c7af600313c2fd3e020014d37556478b0169e754352596c886c",
+      "size_bytes": 1671
     },
     "src/luna/modeling/backend.py": {
       "sha256": "ea36f4b5049cb9e7aa9528000ddaf4bf8f225595392a968838e1458a7637372a",

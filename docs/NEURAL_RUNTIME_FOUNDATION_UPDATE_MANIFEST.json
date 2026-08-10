@@ -1,0 +1,58 @@
+{
+  "authority": "Foundation only; no model load, native binding, primary-path switch, tool authority, memory authority, or promotion authority.",
+  "developer": "Novopic Intelligence",
+  "files": {
+    "docs/NEURAL_RUNTIME_FOUNDATION_REPORT.md": {
+      "sha256": "7b890ca7518d544730dafa41d7ff6c1669dcab8639f7b769c3fd3bab52a20fcf",
+      "size_bytes": 3276
+    },
+    "scripts/check.bat": {
+      "sha256": "e2828db775714a80a82a902899c99a2b5d86d0ce101749a109da225394faf983",
+      "size_bytes": 8143
+    },
+    "scripts/verify_neural_runtime.py": {
+      "sha256": "fb7492d5b3a7e4877f16e74c4fd1e9a7ad24ac47d9661bd3b3c5f9073fd700f4",
+      "size_bytes": 7765
+    },
+    "src/luna/modeling/__init__.py": {
+      "sha256": "28f1e37fd0448c7af600313c2fd3e020014d37556478b0169e754352596c886c",
+      "size_bytes": 1671
+    },
+    "src/luna/modeling/native.py": {
+      "sha256": "4b6d722b15c54cc06570d98c38b2570363f38aaae49aa856f948f1988dde1465",
+      "size_bytes": 2606
+    },
+    "src/luna/neural/__init__.py": {
+      "sha256": "4556269f76bb1b37afdf0f0e944e4e57e42809f69532d4841c300bec8dc18889",
+      "size_bytes": 825
+    },
+    "src/luna/neural/contracts.py": {
+      "sha256": "5fc00c7d1d901936e3e63dde22667d4a2e0a3222fdac9080f6db2375f2bf0ad3",
+      "size_bytes": 3279
+    },
+    "src/luna/neural/resources.py": {
+      "sha256": "2b89b153dd105d579b8edbb987d796a54cbd2bfb756d46faf8b5bbf59a7ab9d3",
+      "size_bytes": 3297
+    },
+    "src/luna/neural/runtime.py": {
+      "sha256": "f5c15877a4d31e04c567bdbfad1d4363b86edde91cd960c5df6ad165eb578f28",
+      "size_bytes": 5403
+    },
+    "src/luna/neural/worker_protocol.py": {
+      "sha256": "71159316a9e24e631e57cfd271539b8ffc0f9a32994776f9548c77b0ae6dafac",
+      "size_bytes": 940
+    },
+    "tests/test_native_model_backend.py": {
+      "sha256": "a57b32515b949e6847e6a9327ad14161111859970efac913fd349f11a98bfed8",
+      "size_bytes": 4836
+    },
+    "tests/test_neural_runtime_foundation.py": {
+      "sha256": "2e3e45858ddfeefb7145a94fe3e06c8104e2b2c4f8757ea10558ef1363e10f54",
+      "size_bytes": 7125
+    }
+  },
+  "frozen_head": "8bc9577ef24ea912c1b951d50f09836601c69ff8",
+  "hash_normalization": "utf8_text_lf_v1",
+  "scope": "NR-1_NEURAL_RUNTIME_FOUNDATION",
+  "status": "IMPLEMENTED_UNVERIFIED"
+}

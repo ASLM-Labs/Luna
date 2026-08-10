@@ -19,6 +19,7 @@ from luna.modeling.contracts import (
 )
 from luna.modeling.errors import ModelBackendError, ModelBackendErrorCode
 from luna.modeling.local_openai import LocalOpenAICompatibleBackend
+from luna.modeling.native import NativeModelBackend
 from luna.modeling.rollout import (
     ControlledModelBackend,
     ModelRolloutDecision,
@@ -52,6 +53,7 @@ __all__ = [
     "ModelRolloutStage",
     "ModelToolCall",
     "ModelUsage",
+    "NativeModelBackend",
     "ScriptedModelOutput",
     "ScriptedTestBackend",
     "ScriptedTurn",
