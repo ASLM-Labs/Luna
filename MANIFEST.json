@@ -8,6 +8,10 @@
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
       "size_bytes": 249
     },
+    ".gitattributes": {
+      "sha256": "bd756e56378772d02f61d5c66f83af51ff5684c33acbd5bca2d519040d572a77",
+      "size_bytes": 140
+    },
     ".github/workflows/quality.yml": {
       "sha256": "92f08d1f06193191880318936dce2f909421fbb854b2f924e57cbcfab22b6401",
       "size_bytes": 3092
@@ -117,8 +121,8 @@
       "size_bytes": 2507
     },
     "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json": {
-      "sha256": "889e17dfa3c3afb0b0f68d45c0d5e5d2aa598eb3e739dcfed8d826057cdba74c",
-      "size_bytes": 2049
+      "sha256": "e6ea182ffff180077a21b5ce961ccfa8b8f8dbe5603f13d46dfd1e82ce0071a8",
+      "size_bytes": 2188
     },
     "docs/NEURAL_RUNTIME_FOUNDATION_UPDATE_MANIFEST.json": {
       "sha256": "74a72f4c782b5994c5b410048aaee5e6712ec9c663a0f33d35cbf161a1fbb778",
