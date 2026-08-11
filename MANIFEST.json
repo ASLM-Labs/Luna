@@ -1525,8 +1525,8 @@
       "size_bytes": 3443
     },
     "src/luna/runtime/isolation.py": {
-      "sha256": "2b102c046ed5a8ead05c80980daffcedf5c6a2f866b775dbb52afb47b065097a",
-      "size_bytes": 10071
+      "sha256": "00d79c9220f6ef07916d3e22fd5a622d2d0d5df5800536b7d089fa658c4fa1fe",
+      "size_bytes": 11673
     },
     "src/luna/runtime/journal.py": {
       "sha256": "63652033fc5327a57e5658bd3cd198cafe5056ffcfa479cca90c20526452c527",

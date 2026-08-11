@@ -113,6 +113,56 @@ class GitWorktreeIsolationManager:
         repo_key = sha256(normalized_root.encode()).hexdigest()[:24]
         return self._worktree_base_root / repo_key / task_id.hex
 
+    def _git_common_dir(self, root: Path) -> Path | None:
+        result = self._run(
+            [self._git, "-C", str(root), "rev-parse", "--git-common-dir"]
+        )
+        raw = result.stdout.strip()
+        if result.returncode != 0 or not raw:
+            return None
+        common_dir = Path(raw)
+        if not common_dir.is_absolute():
+            common_dir = root / common_dir
+        return common_dir.resolve()
+
+    def _reusable_target_matches_source(self, *, root: Path, target: Path) -> bool:
+        top = self._run(
+            [self._git, "-C", str(target), "rev-parse", "--show-toplevel"]
+        )
+        if top.returncode != 0 or not top.stdout.strip():
+            return False
+        if Path(top.stdout.strip()).resolve() != target.resolve():
+            return False
+
+        source_common_dir = self._git_common_dir(root)
+        target_common_dir = self._git_common_dir(target)
+        if (
+            source_common_dir is None
+            or target_common_dir is None
+            or source_common_dir != target_common_dir
+        ):
+            return False
+
+        target_branch = self._run(
+            [self._git, "-C", str(target), "rev-parse", "--abbrev-ref", "HEAD"]
+        )
+        if target_branch.returncode != 0 or target_branch.stdout.strip() != "HEAD":
+            return False
+
+        source_head = self._run(
+            [self._git, "-C", str(root), "rev-parse", "HEAD"]
+        )
+        target_head = self._run(
+            [self._git, "-C", str(target), "rev-parse", "HEAD"]
+        )
+        source_revision = source_head.stdout.strip()
+        return (
+            source_head.returncode == 0
+            and target_head.returncode == 0
+            and bool(source_revision)
+            and source_revision == target_head.stdout.strip()
+        )
+
     def worktree_available(self, task_contract: TaskContract) -> bool:
         try:
             root = self._repo_root(task_contract.scope.workspace_root)
@@ -124,10 +174,7 @@ class GitWorktreeIsolationManager:
             target = self._target(root, task_contract.task_id)
             if not target.exists():
                 return True
-            probe = self._run(
-                [self._git, "-C", str(target), "rev-parse", "--is-inside-work-tree"]
-            )
-            return probe.returncode == 0 and probe.stdout.strip().casefold() == "true"
+            return self._reusable_target_matches_source(root=root, target=target)
         except WorkspaceIsolationError:
             return False
 
@@ -160,12 +207,10 @@ class GitWorktreeIsolationManager:
         target = self._target(root, task_id)
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
-            probe = self._run(
-                [self._git, "-C", str(target), "rev-parse", "--is-inside-work-tree"]
-            )
-            if probe.returncode != 0 or probe.stdout.strip().casefold() != "true":
+            if not self._reusable_target_matches_source(root=root, target=target):
                 raise WorkspaceIsolationError(
-                    "deterministic worktree path exists but is not a valid Git worktree"
+                    "deterministic worktree path is not a reusable worktree "
+                    "owned by the source repository at the current HEAD"
                 )
             return IsolationLease(
                 mode=IsolationMode.WORKTREE,
