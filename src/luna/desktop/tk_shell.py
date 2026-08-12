@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
+from .brand import (
+    LUNA_ICON_SIZES,
+    LunaBrandTheme,
+    luna_brand_assets,
+    luna_empty_state_brand_asset,
+    luna_sidebar_brand_asset,
+)
 from .controller import DesktopShellController
 from .layout import DesktopLayout, desktop_layout_for_width
 from .models import (
@@ -56,7 +64,7 @@ def _state_colors(palette: LunaPalette, state: DesktopTaskState) -> tuple[str, s
 
 def _section_title(section: DesktopSection) -> tuple[str, str]:
     mapping = {
-        DesktopSection.CHAT: ("Yeni görev", "Luna ile güvenli bir çalışma başlat"),
+        DesktopSection.CHAT: ("Yeni görev", "luna ile güvenli bir çalışma başlat"),
         DesktopSection.PROJECTS: ("Projeler", "Etkin çalışma alanı"),
         DesktopSection.TASKS: ("Görevler", "Kalıcı runtime kuyruğu"),
         DesktopSection.RESEARCH: ("Araştırmalar", "Mevcut araştırma durumu"),
@@ -74,9 +82,21 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
     from tkinter import messagebox
 
     root = tk.Tk()
-    root.title("Luna")
+    root.title("luna")
     root.geometry("1440x900")
     root.minsize(720, 580)
+
+    brand_images: dict[Path, Any] = {}
+    brand_themes: tuple[LunaBrandTheme, ...] = ("light", "dark")
+    for theme_name in brand_themes:
+        assets = luna_brand_assets(theme_name)
+        image_paths = (
+            assets.sidebar_wordmark_png,
+            assets.welcome_wordmark_png,
+            *(assets.icon_png(size) for size in LUNA_ICON_SIZES),
+        )
+        for image_path in image_paths:
+            brand_images[image_path] = tk.PhotoImage(file=str(image_path))
 
     initial_snapshot = controller.snapshot()
     state: dict[str, Any] = {
@@ -93,6 +113,16 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
 
     def palette() -> LunaPalette:
         return LUNA_DARK_PALETTE if state["dark"] else LUNA_LIGHT_PALETTE
+
+    def current_brand_theme() -> LunaBrandTheme:
+        return "dark" if state["dark"] else "light"
+
+    def apply_native_brand_icon() -> None:
+        assets = luna_brand_assets(current_brand_theme())
+        icon_images = tuple(brand_images[assets.icon_png(size)] for size in LUNA_ICON_SIZES)
+        root.iconphoto(True, *icon_images)
+        with suppress(tk.TclError):
+            cast(Any, root).iconbitmap(default=str(assets.icon_ico))
 
     def rounded_rectangle(
         canvas: Any,
@@ -181,54 +211,18 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
         inner.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         return outer, inner
 
-    def create_luna_mark_placeholder(parent: Any, compact: bool) -> Any:
-        """Render a replaceable Luna-owned mark placeholder with no external asset."""
+    def create_luna_brand(parent: Any, compact: bool) -> Any:
+        """Render icon-only compact or wordmark-only regular brand identity."""
         current = palette()
         row = tk.Frame(parent, bg=current.bg_sidebar)
-        mark = tk.Canvas(
+        placement = luna_sidebar_brand_asset(current_brand_theme(), compact=compact)
+        tk.Label(
             row,
-            width=30,
-            height=30,
+            image=brand_images[placement.path],
             bg=current.bg_sidebar,
+            borderwidth=0,
             highlightthickness=0,
-        )
-        rounded_rectangle(
-            mark,
-            2,
-            2,
-            28,
-            28,
-            8,
-            fill=current.text_primary,
-            outline="",
-        )
-        mark.create_text(
-            15,
-            15,
-            text="L",
-            fill=current.bg_primary,
-            font=(BASE_FONT_FAMILY, 11, "bold"),
-        )
-        mark.pack(side=tk.LEFT)
-        if not compact:
-            name_wrap = tk.Frame(row, bg=current.bg_sidebar)
-            name_wrap.pack(side=tk.LEFT, padx=(10, 0))
-            tk.Label(
-                name_wrap,
-                text="Luna",
-                bg=current.bg_sidebar,
-                fg=current.text_primary,
-                font=(BASE_FONT_FAMILY, 13, "bold"),
-                anchor="w",
-            ).pack(anchor="w")
-            tk.Label(
-                name_wrap,
-                text="YEREL ÇALIŞMA ALANI",
-                bg=current.bg_sidebar,
-                fg=current.text_muted,
-                font=(BASE_FONT_FAMILY, 7),
-                anchor="w",
-            ).pack(anchor="w", pady=(1, 0))
+        ).pack(anchor="center" if compact else "w")
         return row
 
     def active_task(snapshot: DesktopShellSnapshot) -> DesktopTaskCard | None:
@@ -270,11 +264,11 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
         compact = layout.compact_navigation
         workspace_name = Path(snapshot.workspace_root).name or snapshot.workspace_root
 
-        mark = create_luna_mark_placeholder(parent, compact)
+        mark = create_luna_brand(parent, compact)
         mark.pack(
             fill=tk.X,
             padx=20 if not compact else 21,
-            pady=(18, 16 if not compact else 12),
+            pady=(8, 8) if not compact else (16, 12),
         )
 
         new_task = flat_button(
@@ -463,22 +457,30 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
         ).pack(fill=tk.X, pady=(6, 0))
         return block
 
-    def render_empty_task(parent: Any, snapshot: DesktopShellSnapshot) -> None:
+    def render_empty_task(parent: Any, _snapshot: DesktopShellSnapshot) -> None:
         current = palette()
-        spacer = tk.Frame(parent, bg=current.bg_primary, height=92)
+        spacer = tk.Frame(parent, bg=current.bg_primary, height=36)
         spacer.pack(fill=tk.X)
         spacer.pack_propagate(False)
+        placement = luna_empty_state_brand_asset(current_brand_theme())
         tk.Label(
             parent,
-            text=snapshot.shell_message,
+            image=brand_images[placement.path],
+            bg=current.bg_primary,
+            borderwidth=0,
+            highlightthickness=0,
+        ).pack(pady=(8, 2))
+        tk.Label(
+            parent,
+            text="Ne geliştirelim?",
             bg=current.bg_primary,
             fg=current.text_primary,
             font=(BASE_FONT_FAMILY, TITLE_FONT_SIZE, "bold"),
-        ).pack(pady=(16, 9))
+        ).pack(pady=(2, 9))
         tk.Label(
             parent,
             text=(
-                "Bir hedef tanımla. Luna görevi mevcut çalışma alanında "
+                "Bir hedef tanımla. luna görevi mevcut çalışma alanında "
                 "runtime kuyruğuna iletsin."
             ),
             bg=current.bg_primary,
@@ -603,7 +605,7 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
 
     def render_projects(parent: Any, snapshot: DesktopShellSnapshot) -> None:
         current = palette()
-        page_heading(parent, "Projeler", "Luna'nın bağlı olduğu çalışma alanı")
+        page_heading(parent, "Projeler", "luna'nın bağlı olduğu çalışma alanı")
         project_outer, project = surface_card(parent)
         project_outer.pack(fill=tk.X)
         title_row = tk.Frame(project, bg=current.bg_elevated)
@@ -695,7 +697,7 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
 
     def render_skills(parent: Any) -> None:
         current = palette()
-        page_heading(parent, "Skills", "Luna'nın bağlı yetenekleri için görünüm kabuğu")
+        page_heading(parent, "Skills", "luna'nın bağlı yetenekleri için görünüm kabuğu")
         outer, empty = surface_card(parent, background=current.bg_secondary)
         outer.pack(fill=tk.X)
         tk.Label(
@@ -1105,7 +1107,7 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
                 )
             )
         except Exception as exc:
-            messagebox.showerror("Luna", str(exc))
+            messagebox.showerror("luna", str(exc))
             return
         state["draft"] = ""
         state["active_item_id"] = item_id
@@ -1173,7 +1175,7 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
             composer.insert("1.0", state["draft"])
         placeholder = tk.Label(
             composer,
-            text="Luna'ya bir görev ver…",
+            text="luna'ya bir görev ver…",
             bg=current.bg_elevated,
             fg=current.text_muted,
             font=(BASE_FONT_FAMILY, BASE_FONT_SIZE),
@@ -1336,6 +1338,7 @@ def launch_desktop_shell(controller: DesktopShellController) -> int:
             child.destroy()
         widgets.clear()
         current = palette()
+        apply_native_brand_icon()
         root.configure(bg=current.bg_primary)
         snapshot = controller.snapshot()
 

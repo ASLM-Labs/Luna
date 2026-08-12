@@ -27,7 +27,7 @@ def test_legacy_phase16_theme_aliases_remain_locked() -> None:
     assert THEME_TOKENS["canvas"] == "#FFFFFF"
     assert THEME_TOKENS["text"] == "#171717"
     assert THEME_TOKENS["surface"] == "#F5F6F8"
-    assert THEME_TOKENS["blue"] == "#2563EB"
+    assert THEME_TOKENS["blue"] == "#1783FF"
 
 
 def test_responsive_layout_collapses_inspector_then_navigation() -> None:

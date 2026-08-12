@@ -71,7 +71,7 @@ def test_theme_is_light_first_and_matches_locked_palette() -> None:
     assert THEME_TOKENS["canvas"] == "#FFFFFF"
     assert THEME_TOKENS["text"] == "#171717"
     assert THEME_TOKENS["surface"] == "#F5F6F8"
-    assert THEME_TOKENS["blue"] == "#2563EB"
+    assert THEME_TOKENS["blue"] == "#1783FF"
 
 
 def test_read_only_draft_rejects_write_approval(tmp_path: Path) -> None:

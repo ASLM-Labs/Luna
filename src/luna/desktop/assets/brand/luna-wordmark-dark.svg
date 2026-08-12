@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="180" viewBox="0 0 350 180" role="img" aria-labelledby="title desc">
+  <title id="title">luna wordmark — dark theme</title>
+  <desc id="desc">The lowercase word luna with a blue dot at its upper right.</desc>
+  <text x="36" y="130" fill="#F1F1EE" font-family="Segoe UI Semibold, Segoe UI, Arial, sans-serif" font-size="106" font-weight="600" letter-spacing="1">luna</text>
+  <circle cx="265" cy="44" r="9" fill="#1783FF"/>
+</svg>

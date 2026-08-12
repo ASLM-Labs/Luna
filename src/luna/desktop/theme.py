@@ -10,6 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+LUNA_BRAND_NEAR_BLACK: Final = "#171717"
+LUNA_BRAND_SOFT_WHITE: Final = "#F1F1EE"
+LUNA_BRAND_BLUE: Final = "#1783FF"
+LUNA_BRAND_DARK_PANEL: Final = "#181817"
+
 
 @dataclass(frozen=True, slots=True)
 class LunaPalette:
@@ -108,11 +113,11 @@ LUNA_DARK_PALETTE: Final = LunaPalette(
     bg_primary="#1C1C1B",
     bg_secondary="#20201F",
     bg_elevated="#262624",
-    bg_sidebar="#181817",
+    bg_sidebar=LUNA_BRAND_DARK_PANEL,
     bg_inspector="#20201F",
     border_subtle="#30302E",
     border_strong="#41413E",
-    text_primary="#F1F1EE",
+    text_primary=LUNA_BRAND_SOFT_WHITE,
     text_secondary="#B7B7B1",
     text_muted="#85857F",
     accent_primary="#9B92F2",
@@ -131,15 +136,15 @@ LUNA_DARK_PALETTE: Final = LunaPalette(
     shadow="#000000",
 )
 
-# Locked Phase 16 aliases.  These values are kept so runtime verification and
-# external consumers of the original theme dictionary continue to pass.
+# Phase 16 compatibility keys remain stable; the public ``blue`` value now
+# points to the canonical official Luna brand blue.
 LUNA_CANVAS: Final = "#FFFFFF"
-LUNA_TEXT: Final = "#171717"
+LUNA_TEXT: Final = LUNA_BRAND_NEAR_BLACK
 LUNA_SECONDARY: Final = "#666B73"
 LUNA_BORDER: Final = "#E7E9ED"
 LUNA_SURFACE: Final = "#F5F6F8"
 LUNA_SIDEBAR: Final = "#F1F5F9"
-LUNA_BLUE: Final = "#2563EB"
+LUNA_BLUE: Final = LUNA_BRAND_BLUE
 LUNA_BLUE_SOFT: Final = "#EAF1FF"
 LUNA_SUCCESS: Final = "#15803D"
 LUNA_WARNING: Final = "#B45309"
