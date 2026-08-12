@@ -20,9 +20,12 @@ class DesktopSection(StrEnum):
     """Primary Luna desktop navigation sections."""
 
     CHAT = "CHAT"
+    PROJECTS = "PROJECTS"
     TASKS = "TASKS"
     RESEARCH = "RESEARCH"
     SCHEDULES = "SCHEDULES"
+    SKILLS = "SKILLS"
+    SETTINGS = "SETTINGS"
     NOTIFICATIONS = "NOTIFICATIONS"
 
 
