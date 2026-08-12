@@ -623,7 +623,7 @@ def _run_process_smoke() -> int:
         policy=ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
-            process_approvals=(ProcessApproval(argv=argv),),
+            process_approvals=(ProcessApproval(argv=argv, may_write_workspace=False),),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),

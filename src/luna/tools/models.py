@@ -227,10 +227,11 @@ class ToolEvent(LunaContractModel):
 
 
 class ProcessApproval(LunaContractModel):
-    """Exact argv and workspace-relative cwd approved by the runtime owner."""
+    """Exact argv/cwd and conservative workspace-write effect approved by the owner."""
 
     argv: tuple[str, ...] = Field(min_length=1, max_length=128)
     working_directory: str = Field(default=".", min_length=1, max_length=4000)
+    may_write_workspace: bool = True
 
     @field_validator("argv")
     @classmethod

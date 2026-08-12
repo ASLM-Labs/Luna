@@ -234,7 +234,7 @@ def evaluate_tool_policy(
         ):
             return _denied(checks, "process_approval", "process argv is not valid")
         requested_argv = tuple(argv_value)
-        approved = False
+        matched_approval = None
         for approval in policy.process_approvals:
             try:
                 approved_cwd = str(
@@ -246,14 +246,24 @@ def evaluate_tool_policy(
             except WorkspacePathError:
                 continue
             if approval.argv == requested_argv and approved_cwd == working_directory:
-                approved = True
+                matched_approval = approval
                 break
-        if not approved:
+        if matched_approval is None:
             return _denied(
                 checks,
                 "process_approval",
                 "exact argv and working directory were not owner-approved",
             )
+        if (
+            matched_approval.may_write_workspace
+            and not task_contract.scope.write_allowed
+        ):
+            return _denied(
+                checks,
+                "process_write_scope",
+                "approved process may write the workspace but task scope does not allow writes",
+            )
+        checks.append("process_write_scope:PASS")
     checks.append("process_approval:PASS")
 
     return PolicyDecision(
