@@ -20,12 +20,21 @@ if str(SRC) not in sys.path:
 from luna.contracts import CompletionStatus, TaskPhase, TaskState  # noqa: E402
 from luna.contracts.task import TaskContract  # noqa: E402
 from luna.desktop import (  # noqa: E402
+    BRAND_ASSET_DIR,
+    LUNA_BRAND_BLUE,
+    LUNA_BRAND_DARK_PANEL,
+    LUNA_BRAND_NEAR_BLACK,
+    LUNA_BRAND_SOFT_WHITE,
+    LUNA_ICON_SIZES,
     THEME_TOKENS,
     DesktopAccessMode,
     DesktopApproval,
     DesktopComposerDraft,
     DesktopTaskState,
     build_local_desktop_controller,
+    luna_brand_assets,
+    luna_empty_state_brand_asset,
+    luna_sidebar_brand_asset,
     task_card,
 )
 from luna.operations import QueueStatus, SQLiteOperationsStore  # noqa: E402
@@ -46,7 +55,24 @@ REQUIRED_FILES = (
     "src/luna/desktop/controller.py",
     "src/luna/desktop/bootstrap.py",
     "src/luna/desktop/theme.py",
+    "src/luna/desktop/brand.py",
     "src/luna/desktop/tk_shell.py",
+    "src/luna/desktop/assets/brand/luna-icon-light.svg",
+    "src/luna/desktop/assets/brand/luna-icon-dark.svg",
+    "src/luna/desktop/assets/brand/luna-wordmark-light.svg",
+    "src/luna/desktop/assets/brand/luna-wordmark-dark.svg",
+    "src/luna/desktop/assets/brand/luna-icon-light.ico",
+    "src/luna/desktop/assets/brand/luna-icon-dark.ico",
+    "src/luna/desktop/assets/brand/luna-wordmark-light-120.png",
+    "src/luna/desktop/assets/brand/luna-wordmark-dark-120.png",
+    "src/luna/desktop/assets/brand/luna-wordmark-light-160.png",
+    "src/luna/desktop/assets/brand/luna-wordmark-dark-160.png",
+    *(
+        f"src/luna/desktop/assets/brand/luna-icon-{theme}-{size}.png"
+        for theme in ("light", "dark")
+        for size in LUNA_ICON_SIZES
+    ),
+    "tests/test_desktop_brand_assets.py",
     "tests/test_phase16_desktop_product_shell.py",
     "scripts/verify_phase16.py",
     "docs/rfcs/RFC-016_DESKTOP_PRODUCT_SHELL.md",
@@ -144,9 +170,47 @@ def main() -> int:
             THEME_TOKENS["canvas"] == "#FFFFFF"
             and THEME_TOKENS["text"] == "#171717"
             and THEME_TOKENS["surface"] == "#F5F6F8"
-            and THEME_TOKENS["blue"] == "#2563EB"
+            and THEME_TOKENS["blue"] == "#1783FF"
         ),
     }
+
+    light_assets = luna_brand_assets("light")
+    dark_assets = luna_brand_assets("dark")
+    light_sources = (
+        light_assets.icon_svg.read_text(encoding="utf-8"),
+        light_assets.wordmark_svg.read_text(encoding="utf-8"),
+    )
+    dark_sources = (
+        dark_assets.icon_svg.read_text(encoding="utf-8"),
+        dark_assets.wordmark_svg.read_text(encoding="utf-8"),
+    )
+    regular_brand = luna_sidebar_brand_asset("light", compact=False)
+    compact_brand = luna_sidebar_brand_asset("light", compact=True)
+    empty_brand = luna_empty_state_brand_asset("dark")
+    checks["official_brand_palette_locked"] = (
+        LUNA_BRAND_NEAR_BLACK == "#171717"
+        and LUNA_BRAND_SOFT_WHITE == "#F1F1EE"
+        and LUNA_BRAND_BLUE == "#1783FF"
+        and LUNA_BRAND_DARK_PANEL == "#181817"
+    )
+    checks["light_dark_brand_assets_mapped"] = (
+        light_assets.foreground == LUNA_BRAND_NEAR_BLACK
+        and dark_assets.foreground == LUNA_BRAND_SOFT_WHITE
+        and light_assets.blue == dark_assets.blue == LUNA_BRAND_BLUE
+        and all(LUNA_BRAND_BLUE in source for source in (*light_sources, *dark_sources))
+        and all("#2563EB" not in source for source in (*light_sources, *dark_sources))
+    )
+    checks["brand_identity_surfaces_remain_separate"] = (
+        regular_brand.kind == "wordmark"
+        and compact_brand.kind == "icon"
+        and empty_brand.kind == "wordmark"
+        and all("lockup" not in path.name.lower() for path in BRAND_ASSET_DIR.iterdir())
+    )
+    checks["official_icon_sizes_are_exact_files"] = all(
+        assets.icon_png(size).is_file()
+        for assets in (light_assets, dark_assets)
+        for size in LUNA_ICON_SIZES
+    )
 
     with TemporaryDirectory(prefix="luna-phase16-verifier-") as temp:
         root = Path(temp)

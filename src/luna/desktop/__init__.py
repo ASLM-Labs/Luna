@@ -1,6 +1,22 @@
 """Phase 16 local desktop product shell."""
 
 from luna.desktop.bootstrap import build_local_desktop_controller
+from luna.desktop.brand import (
+    BRAND_ASSET_DIR,
+    LUNA_BRAND_BLUE,
+    LUNA_BRAND_DARK_PANEL,
+    LUNA_BRAND_NEAR_BLACK,
+    LUNA_BRAND_SOFT_WHITE,
+    LUNA_DARK_BRAND_ASSETS,
+    LUNA_ICON_SIZES,
+    LUNA_LIGHT_BRAND_ASSETS,
+    LunaBrandAssets,
+    LunaBrandPlacement,
+    LunaBrandTheme,
+    luna_brand_assets,
+    luna_empty_state_brand_asset,
+    luna_sidebar_brand_asset,
+)
 from luna.desktop.controller import DesktopShellController
 from luna.desktop.gateway import DesktopCommandGateway
 from luna.desktop.layout import DesktopLayout, DesktopLayoutMode, desktop_layout_for_width
@@ -34,8 +50,16 @@ from luna.desktop.theme import (
 from luna.desktop.tk_shell import launch_desktop_shell
 
 __all__ = [
+    "BRAND_ASSET_DIR",
     "DARK_THEME_TOKENS",
+    "LUNA_BRAND_BLUE",
+    "LUNA_BRAND_DARK_PANEL",
+    "LUNA_BRAND_NEAR_BLACK",
+    "LUNA_BRAND_SOFT_WHITE",
+    "LUNA_DARK_BRAND_ASSETS",
     "LUNA_DARK_PALETTE",
+    "LUNA_ICON_SIZES",
+    "LUNA_LIGHT_BRAND_ASSETS",
     "LUNA_LIGHT_PALETTE",
     "THEME_TOKENS",
     "DesktopAccessMode",
@@ -53,10 +77,16 @@ __all__ = [
     "DesktopTaskCard",
     "DesktopTaskState",
     "DesktopTone",
+    "LunaBrandAssets",
+    "LunaBrandPlacement",
+    "LunaBrandTheme",
     "LunaPalette",
     "build_local_desktop_controller",
     "desktop_layout_for_width",
     "launch_desktop_shell",
+    "luna_brand_assets",
+    "luna_empty_state_brand_asset",
+    "luna_sidebar_brand_asset",
     "notification_card",
     "resource_summary",
     "schedule_card",

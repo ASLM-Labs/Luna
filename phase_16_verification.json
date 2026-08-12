@@ -3,6 +3,10 @@
   "checks": {
     "required_files_present": true,
     "light_first_theme_locked": true,
+    "official_brand_palette_locked": true,
+    "light_dark_brand_assets_mapped": true,
+    "brand_identity_surfaces_remain_separate": true,
+    "official_icon_sizes_are_exact_files": true,
     "desktop_default_is_read_only": true,
     "desktop_routes_through_durable_queue": true,
     "desktop_snapshot_does_not_invent_completion": true,
