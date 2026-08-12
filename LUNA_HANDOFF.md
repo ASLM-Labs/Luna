@@ -17,7 +17,7 @@ Model name:
 Luna
 
 Company/organization naming:
-UNRESOLVED — do not rename Luna while resolving company branding.
+Westline Labs
 
 ## Verified Git Checkpoint
 
