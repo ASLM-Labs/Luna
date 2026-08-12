@@ -125,7 +125,13 @@ def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> No
     policy = ToolPolicy(
         allowed_tools=("process.run_argv",),
         owner_approved_tools=("process.run_argv",),
-        process_approvals=(ProcessApproval(argv=argv, working_directory="."),),
+        process_approvals=(
+            ProcessApproval(
+                argv=argv,
+                working_directory=".",
+                may_write_workspace=False,
+            ),
+        ),
         autonomy_level=AutonomyLevel.OWNER_APPROVED,
         max_risk=RiskLevel.HIGH,
     )
@@ -179,7 +185,7 @@ def test_banned_shell_is_blocked_even_when_exactly_approved(tmp_path: Path) -> N
         policy=ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
-            process_approvals=(ProcessApproval(argv=argv),),
+            process_approvals=(ProcessApproval(argv=argv, may_write_workspace=False),),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),
