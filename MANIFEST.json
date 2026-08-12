@@ -1117,8 +1117,8 @@
       "size_bytes": 7260
     },
     "src/luna/desktop/__init__.py": {
-      "sha256": "13d87b81d29f48ed5b3981b952e813bd2f82ea4d02d4fad9f848bcd56cc64d6b",
-      "size_bytes": 1297
+      "sha256": "59eef287a22b9ef5bb3a5360b4eb4230f3e30952f4e09c97e2deedd8046e11c0",
+      "size_bytes": 1657
     },
     "src/luna/desktop/bootstrap.py": {
       "sha256": "aa0f01ac43e35de5f8d6b8f367e04cb5aa8321d9dfce26871ce403c0dab67ed0",
@@ -1132,21 +1132,25 @@
       "sha256": "0b684b906cebc578f30cd99902b68977ca5bee11c863555b19d9b926d70be84a",
       "size_bytes": 6173
     },
+    "src/luna/desktop/layout.py": {
+      "sha256": "82e20848f44907eabfea1a8386726c0ae4da7971bac0ea7275f0815ed0339cee",
+      "size_bytes": 1531
+    },
     "src/luna/desktop/models.py": {
-      "sha256": "15a2019d7999612e0e7a390567cd6d1b3d095864b45fee38b5cf1db1fc97ebc9",
-      "size_bytes": 9130
+      "sha256": "b0b896ced6f48b9df5931bc5d458546b2d82b9f719481ecb1ae0199b85601253",
+      "size_bytes": 9204
     },
     "src/luna/desktop/presenter.py": {
       "sha256": "be56e71f55a25e2408e4d8a27a436b53b42f59ca3b8253f9038844158f7b68f2",
       "size_bytes": 6468
     },
     "src/luna/desktop/theme.py": {
-      "sha256": "d5c95ecfea006e0fd2adb2e2e700467c50b2d4f38bd7f67d40dafc7f9de8e75f",
-      "size_bytes": 1236
+      "sha256": "8c3f3bb59347b8b6630717c6dd41120b5a4613cf373fc616aca6fa1b02a806b5",
+      "size_bytes": 6336
     },
     "src/luna/desktop/tk_shell.py": {
-      "sha256": "e88117f8355b175ae90f8ec9a8bc75e47ad73faea3ea8252165d7d806f9fd30f",
-      "size_bytes": 10533
+      "sha256": "badd61d3fb20dbd041f4ca7d6d96be0df4f3083164d8dfc037d2d333321952f3",
+      "size_bytes": 52006
     },
     "src/luna/discord/__init__.py": {
       "sha256": "82bd24e6e38e1020ea322a625ffba1bbbebae44a0c5f3b22324721b8cb10ca23",
@@ -1807,6 +1811,10 @@
     "tests/test_contract_task.py": {
       "sha256": "37c989e4e830e86d8f4cb9ca1f70cd7b950f8d84c398a95d95e02e637415926a",
       "size_bytes": 2437
+    },
+    "tests/test_desktop_visual_shell.py": {
+      "sha256": "948bd2baf46b5c7f36a776d8ff4e1cb98355b26445138f5bffcdb12cdded175a",
+      "size_bytes": 1701
     },
     "tests/test_dispatcher_protected_paths.py": {
       "sha256": "1186be54619faeacab027cd24779fde1464f5c90866e53e444aaad02fba58f96",
