@@ -10,6 +10,7 @@ SKIP_PARTS = {".git", ".venv"}
 DIRECTORY_NAMES = {
     "__pycache__",
     ".pytest_cache",
+    ".pytest_gate_tmp",
     ".pytest_tmp",
     ".mypy_cache",
     ".ruff_cache",

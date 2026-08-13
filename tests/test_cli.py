@@ -9,6 +9,78 @@ import pytest
 from luna.audit import AppendOnlyAuditLedger, AuditEventKind
 from luna.cli import main
 
+CLI_COMMAND_HELP_CONTRACTS: dict[str, tuple[str, ...]] = {
+    "status": (),
+    "capability-lineage": ("capability_id", "--hard-only"),
+    "c001-smoke": (),
+    "c003-smoke": (),
+    "c007-smoke": (),
+    "list-tools": (),
+    "audit-smoke": (),
+    "verify-smoke": (),
+    "checkpoint-smoke": (),
+    "memory-smoke": (),
+    "phase10-smoke": (),
+    "phase11-smoke": (),
+    "phase12a-smoke": (),
+    "phase12b-smoke": (),
+    "phase12c-smoke": (),
+    "phase12d-smoke": (),
+    "phase12e-smoke": (),
+    "phase12f-smoke": (),
+    "phase12g-smoke": (),
+    "phase13-smoke": (),
+    "phase14-smoke": (),
+    "phase15-smoke": (),
+    "phase16-smoke": (),
+    "phase17-smoke": (),
+    "phase18-smoke": (),
+    "phase19-smoke": (),
+    "phase19b-smoke": (),
+    "phase19c-smoke": (),
+    "phase19d-smoke": (),
+    "phase19e-smoke": (),
+    "phase19f-smoke": (),
+    "desktop": ("--workspace", "--database", "--actor-id"),
+    "phase13-live-probe": ("--endpoint", "--model", "--timeout-seconds"),
+    "audit-inspect": ("root", "task_id"),
+    "workspace-smoke": (),
+    "process-smoke": (),
+    "resolve-intent": ("request",),
+    "tool-smoke": ("message",),
+}
+
+
+def test_top_level_help_preserves_all_commands(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    output = capsys.readouterr().out
+    assert exc_info.value.code == 0
+    for command in CLI_COMMAND_HELP_CONTRACTS:
+        assert command in output
+
+
+@pytest.mark.parametrize(
+    ("command", "expected_fragments"),
+    CLI_COMMAND_HELP_CONTRACTS.items(),
+)
+def test_command_help_preserves_argument_surface(
+    command: str,
+    expected_fragments: tuple[str, ...],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main([command, "--help"])
+
+    output = capsys.readouterr().out
+    assert exc_info.value.code == 0
+    assert command in output
+    for fragment in expected_fragments:
+        assert fragment in output
+
 
 def test_status_command(capsys: pytest.CaptureFixture[str]) -> None:
     exit_code = main(["status"])
@@ -754,6 +826,24 @@ def test_c003_smoke_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert payload["runtime_authority"] is False
     assert payload["training_authority"] is False
     assert payload["promotion_authority"] is False
+
+
+def test_c007_smoke_command(capsys: pytest.CaptureFixture[str]) -> None:
+    exit_code = main(["c007-smoke"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["verdict"] == "SUPPORTED"
+    assert payload["held_out_case_count"] == 2
+    assert payload["repair_improved"] is True
+    assert payload["diagnosis_improved"] is True
+    assert payload["regressed_metrics"] == []
+    assert payload["review_required"] is True
+    assert payload["automatic_memory_commit_allowed"] is False
+    assert payload["runtime_authority"] is False
+    assert payload["training_authority"] is False
+    assert payload["promotion_authority"] is False
+    assert payload["action_executed"] is False
 
 
 def test_capability_lineage_command(capsys: pytest.CaptureFixture[str]) -> None:

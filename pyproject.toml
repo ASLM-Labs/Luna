@@ -46,7 +46,7 @@ where = ["src"]
 "luna.desktop" = ["assets/brand/*"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers -p no:cacheprovider --basetemp=.pytest_tmp"
+addopts = "-ra --strict-config --strict-markers -p no:cacheprovider --basetemp=.pytest_gate_tmp"
 testpaths = ["tests"]
 pythonpath = ["src"]
 
@@ -54,7 +54,7 @@ pythonpath = ["src"]
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = [".pytest_tmp"]
+extend-exclude = [".pytest_tmp", ".pytest_gate_tmp"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
