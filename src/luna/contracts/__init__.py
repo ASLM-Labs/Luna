@@ -18,6 +18,13 @@ from luna.contracts.enums import (
     TaskPhase,
 )
 from luna.contracts.evidence import Evidence
+from luna.contracts.invalidation import (
+    CrossLayerInvalidationReport,
+    InvalidationControlAction,
+    InvalidationImpact,
+    InvalidationLayer,
+    InvalidationStateSnapshot,
+)
 from luna.contracts.observation import Observation, TestSummary
 from luna.contracts.plan import ExpectedObservation, PlanStep
 from luna.contracts.state import ALLOWED_TRANSITIONS, TaskState
@@ -29,6 +36,7 @@ __all__ = [
     "AssumptionStatus",
     "Checkpoint",
     "CompletionStatus",
+    "CrossLayerInvalidationReport",
     "DecisionRecord",
     "DecisionStateSnapshot",
     "DecisionStatus",
@@ -36,6 +44,10 @@ __all__ = [
     "EvidenceResult",
     "EvidenceSourceKind",
     "ExpectedObservation",
+    "InvalidationControlAction",
+    "InvalidationImpact",
+    "InvalidationLayer",
+    "InvalidationStateSnapshot",
     "Observation",
     "ObservationStatus",
     "PlanStep",

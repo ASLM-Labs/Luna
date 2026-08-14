@@ -9,6 +9,7 @@ from luna.planning.control import (
     DecisionControlAssessment,
 )
 from luna.planning.expectation import ExpectationEvaluator
+from luna.planning.invalidation import TargetedInvalidationCoordinator
 from luna.planning.judgment import (
     AcceptanceBackchain,
     AcceptanceTarget,
@@ -68,6 +69,7 @@ __all__ = [
     "RetryDecision",
     "RetryGuard",
     "RetryReason",
+    "TargetedInvalidationCoordinator",
     "TaskComplexity",
     "TaskPlan",
 ]

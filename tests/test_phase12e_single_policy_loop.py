@@ -27,7 +27,14 @@ from luna.context import (
     LayeredContextComposer,
 )
 from luna.continuity import ContinuityService, SQLiteContinuityStore
-from luna.contracts import RiskLevel, TaskContract, TaskScope, TaskState
+from luna.contracts import (
+    InvalidationControlAction,
+    InvalidationLayer,
+    RiskLevel,
+    TaskContract,
+    TaskScope,
+    TaskState,
+)
 from luna.decision_state import DecisionStateService
 from luna.memory import VerifiedMemoryService
 from luna.modeling import (
@@ -405,6 +412,11 @@ def test_multiple_model_tool_calls_are_blocked_before_dispatch(tmp_path) -> None
     assert outcome.stop_reason is RuntimeStopReason.BLOCKED
     assert outcome.usage.tool_calls == 0
     assert "exactly one proposed action" in " ".join(outcome.reasons)
+    assert outcome.state.invalidation_state is not None
+    invalidation = outcome.state.invalidation_state.latest_report
+    assert invalidation is not None
+    assert invalidation.control_action is InvalidationControlAction.REPLAN
+    assert any(item.layer is InvalidationLayer.PLAN_STEP for item in invalidation.impacts)
 
 
 def test_length_response_is_checkpointed_as_incomplete_without_dispatch(tmp_path) -> None:
@@ -968,6 +980,7 @@ def test_model_request_window_compacts_optional_context_before_backend_call(tmp_
     assert "file://large-optional" not in message_text
     assert "runtime://task-contract" in message_text
     assert "runtime://task-state" in message_text
+    assert '"invalidation_state"' not in message_text
     assert tuple(spec.name for spec in model_request.available_tools) == (
         "filesystem.read_text",
     )

@@ -30,6 +30,7 @@ from luna.context import (
 from luna.continuity import ResumePolicy, ResumeStatus
 from luna.contracts import (
     CompletionStatus,
+    InvalidationControlAction,
     ObservationStatus,
     PlanStep,
     PlanStepStatus,
@@ -42,7 +43,12 @@ from luna.contracts.enums import TaskPhase
 from luna.contracts.evidence import Evidence
 from luna.contracts.plan import ExpectedObservation
 from luna.modeling import ProviderRetryCoordinator, ProviderRetryEvidence
-from luna.planning import AttemptBasis, AttemptRecord, ExpectationEvaluator
+from luna.planning import (
+    AttemptBasis,
+    AttemptRecord,
+    ExpectationEvaluator,
+    TargetedInvalidationCoordinator,
+)
 from luna.recovery import ChangeEstimate, IsolationMode, RecoveryAction
 from luna.runtime.budgets import RuntimeBudget
 from luna.runtime.change_inspector import ChangeInspection, ChangeInspectionError
@@ -150,6 +156,7 @@ class LunaRuntime:
         self._tool_disclosure_states: dict[UUID, ToolDisclosureState] = {}
         self._tool_disclosure_lock = RLock()
         self._expectations = ExpectationEvaluator()
+        self._invalidation = TargetedInvalidationCoordinator()
         self._verification_strategy = VerificationStrategySelector()
 
     def suspend(
@@ -308,11 +315,23 @@ class LunaRuntime:
         state = state.transition_to(TaskPhase.CONTRACTED)
 
         context = self._compose_context(request=request, state=state)
+        pre_context_state = state
         readiness, state = self._deps.context_integrity_gate.evaluate(
             state=state,
             bundle=context,
             claims=request.context_claims,
             requirements=request.context_requirements,
+        )
+        _, state = self._invalidation.reconcile(
+            previous_state=pre_context_state,
+            current_state=state,
+            evidence_refs=tuple(
+                ref for claim in request.context_claims for ref in claim.evidence_refs
+            ),
+            provenance_refs=(
+                *(claim.source_ref for claim in request.context_claims),
+                f"context-integrity:{readiness.decision.value}",
+            ),
         )
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
@@ -435,11 +454,23 @@ class LunaRuntime:
 
         state = decision.resumed_state
         context = self._compose_context(request=request, state=state)
+        pre_context_state = state
         readiness, state = self._deps.context_integrity_gate.evaluate(
             state=state,
             bundle=context,
             claims=request.context_claims,
             requirements=request.context_requirements,
+        )
+        invalidation, state = self._invalidation.reconcile(
+            previous_state=pre_context_state,
+            current_state=state,
+            evidence_refs=tuple(
+                ref for claim in request.context_claims for ref in claim.evidence_refs
+            ),
+            provenance_refs=(
+                *(claim.source_ref for claim in request.context_claims),
+                f"context-integrity:{readiness.decision.value}",
+            ),
         )
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
@@ -477,6 +508,27 @@ class LunaRuntime:
                 ),
                 resume_phase=state.phase,
                 next_step="reconcile required context before resume",
+                started_at=started_at,
+            )
+
+        if invalidation.control_action is not InvalidationControlAction.NONE:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=(
+                    RuntimeStopReason.CONFLICTING_EVIDENCE
+                    if invalidation.control_action is InvalidationControlAction.STOP_VERIFY
+                    else RuntimeStopReason.BLOCKED
+                ),
+                reasons=(
+                    *invalidation.reason_codes,
+                    *(f"invalidated_basis:{item.target_ref}" for item in invalidation.impacts),
+                ),
+                resume_phase=(
+                    TaskPhase.PLANNED if state.plan else TaskPhase.CONTEXT_READY
+                ),
+                next_step="changed-basis replan from targeted invalidation",
                 started_at=started_at,
             )
 
@@ -929,7 +981,11 @@ class LunaRuntime:
 
             if turn.status is PolicyTurnStatus.INVALID or turn.proposal is None:
                 reason = turn.invalid_reason or "invalid policy-agent turn"
-                state = self._fail_active_step(state, reason=reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=reason,
+                    provenance_ref="policy:invalid-action",
+                )
                 state = state.transition_to(TaskPhase.OBSERVING)
                 return self._checkpoint_outcome(
                     request=request,
@@ -954,7 +1010,12 @@ class LunaRuntime:
                 state = self._observe(state, resolution.observation.observation_id)
                 failure = self._deps.failure_classifier.from_action_denial(resolution.denial)
                 recovery = self._deps.recovery_policy.decide(failure=failure)
-                state = self._fail_active_step(state, reason=recovery.reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=recovery.reason,
+                    evidence_refs=(f"observation:{resolution.observation.observation_id}",),
+                    provenance_ref="action-resolver:denial",
+                )
                 if state.phase is TaskPhase.ACTING:
                     state = state.transition_to(TaskPhase.OBSERVING)
                 stop = (
@@ -1437,7 +1498,12 @@ class LunaRuntime:
                 if cancelled
                 else "tool execution deadline expired"
             )
-            state = self._fail_active_step(state, reason=reason)
+            state = self._fail_active_step(
+                state,
+                reason=reason,
+                evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                provenance_ref="tool-dispatch:lifecycle",
+            )
             if state.phase is TaskPhase.ACTING:
                 state = state.transition_to(TaskPhase.OBSERVING)
             if cancelled:
@@ -1475,7 +1541,12 @@ class LunaRuntime:
                 failure=failure,
                 mutation_active=bool(outcome.observation.changed_files),
             )
-            state = self._fail_active_step(state, reason=recovery.reason)
+            state = self._fail_active_step(
+                state,
+                reason=recovery.reason,
+                evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                provenance_ref="tool-dispatch:failure",
+            )
             if state.phase is TaskPhase.ACTING:
                 state = state.transition_to(TaskPhase.OBSERVING)
             stop_reason = (
@@ -1516,7 +1587,12 @@ class LunaRuntime:
                     failure=failure,
                     mutation_active=bool(outcome.observation.changed_files),
                 )
-                state = self._fail_active_step(state, reason=recovery.reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=recovery.reason,
+                    evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                    provenance_ref="expectation:mismatch",
+                )
                 if state.phase is TaskPhase.ACTING:
                     state = state.transition_to(TaskPhase.OBSERVING)
                 return self._checkpoint_and_fence(
@@ -1817,7 +1893,10 @@ class LunaRuntime:
                     kind=ContextSourceKind.PROJECT_STATE,
                     locator="runtime://task-state",
                     text=json.dumps(
-                        state.model_dump(mode="json"),
+                        state.model_dump(
+                            mode="json",
+                            exclude={"invalidation_state"},
+                        ),
                         ensure_ascii=False,
                         sort_keys=True,
                     ),
@@ -1921,12 +2000,26 @@ class LunaRuntime:
             target.model_copy(update={"status": PlanStepStatus.COMPLETE, "status_reason": None}),
         )
 
-    def _fail_active_step(self, state: TaskState, *, reason: str) -> TaskState:
+    def _fail_active_step(
+        self,
+        state: TaskState,
+        *,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+        provenance_ref: str = "runtime:plan-step-failure",
+    ) -> TaskState:
         target = self._active_step(state)
-        return self._replace_step(
+        failed = self._replace_step(
             state,
             target.model_copy(update={"status": PlanStepStatus.FAILED, "status_reason": reason}),
         )
+        _, revised = self._invalidation.reconcile(
+            previous_state=state,
+            current_state=failed,
+            evidence_refs=evidence_refs,
+            provenance_refs=(provenance_ref,),
+        )
+        return revised
 
     def _safe_checkpoint_state(self, state: TaskState) -> TaskState:
         if any(item.status is PlanStepStatus.ACTIVE for item in state.plan):

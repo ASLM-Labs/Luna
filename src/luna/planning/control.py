@@ -23,6 +23,7 @@ from luna.contracts.decision import (
     DecisionStateSnapshot,
     DecisionStatus,
 )
+from luna.contracts.invalidation import InvalidationLayer
 from luna.contracts.state import TaskState
 from luna.decision_state import DecisionStateService
 from luna.planning.judgment import DecisionBasis, InformationGainPlan, InformationNeed
@@ -381,14 +382,39 @@ class DecisionControlAdvisor:
         source_evidence = tuple(dict.fromkeys(decision_basis.evidence_refs))
         changed_basis_evidence: set[str] = set()
         evidence_bound_invalidated_refs: list[str] = []
-        for decision in invalidated_decisions:
-            linked_change_evidence = {
-                ref
-                for assumption in assumptions
-                if assumption.status in self._BASIS_CHANGE_STATUSES
-                and decision.decision_id in assumption.dependent_decision_ids
-                for ref in assumption.evidence_refs
+        c3_report = (
+            state.invalidation_state.latest_report
+            if state.invalidation_state is not None
+            else None
+        )
+        c3_decision_changed_evidence = (
+            {
+                item.target_ref: set(item.changed_basis_evidence_refs)
+                for item in c3_report.impacts
+                if item.layer is InvalidationLayer.DECISION
             }
+            if c3_report is not None
+            else {}
+        )
+        c3_changed_evidence = (
+            set(c3_report.changed_basis_evidence_refs)
+            if c3_report is not None
+            else set()
+        )
+        for decision in invalidated_decisions:
+            canonical_decision_ref = f"decision:{decision.decision_id}"
+            if canonical_decision_ref in c3_decision_changed_evidence:
+                linked_change_evidence = set(
+                    c3_decision_changed_evidence[canonical_decision_ref]
+                )
+            else:
+                linked_change_evidence = {
+                    ref
+                    for assumption in assumptions
+                    if assumption.status in self._BASIS_CHANGE_STATUSES
+                    and decision.decision_id in assumption.dependent_decision_ids
+                    for ref in assumption.evidence_refs
+                }
             if linked_change_evidence:
                 evidence_bound_invalidated_refs.append(self._decision_ref(decision))
                 changed_basis_evidence.update(linked_change_evidence)
@@ -403,6 +429,8 @@ class DecisionControlAdvisor:
             reasons.append("invalidated_current_decision_present")
         if changing:
             reasons.append("decision_changing_evidence_identified")
+            if c3_report is not None and c3_changed_evidence.intersection(changing_set):
+                reasons.append("c3_changed_basis_evidence_applied")
         else:
             reasons.append("no_explicit_basis_change_evidence")
 

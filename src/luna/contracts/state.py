@@ -12,6 +12,7 @@ from pydantic import Field, field_validator, model_validator
 from luna.contracts.base import LunaContractModel, require_utc, stable_payload, utc_now
 from luna.contracts.decision import DecisionStateSnapshot
 from luna.contracts.enums import CompletionStatus, TaskPhase
+from luna.contracts.invalidation import InvalidationStateSnapshot
 from luna.contracts.plan import PlanStep
 from luna.contracts.task import TaskContract
 
@@ -66,6 +67,7 @@ class TaskState(LunaContractModel):
     evidence_ids: tuple[UUID, ...] = ()
     failed_assumptions: tuple[str, ...] = ()
     decision_state: DecisionStateSnapshot | None = None
+    invalidation_state: InvalidationStateSnapshot | None = None
     completion_status: CompletionStatus | None = None
     checkpoint_id: UUID | None = None
     revision: int = Field(default=0, ge=0)
@@ -92,6 +94,24 @@ class TaskState(LunaContractModel):
             raise ValueError("TaskState.task_id must match TaskContract.task_id")
         if self.decision_state is not None and self.decision_state.task_id != self.task_id:
             raise ValueError("TaskState.decision_state task_id must match TaskState.task_id")
+        if self.invalidation_state is not None and self.invalidation_state.task_id != self.task_id:
+            raise ValueError("TaskState.invalidation_state task_id must match TaskState.task_id")
+        report = (
+            self.invalidation_state.latest_report
+            if self.invalidation_state is not None
+            else None
+        )
+        if report is not None and report.result_task_state_revision > self.revision:
+            raise ValueError(
+                "C3 invalidation report cannot come from a future task revision"
+            )
+        decision_revision = (
+            self.decision_state.revision if self.decision_state is not None else 0
+        )
+        if report is not None and report.current_decision_state_revision > decision_revision:
+            raise ValueError(
+                "C3 invalidation report cannot come from a future decision revision"
+            )
 
         step_ids = tuple(step.step_id for step in self.plan)
         sequences = tuple(step.sequence for step in self.plan)
@@ -123,6 +143,7 @@ class TaskState(LunaContractModel):
         evidence_ids: tuple[UUID, ...] | None = None,
         failed_assumptions: tuple[str, ...] | None = None,
         decision_state: DecisionStateSnapshot | None = None,
+        invalidation_state: InvalidationStateSnapshot | None = None,
         updated_at: datetime | None = None,
     ) -> TaskState:
         """Return the same phase with one validated authoritative-state revision."""
@@ -147,6 +168,11 @@ class TaskState(LunaContractModel):
                     decision_state
                     if decision_state is not None
                     else self.decision_state
+                ),
+                "invalidation_state": (
+                    invalidation_state
+                    if invalidation_state is not None
+                    else self.invalidation_state
                 ),
                 "revision": self.revision + 1,
                 "updated_at": updated_at or utc_now(),
