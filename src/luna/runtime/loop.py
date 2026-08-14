@@ -62,7 +62,11 @@ from luna.runtime.models import (
     RuntimeStopReason,
     RuntimeUsage,
 )
-from luna.runtime.policy_agent import ModelPolicyAgent, PolicyTurnStatus
+from luna.runtime.policy_agent import (
+    ModelPolicyAgent,
+    ModelRequestWindowBlocked,
+    PolicyTurnStatus,
+)
 from luna.tools import (
     ToolCapability,
     ToolDisclosureDecision,
@@ -618,6 +622,17 @@ class LunaRuntime:
                     next_step="owner budget decision required",
                     started_at=started_at,
                 )
+            if request.runtime_budget.max_model_request_estimated_tokens == 0:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.BLOCKED,
+                    reasons=("runtime budget disables estimated model request tokens",),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step="owner budget decision required",
+                    started_at=started_at,
+                )
             if request.runtime_budget.max_model_output_tokens == 0:
                 return self._checkpoint_outcome(
                     request=request,
@@ -666,17 +681,41 @@ class LunaRuntime:
                     basis_fingerprint=context.fingerprint(),
                     policy=tool_policy,
                 )
-                turn = self._policy_agent.decide(
-                    task_id=request.task_id,
-                    trace_id=request.trace_id,
-                    raw_request=request.raw_request,
-                    state=state,
-                    step=active_step,
-                    context=context,
-                    policy=tool_policy,
-                    max_output_tokens=min(32768, remaining_output),
-                    tool_visibility=tool_visibility,
-                )
+                try:
+                    turn = self._policy_agent.decide(
+                        task_id=request.task_id,
+                        trace_id=request.trace_id,
+                        raw_request=request.raw_request,
+                        state=state,
+                        step=active_step,
+                        context=context,
+                        policy=tool_policy,
+                        max_output_tokens=min(32768, remaining_output),
+                        tool_visibility=tool_visibility,
+                        max_input_estimated_tokens=(
+                            request.runtime_budget.max_model_request_estimated_tokens
+                        ),
+                    )
+                except ModelRequestWindowBlocked as exc:
+                    projection = exc.projection
+                    reason = (
+                        projection.block_reason.value
+                        if projection.block_reason is not None
+                        else "UNKNOWN"
+                    )
+                    return self._checkpoint_outcome(
+                        request=request,
+                        state=self._safe_checkpoint_state(state),
+                        usage=usage,
+                        stop_reason=RuntimeStopReason.BLOCKED,
+                        reasons=(
+                            "model request cannot fit within per-request estimated window: "
+                            f"{reason}; limit={projection.max_estimated_tokens}",
+                        ),
+                        resume_phase=TaskPhase.PLANNED,
+                        next_step="increase model request window or reduce model-visible input",
+                        started_at=started_at,
+                    )
                 usage.model_calls += 1
                 usage.steps += 1
                 usage.model_input_tokens += turn.usage.input_tokens

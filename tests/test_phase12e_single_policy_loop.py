@@ -14,12 +14,16 @@ from luna.actions import ActionResolver, ToolSelector, build_phase12c_routes
 from luna.autonomy import AutonomyLevel, AutonomyPolicy
 from luna.context import (
     ContextAuthorityRole,
+    ContextBudget,
     ContextClaim,
     ContextClaimType,
     ContextFailureAction,
     ContextIntegrityGate,
+    ContextInterpretation,
+    ContextLayer,
     ContextRequirement,
     ContextSourceKind,
+    LayeredContextCandidate,
     LayeredContextComposer,
 )
 from luna.continuity import ContinuityService, SQLiteContinuityStore
@@ -873,3 +877,107 @@ def test_wave1_context_integrity_blocks_conflicting_critical_context(tmp_path) -
     assert outcome.stop_reason is RuntimeStopReason.CONFLICTING_EVIDENCE
     assert "conflicting_context:current_branch" in outcome.reasons
     assert backend.requests == [] if hasattr(backend, "requests") else True
+
+
+def test_model_request_window_compacts_optional_context_before_backend_call(tmp_path) -> None:
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield after observing the projected request.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_request_estimated_tokens=2200),
+    )
+    large_optional = LayeredContextCandidate.from_text(
+        layer=ContextLayer.WORKSPACE,
+        kind=ContextSourceKind.DOCUMENT,
+        locator="file://large-optional",
+        text="x" * 4000,
+        priority=1,
+        required=False,
+        interpretation=ContextInterpretation.DATA_ONLY,
+        verified=True,
+    )
+    request = request.model_copy(
+        update={"layered_context_candidates": (large_optional,)}
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.usage.model_calls == 1
+    assert len(backend.requests) == 1
+    model_request = backend.requests[0]
+    message_text = "\n".join(message.content for message in model_request.messages)
+    message_names = {message.name for message in model_request.messages}
+    assert "context_window_projection" in message_names
+    assert "file://large-optional" not in message_text
+    assert "runtime://task-contract" in message_text
+    assert "runtime://task-state" in message_text
+    assert tuple(spec.name for spec in model_request.available_tools) == (
+        "filesystem.read_text",
+    )
+
+
+def test_model_request_window_blocks_before_backend_call(tmp_path) -> None:
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_request_estimated_tokens=1),
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 0
+    assert outcome.usage.model_input_tokens == 0
+    assert outcome.usage.tool_calls == 0
+    assert backend.call_count == 0
+    assert "model request cannot fit within per-request estimated window" in " ".join(
+        outcome.reasons
+    )
+
+
+def test_zero_model_request_window_disables_provider_call(tmp_path) -> None:
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_request_estimated_tokens=0),
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 0
+    assert backend.call_count == 0
+    assert "disables estimated model request tokens" in " ".join(outcome.reasons)
+
+
+def test_default_model_request_window_exceeds_canonical_context_budget() -> None:
+    runtime_budget = RuntimeBudget()
+    context_budget = ContextBudget()
+
+    assert (
+        runtime_budget.max_model_request_estimated_tokens
+        > context_budget.max_estimated_tokens
+    )

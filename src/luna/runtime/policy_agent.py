@@ -16,6 +16,15 @@ from luna.actions import (
     ToolSelector,
 )
 from luna.context import ContextInterpretation, LayeredContextBundle
+from luna.context.layered import LayeredContextEntry
+from luna.context.window import (
+    ModelWindowProjection,
+    ModelWindowProjectionStatus,
+    ModelWindowProjector,
+    estimate_model_messages_tokens,
+    estimate_tool_specs_tokens,
+    render_context_entry,
+)
 from luna.contracts.base import LunaContractModel
 from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
@@ -107,6 +116,19 @@ class PolicyTurn(LunaContractModel):
         return self
 
 
+class ModelRequestWindowBlocked(RuntimeError):
+    """Signal that provider I/O was blocked by deterministic request projection."""
+
+    def __init__(self, projection: ModelWindowProjection) -> None:
+        self.projection = projection
+        reason = (
+            projection.block_reason.value
+            if projection.block_reason is not None
+            else "UNKNOWN"
+        )
+        super().__init__(f"model request window blocked: {reason}")
+
+
 class ModelPolicyAgent:
     """Translate one provider-neutral model response into one Phase 12C proposal."""
 
@@ -116,32 +138,31 @@ class ModelPolicyAgent:
         self._judgment_builder = LocalJudgmentBuilder()
         self._verification_selector = VerificationStrategySelector()
         self._tool_advisor = InformationAwareToolAdvisor()
+        self._window_projector = ModelWindowProjector()
 
     @staticmethod
-    def _render_context(bundle: LayeredContextBundle) -> tuple[ModelMessage, ...]:
+    def _render_context_entries(
+        entries: tuple[LayeredContextEntry, ...],
+    ) -> tuple[ModelMessage, ...]:
         messages: list[ModelMessage] = []
-        for section in bundle.sections:
-            for entry in section.entries:
-                excerpt = entry.source.content_excerpt
-                if excerpt is None:
-                    continue
-                prefix = (
-                    f"[{entry.layer.value}] {entry.source.kind.value} "
-                    f"{entry.source.locator}\n"
+        for entry in entries:
+            role = (
+                MessageRole.SYSTEM
+                if entry.interpretation is ContextInterpretation.CONTROL
+                else MessageRole.TOOL
+            )
+            messages.append(
+                ModelMessage(
+                    role=role,
+                    name=f"context_{entry.layer.value.lower()}",
+                    content=render_context_entry(entry),
                 )
-                role = (
-                    MessageRole.SYSTEM
-                    if entry.interpretation is ContextInterpretation.CONTROL
-                    else MessageRole.TOOL
-                )
-                messages.append(
-                    ModelMessage(
-                        role=role,
-                        name=f"context_{entry.layer.value.lower()}",
-                        content=prefix + excerpt,
-                    )
-                )
+            )
         return tuple(messages)
+
+    @classmethod
+    def _render_context(cls, bundle: LayeredContextBundle) -> tuple[ModelMessage, ...]:
+        return cls._render_context_entries(bundle.entries())
 
     @staticmethod
     def _state_message(state: TaskState, step: PlanStep) -> ModelMessage:
@@ -171,6 +192,7 @@ class ModelPolicyAgent:
         policy: ToolPolicy,
         tool_visibility: ToolVisibilityProjection | None,
         max_output_tokens: int,
+        max_input_estimated_tokens: int = 16000,
     ) -> ModelRequest:
         allowed = set(policy.allowed_tools)
         if tool_visibility is not None:
@@ -206,7 +228,7 @@ class ModelPolicyAgent:
             "verification_strategy": verification.model_dump(mode="json"),
             "tool_advice": advice.model_dump(mode="json"),
         }
-        messages = (
+        fixed_messages = (
             ModelMessage(
                 role=MessageRole.SYSTEM,
                 name="luna_policy",
@@ -228,8 +250,32 @@ class ModelPolicyAgent:
                 name="local_judgment",
                 content=json.dumps(judgment_payload, ensure_ascii=False, sort_keys=True),
             ),
-            *self._render_context(context),
         )
+        if max_input_estimated_tokens < 1:
+            raise ValueError("estimated model request token limit must be positive")
+        fixed_estimated_tokens = (
+            estimate_model_messages_tokens(fixed_messages)
+            + estimate_tool_specs_tokens(available_tools)
+        )
+        projection = self._window_projector.project(
+            bundle=context,
+            max_estimated_tokens=max_input_estimated_tokens,
+            fixed_estimated_tokens=fixed_estimated_tokens,
+        )
+        if projection.status is ModelWindowProjectionStatus.BLOCKED:
+            raise ModelRequestWindowBlocked(projection)
+
+        projected_context = self._render_context_entries(projection.retained_entries)
+        notice_messages: tuple[ModelMessage, ...] = ()
+        if projection.projection_notice is not None:
+            notice_messages = (
+                ModelMessage(
+                    role=MessageRole.SYSTEM,
+                    name="context_window_projection",
+                    content=projection.projection_notice,
+                ),
+            )
+        messages = (*fixed_messages, *projected_context, *notice_messages)
         return ModelRequest(
             task_id=task_id,
             trace_id=trace_id,
@@ -250,6 +296,7 @@ class ModelPolicyAgent:
         policy: ToolPolicy,
         max_output_tokens: int,
         tool_visibility: ToolVisibilityProjection | None = None,
+        max_input_estimated_tokens: int = 16000,
     ) -> PolicyTurn:
         request = self._request(
             task_id=task_id,
@@ -261,6 +308,7 @@ class ModelPolicyAgent:
             policy=policy,
             tool_visibility=tool_visibility,
             max_output_tokens=max_output_tokens,
+            max_input_estimated_tokens=max_input_estimated_tokens,
         )
         try:
             response = self._backend.generate(request)
