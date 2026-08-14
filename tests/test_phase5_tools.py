@@ -10,6 +10,7 @@ import pytest
 from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.tools import (
     AutonomyLevel,
+    ExactCallApproval,
     ProcessApproval,
     ToolDispatcher,
     ToolPolicy,
@@ -70,21 +71,32 @@ def test_write_tool_creates_snapshot_and_explicit_rollback_removes_file(
     assert (tmp_path / "notes.txt").read_text(encoding="utf-8") == "phase5"
     snapshot_id = UUID(str(write.result.metadata["snapshot_id"]))
 
+    rollback_request = ToolRequest(
+        task_id=contract.task_id,
+        trace_id=uuid4(),
+        tool_name="workspace.rollback",
+        arguments={"snapshot_id": str(snapshot_id)},
+        expectation_id=uuid4(),
+    )
+    rollback_basis = sha256(b"phase5-rollback-basis").hexdigest()
     rollback = dispatcher.dispatch(
-        request=ToolRequest(
-            task_id=contract.task_id,
-            trace_id=uuid4(),
-            tool_name="workspace.rollback",
-            arguments={"snapshot_id": str(snapshot_id)},
-            expectation_id=uuid4(),
-        ),
+        request=rollback_request,
         task_contract=contract,
         policy=ToolPolicy(
             allowed_tools=("workspace.rollback",),
             owner_approved_tools=("workspace.rollback",),
+            exact_call_approvals=(
+                ExactCallApproval.bind(
+                    rollback_request,
+                    basis_fingerprint=rollback_basis,
+                    approved_by="owner:test",
+                    evidence_ref="phase5:test:rollback-approval",
+                ),
+            ),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),
+        approval_basis_fingerprint=rollback_basis,
     )
 
     assert rollback.result.status is ToolResultStatus.SUCCESS
@@ -122,9 +134,27 @@ def test_write_tool_is_blocked_when_task_scope_is_read_only(tmp_path: Path) -> N
 def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> None:
     contract = _contract(tmp_path, process_allowed=True)
     argv = (sys.executable, "--version")
+    dispatcher = ToolDispatcher(build_phase5_registry())
+    approved_request = ToolRequest(
+        task_id=contract.task_id,
+        trace_id=uuid4(),
+        tool_name="process.run_argv",
+        arguments={"argv": list(argv)},
+        working_directory=".",
+        expectation_id=uuid4(),
+    )
+    approval_basis = sha256(b"phase5-process-basis").hexdigest()
     policy = ToolPolicy(
         allowed_tools=("process.run_argv",),
         owner_approved_tools=("process.run_argv",),
+        exact_call_approvals=(
+            ExactCallApproval.bind(
+                approved_request,
+                basis_fingerprint=approval_basis,
+                approved_by="owner:test",
+                evidence_ref="phase5:test:process-approval",
+            ),
+        ),
         process_approvals=(
             ProcessApproval(
                 argv=argv,
@@ -135,19 +165,12 @@ def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> No
         autonomy_level=AutonomyLevel.OWNER_APPROVED,
         max_risk=RiskLevel.HIGH,
     )
-    dispatcher = ToolDispatcher(build_phase5_registry())
 
     approved = dispatcher.dispatch(
-        request=ToolRequest(
-            task_id=contract.task_id,
-            trace_id=uuid4(),
-            tool_name="process.run_argv",
-            arguments={"argv": list(argv)},
-            working_directory=".",
-            expectation_id=uuid4(),
-        ),
+        request=approved_request,
         task_contract=contract,
         policy=policy,
+        approval_basis_fingerprint=approval_basis,
     )
     unapproved = dispatcher.dispatch(
         request=ToolRequest(
@@ -160,6 +183,7 @@ def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> No
         ),
         task_contract=contract,
         policy=policy,
+        approval_basis_fingerprint=approval_basis,
     )
 
     assert approved.result.status is ToolResultStatus.SUCCESS
@@ -172,23 +196,34 @@ def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> No
 def test_banned_shell_is_blocked_even_when_exactly_approved(tmp_path: Path) -> None:
     contract = _contract(tmp_path, process_allowed=True)
     argv = ("cmd.exe", "/c", "echo", "unsafe")
+    request = ToolRequest(
+        task_id=contract.task_id,
+        trace_id=uuid4(),
+        tool_name="process.run_argv",
+        arguments={"argv": list(argv)},
+        working_directory=".",
+        expectation_id=uuid4(),
+    )
+    approval_basis = sha256(b"phase5-banned-shell-basis").hexdigest()
     outcome = ToolDispatcher(build_phase5_registry()).dispatch(
-        request=ToolRequest(
-            task_id=contract.task_id,
-            trace_id=uuid4(),
-            tool_name="process.run_argv",
-            arguments={"argv": list(argv)},
-            working_directory=".",
-            expectation_id=uuid4(),
-        ),
+        request=request,
         task_contract=contract,
         policy=ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
+            exact_call_approvals=(
+                ExactCallApproval.bind(
+                    request,
+                    basis_fingerprint=approval_basis,
+                    approved_by="owner:test",
+                    evidence_ref="phase5:test:banned-shell-approval",
+                ),
+            ),
             process_approvals=(ProcessApproval(argv=argv, may_write_workspace=False),),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),
+        approval_basis_fingerprint=approval_basis,
     )
 
     assert outcome.result.status is ToolResultStatus.BLOCKED

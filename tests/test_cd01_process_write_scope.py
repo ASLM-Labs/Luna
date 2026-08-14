@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import shutil
+from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
 from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.tools import (
     AutonomyLevel,
+    ExactCallApproval,
     ProcessApproval,
     ToolDispatcher,
     ToolPolicy,
@@ -72,19 +74,29 @@ def test_explicit_read_only_process_can_run_in_write_disabled_workspace(
     contract = _read_only_process_contract(tmp_path)
     argv = (git_exe, "--version")
 
+    request = ToolRequest(
+        task_id=contract.task_id,
+        trace_id=uuid4(),
+        tool_name="process.run_argv",
+        arguments={"argv": list(argv)},
+        working_directory=".",
+        expectation_id=uuid4(),
+    )
+    approval_basis = sha256(b"cd01-read-only-process-basis").hexdigest()
     outcome = ToolDispatcher(build_phase5_registry()).dispatch(
-        request=ToolRequest(
-            task_id=contract.task_id,
-            trace_id=uuid4(),
-            tool_name="process.run_argv",
-            arguments={"argv": list(argv)},
-            working_directory=".",
-            expectation_id=uuid4(),
-        ),
+        request=request,
         task_contract=contract,
         policy=ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
+            exact_call_approvals=(
+                ExactCallApproval.bind(
+                    request,
+                    basis_fingerprint=approval_basis,
+                    approved_by="owner:test",
+                    evidence_ref="cd01:test:read-only-process-approval",
+                ),
+            ),
             process_approvals=(
                 ProcessApproval(
                     argv=argv,
@@ -95,6 +107,7 @@ def test_explicit_read_only_process_can_run_in_write_disabled_workspace(
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),
+        approval_basis_fingerprint=approval_basis,
     )
 
     assert outcome.result.status is ToolResultStatus.SUCCESS

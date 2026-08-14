@@ -24,6 +24,7 @@ class AuditedToolDispatcher:
         task_contract: TaskContract,
         policy: ToolPolicy,
         cancellation_probe: CancellationProbe | None = None,
+        approval_basis_fingerprint: str | None = None,
     ) -> DispatchOutcome:
         self._audit.record_tool_request(request)
         outcome = self._dispatcher.dispatch(
@@ -31,6 +32,7 @@ class AuditedToolDispatcher:
             task_contract=task_contract,
             policy=policy,
             cancellation_probe=cancellation_probe,
+            approval_basis_fingerprint=approval_basis_fingerprint,
         )
         self._audit.record_dispatch_outcome(outcome)
         return outcome

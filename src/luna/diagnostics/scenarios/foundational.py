@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
@@ -37,6 +38,7 @@ from luna.memory import (
 )
 from luna.tools import (
     AutonomyLevel,
+    ExactCallApproval,
     ProcessApproval,
     ToolDispatcher,
     ToolPolicy,
@@ -136,21 +138,32 @@ def run_workspace() -> SmokeReport:
         snapshot_id = write.result.metadata.get("snapshot_id")
         if write.result.status.value != "SUCCESS" or not isinstance(snapshot_id, str):
             return legacy_contract_report("workspace", json.loads(write.to_json()), False)
+        rollback_request = ToolRequest(
+            task_id=task_id,
+            trace_id=uuid4(),
+            tool_name="workspace.rollback",
+            arguments={"snapshot_id": snapshot_id},
+            expectation_id=uuid4(),
+        )
+        rollback_basis = sha256(b"diagnostics-workspace-rollback-basis").hexdigest()
         rollback = dispatcher.dispatch(
-            request=ToolRequest(
-                task_id=task_id,
-                trace_id=uuid4(),
-                tool_name="workspace.rollback",
-                arguments={"snapshot_id": snapshot_id},
-                expectation_id=uuid4(),
-            ),
+            request=rollback_request,
             task_contract=contract,
             policy=ToolPolicy(
                 allowed_tools=("workspace.rollback",),
                 owner_approved_tools=("workspace.rollback",),
+                exact_call_approvals=(
+                    ExactCallApproval.bind(
+                        rollback_request,
+                        basis_fingerprint=rollback_basis,
+                        approved_by="diagnostics:owner",
+                        evidence_ref="diagnostics:workspace:rollback-approval",
+                    ),
+                ),
                 autonomy_level=AutonomyLevel.OWNER_APPROVED,
                 max_risk=RiskLevel.HIGH,
             ),
+            approval_basis_fingerprint=rollback_basis,
         )
         payload = {
             "write_status": write.result.status.value,
@@ -172,23 +185,34 @@ def run_process() -> SmokeReport:
     registry = build_phase5_registry()
     task_id = uuid4()
     argv = (sys.executable, "--version")
+    request = ToolRequest(
+        task_id=task_id,
+        trace_id=uuid4(),
+        tool_name="process.run_argv",
+        arguments={"argv": list(argv)},
+        working_directory=".",
+        expectation_id=uuid4(),
+    )
+    approval_basis = sha256(b"diagnostics-process-basis").hexdigest()
     outcome = ToolDispatcher(registry).dispatch(
-        request=ToolRequest(
-            task_id=task_id,
-            trace_id=uuid4(),
-            tool_name="process.run_argv",
-            arguments={"argv": list(argv)},
-            working_directory=".",
-            expectation_id=uuid4(),
-        ),
+        request=request,
         task_contract=_process_contract(task_id),
         policy=ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
+            exact_call_approvals=(
+                ExactCallApproval.bind(
+                    request,
+                    basis_fingerprint=approval_basis,
+                    approved_by="diagnostics:owner",
+                    evidence_ref="diagnostics:process:approval",
+                ),
+            ),
             process_approvals=(ProcessApproval(argv=argv, may_write_workspace=False),),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         ),
+        approval_basis_fingerprint=approval_basis,
     )
     return legacy_contract_report(
         "process", json.loads(outcome.to_json()), outcome.result.status.value == "SUCCESS"

@@ -57,6 +57,8 @@ def evaluate_tool_policy(
     task_contract: TaskContract,
     policy: ToolPolicy,
     now: datetime | None = None,
+    approval_basis_fingerprint: str | None = None,
+    defer_exact_call_approval: bool = False,
 ) -> PolicyDecision:
     """Run every pre-execution policy check in a fixed order."""
     checks: list[str] = []
@@ -75,6 +77,10 @@ def evaluate_tool_policy(
     checks.append("risk_budget:PASS")
 
     capabilities = set(spec.capabilities)
+    exact_approval_required = (
+        spec.risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL}
+        or spec.name in policy.owner_approved_tools
+    )
     high_impact_capabilities = {
         ToolCapability.WRITE,
         ToolCapability.NETWORK,
@@ -154,17 +160,14 @@ def evaluate_tool_policy(
                     "network target is outside the FREE_RESEARCH domain allowlist",
                 )
         checks.append("free_research_contract:PASS")
-    if spec.risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL} and (
-        autonomy.level not in {
-            AutonomyLevel.LEVEL_3_TASK,
-            AutonomyLevel.LEVEL_4_FREE_RESEARCH,
-        }
-        or spec.name not in policy.owner_approved_tools
-    ):
+    if spec.risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL} and autonomy.level not in {
+        AutonomyLevel.LEVEL_3_TASK,
+        AutonomyLevel.LEVEL_4_FREE_RESEARCH,
+    }:
         return _denied(
             checks,
-            "owner_approval",
-            "high-risk tool lacks explicit owner approval",
+            "autonomy",
+            "high-risk tool requires task-bounded owner-authorized autonomy",
         )
     checks.append("autonomy:PASS")
 
@@ -234,7 +237,7 @@ def evaluate_tool_policy(
         ):
             return _denied(checks, "process_approval", "process argv is not valid")
         requested_argv = tuple(argv_value)
-        matched_approval = None
+        matched_process_approval = None
         for approval in policy.process_approvals:
             try:
                 approved_cwd = str(
@@ -246,16 +249,16 @@ def evaluate_tool_policy(
             except WorkspacePathError:
                 continue
             if approval.argv == requested_argv and approved_cwd == working_directory:
-                matched_approval = approval
+                matched_process_approval = approval
                 break
-        if matched_approval is None:
+        if matched_process_approval is None:
             return _denied(
                 checks,
                 "process_approval",
                 "exact argv and working directory were not owner-approved",
             )
         if (
-            matched_approval.may_write_workspace
+            matched_process_approval.may_write_workspace
             and not task_contract.scope.write_allowed
         ):
             return _denied(
@@ -265,6 +268,62 @@ def evaluate_tool_policy(
             )
         checks.append("process_write_scope:PASS")
     checks.append("process_approval:PASS")
+
+    if exact_approval_required:
+        if defer_exact_call_approval:
+            checks.append("exact_call_approval:DEFERRED_TO_DISPATCH")
+        else:
+            call_fingerprint = request.exact_call_fingerprint()
+            if approval_basis_fingerprint is None:
+                return _denied(
+                    checks,
+                    "exact_call_approval",
+                    (
+                        "execution requires an exact-call approval basis; "
+                        f"call={call_fingerprint}; basis=missing"
+                    ),
+                )
+            call_matches = tuple(
+                approval
+                for approval in policy.exact_call_approvals
+                if approval.task_id == request.task_id
+                and approval.tool_name == request.tool_name
+                and approval.call_fingerprint == call_fingerprint
+            )
+            if not call_matches:
+                return _denied(
+                    checks,
+                    "exact_call_approval",
+                    (
+                        "exact call is not owner-approved; "
+                        f"call={call_fingerprint}; basis={approval_basis_fingerprint}"
+                    ),
+                )
+            matched_exact_approval = next(
+                (
+                    approval
+                    for approval in call_matches
+                    if approval.basis_fingerprint == approval_basis_fingerprint
+                ),
+                None,
+            )
+            if matched_exact_approval is None:
+                return _denied(
+                    checks,
+                    "exact_call_basis",
+                    (
+                        "exact-call approval basis no longer matches current runtime basis; "
+                        f"call={call_fingerprint}; basis={approval_basis_fingerprint}"
+                    ),
+                )
+            checks.append("exact_call_approval:PASS")
+            checks.append(f"exact_call_fingerprint:{call_fingerprint}")
+            checks.append(f"exact_call_approval_basis:{approval_basis_fingerprint}")
+            checks.append(f"exact_call_approval_id:{matched_exact_approval.approval_id}")
+            checks.append(f"exact_call_approved_by:{matched_exact_approval.approved_by}")
+            checks.append(
+                f"exact_call_approval_evidence:{matched_exact_approval.evidence_ref}"
+            )
 
     return PolicyDecision(
         allowed=True,

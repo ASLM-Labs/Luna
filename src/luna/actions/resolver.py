@@ -73,6 +73,7 @@ class ActionResolver:
             request=request,
             task_contract=task_contract,
             policy=policy,
+            defer_exact_call_approval=True,
         )
         if not decision.allowed:
             denial = ActionDenial(

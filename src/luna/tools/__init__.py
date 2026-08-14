@@ -27,6 +27,7 @@ from luna.tools.lifecycle import (
 )
 from luna.tools.models import (
     DispatchOutcome,
+    ExactCallApproval,
     ProcessApproval,
     ToolArgumentRule,
     ToolArgumentType,
@@ -47,6 +48,7 @@ __all__ = [
     "AutonomyLevel",
     "AutonomyPolicy",
     "DispatchOutcome",
+    "ExactCallApproval",
     "ExecutionLifecycle",
     "ExecutionSettlement",
     "ExecutionStop",

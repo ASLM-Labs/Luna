@@ -1028,6 +1028,36 @@ class LunaRuntime:
             fallback_root=state.contract.scope.workspace_root,
         )
         execution_contract = self._contract_for_workspace(state.contract, effective_root)
+        approval_workspace_root = effective_root
+        approval_contract = execution_contract
+        approval_basis_fingerprint = self._approval_basis_fingerprint(
+            state=state,
+            task_contract=approval_contract,
+            workspace_root=approval_workspace_root,
+        )
+        authorization = self._deps.core.tool_dispatcher.authorize(
+            request=tool_request,
+            task_contract=execution_contract,
+            policy=tool_policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        if not authorization.allowed:
+            return self._checkpoint_outcome(
+                request=request,
+                state=self._safe_checkpoint_state(state),
+                usage=usage,
+                stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                reasons=(
+                    authorization.reason,
+                    (
+                        "execution authority is rechecked at dispatch against "
+                        "the same exact-call basis"
+                    ),
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="owner exact-call approval or revised action required",
+                started_at=started_at,
+            )
         inspection: ChangeInspection | None = None
         lease = IsolationLease(
             mode=IsolationMode.NONE,
@@ -1174,6 +1204,34 @@ class LunaRuntime:
                                 started_at=started_at,
                             )
 
+        # Recompute immediately before execution preparation so state changes that happened
+        # after the early permission preflight invalidate stale exact-call approval.
+        approval_basis_fingerprint = self._approval_basis_fingerprint(
+            state=state,
+            task_contract=approval_contract,
+            workspace_root=approval_workspace_root,
+        )
+        authorization = self._deps.core.tool_dispatcher.authorize(
+            request=tool_request,
+            task_contract=execution_contract,
+            policy=tool_policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        if not authorization.allowed:
+            return self._checkpoint_outcome(
+                request=request,
+                state=self._safe_checkpoint_state(state),
+                usage=usage,
+                stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                reasons=(
+                    authorization.reason,
+                    "exact-call authority changed before execution preparation",
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="owner exact-call reapproval or revised action required",
+                started_at=started_at,
+            )
+
         side_effect = bool(set(proposal.required_capabilities) & _SIDE_EFFECT_CAPABILITIES)
         basis = self._attempt_basis(
             request=request,
@@ -1223,6 +1281,8 @@ class LunaRuntime:
                 proposal_id=proposal.proposal_id,
                 request=tool_request,
                 attempt_basis=basis,
+                approval_basis_fingerprint=approval_basis_fingerprint,
+                approval_workspace_root=effective_root,
                 pre_action_state=state,
                 execution_workspace_root=lease.workspace_root,
                 isolation_mode=lease.mode.value,
@@ -1267,6 +1327,7 @@ class LunaRuntime:
             task_contract=execution_contract,
             policy=tool_policy,
             cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
+            approval_basis_fingerprint=approval_basis_fingerprint,
         )
         usage.tool_calls += 1
         if ToolCapability.NETWORK in proposal.required_capabilities:
@@ -1601,12 +1662,46 @@ class LunaRuntime:
                     )
                 }
             )
+            approval_workspace_root = (
+                receipt.approval_workspace_root
+                or receipt.pre_action_state.contract.scope.workspace_root
+            )
+            approval_contract = self._contract_for_workspace(
+                receipt.pre_action_state.contract,
+                approval_workspace_root,
+            )
+            current_approval_basis = self._approval_basis_fingerprint(
+                state=receipt.pre_action_state,
+                task_contract=approval_contract,
+                workspace_root=approval_workspace_root,
+            )
+            authorization = self._deps.core.tool_dispatcher.authorize(
+                request=receipt.request,
+                task_contract=execution_contract,
+                policy=policy,
+                approval_basis_fingerprint=current_approval_basis,
+            )
+            if not authorization.allowed:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(receipt.pre_action_state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                    reasons=(
+                        authorization.reason,
+                        "prepared side effect remains fenced until exact-call reapproval",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step="owner exact-call reapproval or revised action required",
+                    started_at=started_at,
+                )
             self._deps.runtime_journal.mark_started(receipt.idempotency_key)
             outcome = self._deps.core.tool_dispatcher.dispatch(
                 request=receipt.request,
                 task_contract=execution_contract,
                 policy=policy,
                 cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
+                approval_basis_fingerprint=current_approval_basis,
             )
             usage.tool_calls += 1
             self._deps.runtime_journal.mark_completed(
@@ -1869,6 +1964,49 @@ class LunaRuntime:
     @staticmethod
     def _idempotency_key(*, task_id: UUID, step_id: UUID, semantic_fingerprint: str) -> str:
         return sha256(f"{task_id}:{step_id}:{semantic_fingerprint}".encode()).hexdigest()
+
+    def _approval_basis_fingerprint(
+        self,
+        *,
+        state: TaskState,
+        task_contract: TaskContract,
+        workspace_root: str,
+    ) -> str:
+        """Bind approval to fresh runtime-owned state without model-window churn."""
+        scope_payload = json.dumps(
+            task_contract.scope.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        payload = {
+            "assumption_revision": (
+                state.decision_state.revision
+                if state.decision_state is not None
+                else 0
+            ),
+            "environment_fingerprint": (
+                self._deps.fingerprint_provider.environment_fingerprint()
+            ),
+            "runtime_revision": self._deps.fingerprint_provider.runtime_revision,
+            "scope_fingerprint": sha256(scope_payload.encode("utf-8")).hexdigest(),
+            "workspace_fingerprint": (
+                self._deps.fingerprint_provider.workspace_fingerprint(
+                    task_contract=task_contract,
+                    workspace_root=workspace_root,
+                )
+            ),
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return sha256(
+            b"luna-exact-call-approval-basis-v1\0"
+            + serialized.encode("utf-8")
+        ).hexdigest()
 
     def _attempt_basis(
         self,

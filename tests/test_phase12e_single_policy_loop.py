@@ -27,7 +27,7 @@ from luna.context import (
     LayeredContextComposer,
 )
 from luna.continuity import ContinuityService, SQLiteContinuityStore
-from luna.contracts import RiskLevel, TaskContract, TaskScope
+from luna.contracts import RiskLevel, TaskContract, TaskScope, TaskState
 from luna.decision_state import DecisionStateService
 from luna.memory import VerifiedMemoryService
 from luna.modeling import (
@@ -58,6 +58,7 @@ from luna.runtime.loop import LunaRuntime
 from luna.runtime.models import RuntimeOutcome, RuntimeStopReason
 from luna.tools import (
     DispatchOutcome,
+    ExactCallApproval,
     ToolDispatcher,
     ToolPolicy,
     ToolRequest,
@@ -65,6 +66,7 @@ from luna.tools import (
 )
 from luna.tools.lifecycle import CancellationProbe
 from luna.tools.models import ToolArgumentValue
+from luna.tools.policy import PolicyDecision
 from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
 from luna.verification import CompletionGate
 
@@ -83,10 +85,39 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
         task_contract: TaskContract,
         policy: ToolPolicy,
         cancellation_probe: CancellationProbe | None = None,
+        approval_basis_fingerprint: str | None = None,
     ) -> DispatchOutcome:
-        del request, task_contract, policy, cancellation_probe
+        del request, task_contract, policy, cancellation_probe, approval_basis_fingerprint
         self.call_count += 1
         raise RuntimeError("synthetic crash after side-effect STARTED fence")
+
+
+class _MutateAfterFirstAllowedAuthorizationDispatcher(ToolDispatcher):
+    """Change authoritative workspace state after the early approval preflight."""
+
+    def __init__(self, workspace: Path) -> None:
+        super().__init__(build_phase5_registry())
+        self._workspace = workspace
+        self.mutated = False
+
+    def authorize(
+        self,
+        *,
+        request: ToolRequest,
+        task_contract: TaskContract,
+        policy: ToolPolicy,
+        approval_basis_fingerprint: str | None = None,
+    ) -> PolicyDecision:
+        decision = super().authorize(
+            request=request,
+            task_contract=task_contract,
+            policy=policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        if decision.allowed and not self.mutated:
+            (self._workspace / "note.txt").write_text("changed-after-preflight\n", encoding="utf-8")
+            self.mutated = True
+        return decision
 
 
 class _CooperativeWriteTool:
@@ -981,3 +1012,247 @@ def test_default_model_request_window_exceeds_canonical_context_budget() -> None
         runtime_budget.max_model_request_estimated_tokens
         > context_budget.max_estimated_tokens
     )
+
+
+def test_high_risk_exact_call_approval_blocks_before_side_effect_preparation(
+    tmp_path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Request one exact rollback action.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="rollback-needs-approval",
+                            tool_name="workspace.rollback",
+                            arguments={"snapshot_id": str(uuid4())},
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("workspace.rollback",),
+            write=True,
+            risk_level=RiskLevel.HIGH,
+        ),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.PERMISSION_DENIED
+    assert outcome.usage.model_calls == 1
+    assert outcome.usage.tool_calls == 0
+    assert runtime._deps.runtime_journal.list_for_task(request.task_id) == ()
+    assert any(
+        "exact call is not owner-approved" in reason
+        and "call=" in reason
+        and "basis=" in reason
+        for reason in outcome.reasons
+    )
+
+
+def test_exact_call_approval_can_resume_same_call_on_unchanged_runtime_basis(
+    tmp_path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    state_root = tmp_path / "state"
+    snapshot_id = str(uuid4())
+    turn = ScriptedTurn(
+        output=ScriptedModelOutput(
+            text="Request the same bounded rollback.",
+            tool_calls=(
+                ModelToolCall(
+                    call_id="rollback-exact",
+                    tool_name="workspace.rollback",
+                    arguments={"snapshot_id": snapshot_id},
+                ),
+            ),
+            finish_reason=ModelFinishReason.TOOL_CALLS,
+        )
+    )
+    backend = ScriptedTestBackend((turn, turn))
+    runtime = _runtime(workspace, backend, state_root=state_root)
+    request = _request(
+        workspace,
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+    )
+    base_policy = _policy(
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+    )
+
+    denied = runtime.run(request=request, tool_policy=base_policy)
+    approval_reason = next(
+        reason
+        for reason in denied.reasons
+        if "exact call is not owner-approved" in reason
+    )
+    call_fingerprint = approval_reason.split("call=", 1)[1].split(";", 1)[0]
+    basis_fingerprint = approval_reason.split("basis=", 1)[1]
+    proposed_request = ToolRequest(
+        task_id=request.task_id,
+        trace_id=uuid4(),
+        tool_name="workspace.rollback",
+        arguments={"snapshot_id": snapshot_id},
+    )
+    assert proposed_request.exact_call_fingerprint() == call_fingerprint
+    approval = ExactCallApproval.bind(
+        proposed_request,
+        basis_fingerprint=basis_fingerprint,
+        approved_by="owner:test",
+        evidence_ref="phase12e:test:exact-call-approval",
+    )
+    approved_policy = base_policy.model_copy(
+        update={"exact_call_approvals": (approval,)}
+    )
+    resume_request = _request(
+        workspace,
+        task_id=request.task_id,
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+        mode=RuntimeMode.RESUME,
+    )
+
+    resumed = runtime.resume(request=resume_request, tool_policy=approved_policy)
+
+    assert denied.stop_reason is RuntimeStopReason.PERMISSION_DENIED
+    assert denied.usage.tool_calls == 0
+    assert resumed.usage.tool_calls == 1
+    assert not any("exact-call approval basis" in reason for reason in resumed.reasons)
+
+
+
+def test_runtime_rechecks_fresh_basis_after_early_exact_call_preflight(tmp_path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    state_root = tmp_path / "state"
+    snapshot_id = str(uuid4())
+    turn = ScriptedTurn(
+        output=ScriptedModelOutput(
+            text="Request the same bounded rollback.",
+            tool_calls=(
+                ModelToolCall(
+                    call_id="rollback-stale-basis",
+                    tool_name="workspace.rollback",
+                    arguments={"snapshot_id": snapshot_id},
+                ),
+            ),
+            finish_reason=ModelFinishReason.TOOL_CALLS,
+        )
+    )
+    dispatcher = _MutateAfterFirstAllowedAuthorizationDispatcher(workspace)
+    runtime = _runtime(
+        workspace,
+        ScriptedTestBackend((turn, turn)),
+        dispatcher=dispatcher,
+        state_root=state_root,
+    )
+    request = _request(
+        workspace,
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+    )
+    base_policy = _policy(
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+    )
+
+    denied = runtime.run(request=request, tool_policy=base_policy)
+    approval_reason = next(
+        reason
+        for reason in denied.reasons
+        if "exact call is not owner-approved" in reason
+    )
+    basis_fingerprint = approval_reason.split("basis=", 1)[1]
+    proposed_request = ToolRequest(
+        task_id=request.task_id,
+        trace_id=uuid4(),
+        tool_name="workspace.rollback",
+        arguments={"snapshot_id": snapshot_id},
+    )
+    approval = ExactCallApproval.bind(
+        proposed_request,
+        basis_fingerprint=basis_fingerprint,
+        approved_by="owner:test",
+        evidence_ref="phase12e:test:stale-basis",
+    )
+    approved_policy = base_policy.model_copy(
+        update={"exact_call_approvals": (approval,)}
+    )
+    resume_request = _request(
+        workspace,
+        task_id=request.task_id,
+        allowed_tools=("workspace.rollback",),
+        write=True,
+        risk_level=RiskLevel.HIGH,
+        mode=RuntimeMode.RESUME,
+    )
+
+    resumed = runtime.resume(request=resume_request, tool_policy=approved_policy)
+
+    assert dispatcher.mutated
+    assert resumed.stop_reason is RuntimeStopReason.PERMISSION_DENIED
+    assert resumed.usage.tool_calls == 0
+    assert runtime._deps.runtime_journal.list_for_task(request.task_id) == ()
+    assert any("basis no longer matches" in reason for reason in resumed.reasons)
+
+
+
+def test_runtime_exact_call_approval_basis_tracks_fresh_workspace_state(
+    tmp_path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    state_root = tmp_path / "state"
+    runtime = _runtime(workspace, ScriptedTestBackend(()), state_root=state_root)
+    contract = TaskContract(
+        objective="Bind approval to fresh workspace state.",
+        required_conditions=("Workspace changes invalidate stale approval basis.",),
+        evidence_required=("Runtime-owned workspace fingerprint",),
+        scope=TaskScope(
+            workspace_root=str(workspace),
+            allowed_paths=("note.txt",),
+            write_allowed=True,
+        ),
+        risk_level=RiskLevel.HIGH,
+    )
+    state = TaskState(task_id=contract.task_id, contract=contract)
+
+    first = runtime._approval_basis_fingerprint(
+        state=state,
+        task_contract=contract,
+        workspace_root=str(workspace),
+    )
+    repeated = runtime._approval_basis_fingerprint(
+        state=state,
+        task_contract=contract,
+        workspace_root=str(workspace),
+    )
+    (workspace / "note.txt").write_text("changed\n", encoding="utf-8")
+    changed = runtime._approval_basis_fingerprint(
+        state=state,
+        task_contract=contract,
+        workspace_root=str(workspace),
+    )
+
+    assert repeated == first
+    assert changed != first

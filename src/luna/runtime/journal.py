@@ -127,6 +127,11 @@ class SideEffectReceipt(LunaContractModel):
     proposal_id: UUID
     request: ToolRequest
     attempt_basis: AttemptBasis
+    approval_basis_fingerprint: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    approval_workspace_root: str | None = Field(default=None, min_length=1, max_length=4000)
     pre_action_state: TaskState
     execution_workspace_root: str = Field(min_length=1, max_length=4000)
     isolation_mode: str = Field(default="NONE", min_length=1, max_length=40)
@@ -156,6 +161,10 @@ class SideEffectReceipt(LunaContractModel):
 
     @model_validator(mode="after")
     def validate_links_and_stage(self) -> SideEffectReceipt:
+        if (self.approval_basis_fingerprint is None) != (
+            self.approval_workspace_root is None
+        ):
+            raise ValueError("approval basis and workspace root must be recorded together")
         if self.request.task_id != self.task_id or self.request.trace_id != self.trace_id:
             raise ValueError("side-effect request IDs must match receipt")
         if self.pre_action_state.task_id != self.task_id:

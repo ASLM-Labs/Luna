@@ -380,34 +380,48 @@ class ToolDispatcher:
             observation=observation,
         )
 
-    def dispatch(
+    def _authorize(
         self,
         *,
         request: ToolRequest,
         task_contract: TaskContract,
         policy: ToolPolicy,
-        cancellation_probe: CancellationProbe | None = None,
-    ) -> DispatchOutcome:
+        approval_basis_fingerprint: str | None,
+    ) -> tuple[RegisteredTool | None, PolicyDecision, str | None, datetime]:
+        runtime_now = utc_now()
         registered = self._registry.get(request.tool_name)
         if registered is None:
-            return self._blocked(
-                request=request,
-                checks=("registration:FAIL",),
-                reason="tool is not registered",
-                error_class="UnregisteredTool",
+            return (
+                None,
+                PolicyDecision(
+                    allowed=False,
+                    checks=("registration:FAIL",),
+                    reason="tool is not registered",
+                    timeout_ms=0,
+                    max_output_chars=0,
+                    working_directory=None,
+                ),
+                "UnregisteredTool",
+                runtime_now,
             )
 
         try:
             validate_tool_arguments(registered.spec, request.arguments)
         except ToolArgumentError as exc:
-            return self._blocked(
-                request=request,
-                checks=("registration:PASS", "argument_schema:FAIL"),
-                reason=str(exc),
-                error_class=type(exc).__name__,
+            return (
+                registered,
+                PolicyDecision(
+                    allowed=False,
+                    checks=("registration:PASS", "argument_schema:FAIL"),
+                    reason=str(exc),
+                    timeout_ms=0,
+                    max_output_chars=0,
+                    working_directory=None,
+                ),
+                type(exc).__name__,
+                runtime_now,
             )
 
-        runtime_now = utc_now()
         effective_policy = policy
         research_contract = policy.free_research_contract
         if research_contract is not None:
@@ -433,15 +447,66 @@ class ToolDispatcher:
             task_contract=task_contract,
             policy=effective_policy,
             now=runtime_now,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        wrapped = PolicyDecision(
+            allowed=decision.allowed,
+            checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
+            reason=decision.reason,
+            timeout_ms=decision.timeout_ms,
+            max_output_chars=decision.max_output_chars,
+            working_directory=decision.working_directory,
+        )
+        return (
+            registered,
+            wrapped,
+            None if decision.allowed else "ToolPolicyDenied",
+            runtime_now,
+        )
+
+    def authorize(
+        self,
+        *,
+        request: ToolRequest,
+        task_contract: TaskContract,
+        policy: ToolPolicy,
+        approval_basis_fingerprint: str | None = None,
+    ) -> PolicyDecision:
+        """Preflight without execution; dispatch re-authorizes before any handler call."""
+        _, decision, _, _ = self._authorize(
+            request=request,
+            task_contract=task_contract,
+            policy=policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        return decision
+
+    def dispatch(
+        self,
+        *,
+        request: ToolRequest,
+        task_contract: TaskContract,
+        policy: ToolPolicy,
+        cancellation_probe: CancellationProbe | None = None,
+        approval_basis_fingerprint: str | None = None,
+    ) -> DispatchOutcome:
+        registered, decision, denial_class, runtime_now = self._authorize(
+            request=request,
+            task_contract=task_contract,
+            policy=policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
         )
         if not decision.allowed:
             return self._blocked(
                 request=request,
-                checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
+                checks=decision.checks,
                 reason=decision.reason,
-                error_class="ToolPolicyDenied",
+                error_class=denial_class or "ToolPolicyDenied",
             )
+        if registered is None:
+            raise RuntimeError("authorized tool lost its registry entry")
 
+        research_contract = policy.free_research_contract
         if research_contract is not None:
             contract_id = research_contract.contract_id
             self._free_research_started_at.setdefault(contract_id, runtime_now)
@@ -449,14 +514,6 @@ class ToolDispatcher:
                 self._free_research_usage.get(contract_id, 0) + 1
             )
 
-        decision = PolicyDecision(
-            allowed=True,
-            checks=("registration:PASS", "argument_schema:PASS", *decision.checks),
-            reason=decision.reason,
-            timeout_ms=decision.timeout_ms,
-            max_output_chars=decision.max_output_chars,
-            working_directory=decision.working_directory,
-        )
         return self._execute(
             registered=registered,
             request=request,

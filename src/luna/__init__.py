@@ -117,6 +117,7 @@ from luna.runtime import (
 )
 from luna.tasking import TaskContractBuilder, TaskContractDraft
 from luna.tools import (
+    ExactCallApproval,
     ProcessApproval,
     ToolDispatcher,
     ToolRegistry,
@@ -182,6 +183,7 @@ __all__ = [
     "EvalReport",
     "Evidence",
     "EvidenceBuilder",
+    "ExactCallApproval",
     "ExpectedObservation",
     "FinalReport",
     "FinalReportComposer",
