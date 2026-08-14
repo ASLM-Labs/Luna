@@ -91,6 +91,8 @@ class ContextClaim(LunaContractModel):
 
     @model_validator(mode="after")
     def validate_role_boundaries(self) -> ContextClaim:
+        if self.verified and not self.evidence_refs:
+            raise ValueError("verified context claim requires evidence refs")
         if self.authority_role is ContextAuthorityRole.INFERENCE and self.verified:
             raise ValueError("inference cannot self-declare as verified context")
         if (
@@ -107,6 +109,7 @@ class ContextRequirement(LunaContractModel):
     key: str = Field(min_length=1, max_length=500)
     claim_type: ContextClaimType
     critical: bool = True
+    require_verified: bool = True
     max_age_seconds: int | None = Field(default=None, ge=0)
     failure_action: ContextFailureAction = ContextFailureAction.VERIFY
 
@@ -162,6 +165,9 @@ class ContextReadinessReport(LunaContractModel):
     raw_missing_sources: tuple[str, ...] = ()
     unresolved_critical_keys: tuple[str, ...] = ()
     conflicting_critical_keys: tuple[str, ...] = ()
+    blocking_assumption_ids: tuple[UUID, ...] = ()
+    contradicted_assumption_ids: tuple[UUID, ...] = ()
+    invalidated_decision_ids: tuple[UUID, ...] = ()
     reasons: tuple[str, ...] = ()
     generated_at: datetime = Field(default_factory=utc_now)
 
@@ -185,12 +191,28 @@ class ContextReadinessReport(LunaContractModel):
             raise ValueError("readiness report text values must be unique")
         return cleaned
 
+    @field_validator(
+        "blocking_assumption_ids",
+        "contradicted_assumption_ids",
+        "invalidated_decision_ids",
+    )
+    @classmethod
+    def validate_unique_ids(cls, values: tuple[UUID, ...]) -> tuple[UUID, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("readiness report IDs must be unique")
+        return values
+
     @model_validator(mode="after")
     def validate_decision(self) -> ContextReadinessReport:
+        if not set(self.contradicted_assumption_ids).issubset(
+            self.blocking_assumption_ids
+        ):
+            raise ValueError("contradicted assumptions must also be blocking assumptions")
         has_critical_gap = bool(
             self.raw_missing_sources
             or self.unresolved_critical_keys
             or self.conflicting_critical_keys
+            or self.blocking_assumption_ids
         )
         if self.decision is ReadinessDecision.READY and has_critical_gap:
             raise ValueError("READY context cannot contain critical gaps")

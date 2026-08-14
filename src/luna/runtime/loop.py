@@ -316,7 +316,10 @@ class LunaRuntime:
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
                 RuntimeStopReason.CONFLICTING_EVIDENCE
-                if readiness.conflicting_critical_keys
+                if (
+                    readiness.conflicting_critical_keys
+                    or readiness.contradicted_assumption_ids
+                )
                 else RuntimeStopReason.CONTEXT_INCOMPLETE
             )
             return self._checkpoint_outcome(
@@ -334,6 +337,14 @@ class LunaRuntime:
                     *(
                         f"conflicting_context:{item}"
                         for item in readiness.conflicting_critical_keys
+                    ),
+                    *(
+                        f"blocking_assumption:{item}"
+                        for item in readiness.blocking_assumption_ids
+                    ),
+                    *(
+                        f"invalidated_decision:{item}"
+                        for item in readiness.invalidated_decision_ids
                     ),
                 ),
                 resume_phase=TaskPhase.CONTEXT_READY,
@@ -432,7 +443,10 @@ class LunaRuntime:
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
                 RuntimeStopReason.CONFLICTING_EVIDENCE
-                if readiness.conflicting_critical_keys
+                if (
+                    readiness.conflicting_critical_keys
+                    or readiness.contradicted_assumption_ids
+                )
                 else RuntimeStopReason.CONTEXT_INCOMPLETE
             )
             return self._checkpoint_outcome(
@@ -450,6 +464,14 @@ class LunaRuntime:
                     *(
                         f"conflicting_context:{item}"
                         for item in readiness.conflicting_critical_keys
+                    ),
+                    *(
+                        f"blocking_assumption:{item}"
+                        for item in readiness.blocking_assumption_ids
+                    ),
+                    *(
+                        f"invalidated_decision:{item}"
+                        for item in readiness.invalidated_decision_ids
                     ),
                 ),
                 resume_phase=state.phase,

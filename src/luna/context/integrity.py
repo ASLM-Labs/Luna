@@ -15,7 +15,11 @@ from luna.context.integrity_models import (
 )
 from luna.context.layered import LayeredContextBundle
 from luna.contracts.base import stable_payload, utc_now
-from luna.contracts.decision import AssumptionRecord, AssumptionStatus
+from luna.contracts.decision import (
+    AssumptionRecord,
+    AssumptionStatus,
+    DecisionStatus,
+)
 from luna.contracts.state import TaskState
 from luna.decision_state import DecisionStateService
 
@@ -41,8 +45,13 @@ class ContextIntegrityGate:
         requirements: Iterable[ContextRequirement] = (),
     ) -> tuple[ContextReadinessReport, TaskState]:
         snapshot = self._decision_state.ensure(state.task_id, state.decision_state)
+        initial_decision_statuses = {
+            item.decision_id: item.status for item in snapshot.decisions
+        }
         claims_tuple = tuple(claims)
         requirements_tuple = tuple(requirements)
+        if bundle.task_id != state.task_id:
+            raise ValueError("context bundle task_id mismatch")
         if any(claim.task_id != state.task_id for claim in claims_tuple):
             raise ValueError("context claim task_id mismatch")
 
@@ -57,7 +66,11 @@ class ContextIntegrityGate:
 
         for resolution in resolutions:
             requirement = resolution.requirement
-            latest = self._decision_state.latest_assumption(snapshot, requirement.key)
+            latest = self._decision_state.latest_assumption(
+                snapshot,
+                requirement.key,
+                requirement.claim_type.value,
+            )
             if resolution.status is ContextResolutionStatus.RESOLVED:
                 selected = next(
                     claim
@@ -130,7 +143,7 @@ class ContextIntegrityGate:
                         claim_type=requirement.claim_type.value,
                         critical=requirement.critical,
                         status=target_status,
-                        reason=(reason if target_status is AssumptionStatus.CONTRADICTED else None),
+                        reason=reason,
                     ),
                 )
             else:
@@ -138,7 +151,7 @@ class ContextIntegrityGate:
                     snapshot,
                     assumption_id=latest.assumption_id,
                     status=target_status,
-                    reason=(reason if target_status is AssumptionStatus.CONTRADICTED else None),
+                    reason=reason,
                 )
 
         unresolved_critical = tuple(
@@ -154,16 +167,45 @@ class ContextIntegrityGate:
             and resolution.status is ContextResolutionStatus.CONFLICTING
         )
         critical_problem_keys = set((*unresolved_critical, *conflicting_critical))
+        blocking_assumptions = self._decision_state.blocking_assumptions(snapshot)
+        blocking_assumption_ids = tuple(
+            item.assumption_id for item in blocking_assumptions
+        )
+        contradicted_assumption_ids = tuple(
+            item.assumption_id
+            for item in blocking_assumptions
+            if item.status is AssumptionStatus.CONTRADICTED
+        )
+        current_requirement_identities = {
+            (item.key, item.claim_type.value) for item in requirements_tuple
+        }
+        uncovered_blockers = tuple(
+            item
+            for item in blocking_assumptions
+            if (item.key, item.claim_type) not in current_requirement_identities
+        )
         stop_required = any(
             requirement.critical
             and requirement.key in critical_problem_keys
             and requirement.failure_action is ContextFailureAction.STOP
             for requirement in requirements_tuple
         )
+        if any(
+            item.status is AssumptionStatus.CONTRADICTED
+            for item in uncovered_blockers
+        ):
+            stop_required = True
+
+        invalidated_decision_ids = tuple(
+            item.decision_id
+            for item in snapshot.decisions
+            if item.status is DecisionStatus.INVALIDATED
+            and initial_decision_statuses.get(item.decision_id) is not DecisionStatus.INVALIDATED
+        )
 
         if stop_required:
             decision = ReadinessDecision.STOP
-        elif bundle.missing_sources or critical_problem_keys:
+        elif bundle.missing_sources or critical_problem_keys or blocking_assumptions:
             decision = ReadinessDecision.VERIFY
         else:
             decision = ReadinessDecision.READY
@@ -175,6 +217,8 @@ class ContextIntegrityGate:
             reasons.append("critical structured context is unresolved")
         if conflicting_critical:
             reasons.append("critical structured context is conflicting")
+        if blocking_assumptions:
+            reasons.append("critical decision-state assumptions are unsupported")
         if not reasons:
             reasons.append("all required context is reconciled and ready")
 
@@ -185,6 +229,9 @@ class ContextIntegrityGate:
             raw_missing_sources=bundle.missing_sources,
             unresolved_critical_keys=unresolved_critical,
             conflicting_critical_keys=conflicting_critical,
+            blocking_assumption_ids=blocking_assumption_ids,
+            contradicted_assumption_ids=contradicted_assumption_ids,
+            invalidated_decision_ids=invalidated_decision_ids,
             reasons=tuple(reasons),
         )
         state_payload = stable_payload(state)
