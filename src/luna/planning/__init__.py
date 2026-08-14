@@ -1,5 +1,13 @@
 """Adaptive planning, expectation evaluation, retry guard, and replanning."""
 
+from luna.planning.control import (
+    DecisionAlternative,
+    DecisionAlternativeSet,
+    DecisionCompression,
+    DecisionControlAction,
+    DecisionControlAdvisor,
+    DecisionControlAssessment,
+)
 from luna.planning.expectation import ExpectationEvaluator
 from luna.planning.judgment import (
     AcceptanceBackchain,
@@ -38,7 +46,13 @@ __all__ = [
     "AdaptiveReplanner",
     "AttemptBasis",
     "AttemptRecord",
+    "DecisionAlternative",
+    "DecisionAlternativeSet",
     "DecisionBasis",
+    "DecisionCompression",
+    "DecisionControlAction",
+    "DecisionControlAdvisor",
+    "DecisionControlAssessment",
     "ExpectationAssessment",
     "ExpectationEvaluator",
     "FailedAssumption",

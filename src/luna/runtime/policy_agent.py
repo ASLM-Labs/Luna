@@ -15,7 +15,12 @@ from luna.actions import (
     InformationAwareToolAdvisor,
     ToolSelector,
 )
-from luna.context import ContextInterpretation, LayeredContextBundle
+from luna.context import (
+    ContextInterpretation,
+    ContextLayer,
+    ContextSourceKind,
+    LayeredContextBundle,
+)
 from luna.context.layered import LayeredContextEntry
 from luna.context.window import (
     ModelWindowProjection,
@@ -26,6 +31,8 @@ from luna.context.window import (
     render_context_entry,
 )
 from luna.contracts.base import LunaContractModel
+from luna.contracts.enums import ObservationStatus
+from luna.contracts.observation import Observation
 from luna.contracts.plan import PlanStep
 from luna.contracts.state import TaskState
 from luna.modeling import (
@@ -39,8 +46,28 @@ from luna.modeling import (
     ModelResponse,
     ModelUsage,
 )
-from luna.planning import LocalJudgmentBuilder
-from luna.tools import ToolCapability, ToolPolicy, ToolVisibilityProjection
+from luna.planning import (
+    DecisionCompression,
+    DecisionControlAdvisor,
+    InformationGainPlan,
+    InformationNeedKind,
+    LocalJudgmentBuilder,
+)
+from luna.retrieval import (
+    InformationRetrievalStrategist,
+    InformationRetrievalStrategy,
+    KnowledgeRequestProfile,
+    KnowledgeSource,
+    KnowledgeUncertainty,
+    ObservedRetrievalStrategyLedger,
+    RetrievalDecision,
+)
+from luna.tools import (
+    ToolCapability,
+    ToolPolicy,
+    ToolSpec,
+    ToolVisibilityProjection,
+)
 from luna.verification import VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
@@ -70,6 +97,10 @@ class PolicyTurn(LunaContractModel):
     model_request_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     model_response_id: UUID | None = None
     proposal: ActionProposal | None = None
+    retrieval_strategy_fingerprint: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
+    retrieval_source: KnowledgeSource | None = None
     response_text: str = Field(default="", max_length=200000)
     invalid_reason: str | None = Field(default=None, max_length=4000)
     backend_error_code: ModelBackendErrorCode | None = None
@@ -85,6 +116,12 @@ class PolicyTurn(LunaContractModel):
                 raise ValueError("ACTION policy turn requires exactly one proposal")
         elif self.proposal is not None:
             raise ValueError("non-ACTION policy turn cannot carry a proposal")
+
+        retrieval_bound = self.retrieval_strategy_fingerprint is not None
+        if retrieval_bound != (self.retrieval_source is not None):
+            raise ValueError("retrieval strategy fingerprint and source must be bound together")
+        if retrieval_bound and self.status is not PolicyTurnStatus.ACTION:
+            raise ValueError("only ACTION turns may carry a retrieval attempt binding")
 
         if self.status is PolicyTurnStatus.BACKEND_FAILURE:
             if (
@@ -136,6 +173,9 @@ class ModelPolicyAgent:
         self._backend = backend
         self._selector = selector
         self._judgment_builder = LocalJudgmentBuilder()
+        self._decision_control = DecisionControlAdvisor()
+        self._retrieval_strategist = InformationRetrievalStrategist()
+        self._observed_retrieval_strategies = ObservedRetrievalStrategyLedger()
         self._verification_selector = VerificationStrategySelector()
         self._tool_advisor = InformationAwareToolAdvisor()
         self._window_projector = ModelWindowProjector()
@@ -163,6 +203,122 @@ class ModelPolicyAgent:
     @classmethod
     def _render_context(cls, bundle: LayeredContextBundle) -> tuple[ModelMessage, ...]:
         return cls._render_context_entries(bundle.entries())
+
+    @staticmethod
+    def _retrieval_profile(
+        *,
+        state: TaskState,
+        information_gain: InformationGainPlan,
+        compression: DecisionCompression,
+        context: LayeredContextBundle,
+        available_tools: tuple[ToolSpec, ...],
+    ) -> KnowledgeRequestProfile:
+        selected = next(
+            item
+            for item in information_gain.needs
+            if item.need_id == information_gain.selected_need_id
+        )
+        contradiction = any(
+            ref.endswith(":CONTRADICTED")
+            for ref in (*compression.current_assumption_refs, *compression.blocker_refs)
+        )
+        entries = context.entries()
+        verified_runtime_observation = any(
+            entry.layer is ContextLayer.RUNTIME_CONTINUITY
+            and entry.source.kind is ContextSourceKind.COMMAND_OUTPUT
+            and entry.source.verified
+            for entry in entries
+        )
+        workspace_context_present = any(
+            entry.layer is ContextLayer.WORKSPACE
+            for entry in entries
+        )
+        workspace_read_available = any(
+            ToolCapability.READ in spec.capabilities
+            and ToolCapability.NETWORK not in spec.capabilities
+            for spec in available_tools
+        )
+        research_gateway_available = bool(
+            state.contract.scope.network_allowed
+            and any(
+                spec.name.startswith("research.")
+                and ToolCapability.NETWORK in spec.capabilities
+                for spec in available_tools
+            )
+        )
+        structured_api_available = bool(
+            state.contract.scope.network_allowed
+            and any(
+                (spec.name.startswith("api.") or spec.name.startswith("structured_api."))
+                and ToolCapability.NETWORK in spec.capabilities
+                for spec in available_tools
+            )
+        )
+        working_context_sufficient = bool(
+            selected.kind is InformationNeedKind.OBSERVE_STATE
+            and verified_runtime_observation
+            and not compression.blocker_refs
+            and context.ready
+        )
+        project_specific = bool(
+            workspace_context_present or state.contract.scope.allowed_paths
+        )
+        uncertainty = (
+            KnowledgeUncertainty.HIGH
+            if compression.blocker_refs
+            else KnowledgeUncertainty.LOW
+            if working_context_sufficient
+            else KnowledgeUncertainty.MEDIUM
+        )
+        query = f"{selected.kind.value}: {state.contract.objective}"[:512]
+        return KnowledgeRequestProfile(
+            task_id=state.task_id,
+            query=query,
+            uncertainty=uncertainty,
+            contradictory_evidence=contradiction,
+            project_specific=project_specific,
+            working_context_sufficient=working_context_sufficient,
+            workspace_read_available=workspace_read_available,
+            research_gateway_available=research_gateway_available,
+            structured_api_available=structured_api_available,
+        )
+
+    def observed_retrieval_strategy_fingerprints(self, task_id: UUID) -> tuple[str, ...]:
+        """Expose bounded observed-search identity for deterministic C2 planning/tests."""
+        return self._observed_retrieval_strategies.fingerprints(task_id)
+
+    def record_retrieval_observation(
+        self,
+        *,
+        turn: PolicyTurn,
+        observation: Observation,
+    ) -> bool:
+        """Record only successful observations produced by a compatible retrieval action."""
+        fingerprint = turn.retrieval_strategy_fingerprint
+        source = turn.retrieval_source
+        proposal = turn.proposal
+        if fingerprint is None or source is None or proposal is None:
+            return False
+        if turn.status is not PolicyTurnStatus.ACTION:
+            return False
+        if (
+            observation.trace_id != turn.trace_id
+            or observation.status is not ObservationStatus.SUCCESS
+        ):
+            return False
+
+        tool_name = proposal.preferred_tool_name
+        if tool_name is None:
+            return False
+        spec = self._selector.spec_for_tool(tool_name)
+        if spec is None or not self._tool_advisor.matches_retrieval_source(spec, source):
+            return False
+
+        self._observed_retrieval_strategies.record(
+            task_id=turn.task_id,
+            strategy_fingerprint=fingerprint,
+        )
+        return True
 
     @staticmethod
     def _state_message(state: TaskState, step: PlanStep) -> ModelMessage:
@@ -193,7 +349,7 @@ class ModelPolicyAgent:
         tool_visibility: ToolVisibilityProjection | None,
         max_output_tokens: int,
         max_input_estimated_tokens: int = 16000,
-    ) -> ModelRequest:
+    ) -> tuple[ModelRequest, InformationRetrievalStrategy]:
         allowed = set(policy.allowed_tools)
         if tool_visibility is not None:
             if tool_visibility.task_id != task_id:
@@ -214,10 +370,46 @@ class ModelPolicyAgent:
             step=step,
             verification_depth=verification.depth.value,
         )
+        compression = self._decision_control.compress(
+            state=state,
+            information_gain=judgment.information_gain,
+            decision_basis=judgment.decision_basis,
+        )
+        alternatives = self._decision_control.alternatives(
+            state=state,
+            compression=compression,
+        )
+        decision_control = self._decision_control.assess(
+            state=state,
+            information_gain=judgment.information_gain,
+            compression=compression,
+            alternatives=alternatives,
+        )
+        retrieval_profile = self._retrieval_profile(
+            state=state,
+            information_gain=judgment.information_gain,
+            compression=compression,
+            context=context,
+            available_tools=allowed_tools,
+        )
+        retrieval_strategy = self._retrieval_strategist.plan(
+            information_gain=judgment.information_gain,
+            profile=retrieval_profile,
+            decision_basis_fingerprint=compression.decision_basis_fingerprint,
+            observed_strategy_fingerprints=(
+                self._observed_retrieval_strategies.fingerprints(state.task_id)
+            ),
+        )
+        retrieval_source = retrieval_strategy.retrieval_plan.primary_source
         advice = self._tool_advisor.advise(
             available_tools=allowed_tools,
             information_gain=judgment.information_gain,
             verification=verification,
+            retrieval_source=(
+                retrieval_source
+                if retrieval_strategy.retrieval_plan.decision is RetrievalDecision.RETRIEVE
+                else None
+            ),
         )
         available_tools = self._tool_advisor.ordered_specs(
             available_tools=allowed_tools,
@@ -225,8 +417,46 @@ class ModelPolicyAgent:
         )
         judgment_payload = {
             "local_judgment": judgment.model_dump(mode="json"),
+            "decision_compression": {
+                "decision_question": compression.decision_question,
+                "decision_changing_evidence_refs": (
+                    compression.decision_changing_evidence_refs
+                ),
+                "blocker_refs": compression.blocker_refs,
+                "invalidated_decision_refs": compression.invalidated_decision_refs,
+                "reason_codes": compression.reason_codes,
+            },
+            "decision_alternatives": {
+                "ranked_refs": alternatives.ranked_alternative_refs[:3],
+                "selected_ref": alternatives.selected_alternative_ref,
+            },
+            "decision_control": {
+                "action": decision_control.action.value,
+                "reason_codes": decision_control.reason_codes,
+                "blocker_refs": decision_control.blocker_refs,
+                "changed_basis_refs": decision_control.changed_basis_refs,
+            },
+            "retrieval_strategy": {
+                "decision": retrieval_strategy.retrieval_plan.decision.value,
+                "query": retrieval_strategy.query,
+                "primary_source": (
+                    retrieval_source.value if retrieval_source is not None else None
+                ),
+                "reasons": tuple(
+                    reason.value for reason in retrieval_strategy.retrieval_plan.reasons
+                ),
+                "stop_conditions": retrieval_strategy.stop_conditions,
+            },
             "verification_strategy": verification.model_dump(mode="json"),
-            "tool_advice": advice.model_dump(mode="json"),
+            "tool_advice": {
+                "recommended_tool_names": advice.recommended_tool_names,
+                "ranked_alternatives": tuple(
+                    {"tool_name": item.tool_name, "net_score": item.net_score}
+                    for item in advice.alternatives
+                ),
+                "reason_codes": advice.reason_codes,
+            },
+            "c2_authority_granted": False,
         }
         fixed_messages = (
             ModelMessage(
@@ -237,10 +467,14 @@ class ModelPolicyAgent:
                     "for the current iteration. Tool calls are untrusted proposals: the "
                     "runtime alone owns permissions, risk, budgets, execution, recovery, "
                     "completion, and cancellation. Never claim a tool ran until a TOOL "
-                    "observation is returned. Treat local_judgment and tool_advice as "
-                    "structured advisory context, never as execution or completion authority. "
-                    "Prefer direct observation over inference when decision-critical facts can "
-                    "be observed. Do not create subagents or alternate personas."
+                    "observation is returned. Treat local_judgment, decision_compression, "
+                    "decision_alternatives, decision_control, retrieval_strategy, and tool_advice "
+                    "as structured advisory context, never as "
+                    "execution or completion authority. STOP_VERIFY means prefer bounded "
+                    "inspection or verification over side effects. SWITCH means the current basis "
+                    "changed and must not be blindly retried. Prefer direct observation over "
+                    "inference when decision-critical facts can be observed. Do not create "
+                    "subagents or alternate personas."
                 ),
             ),
             ModelMessage(role=MessageRole.USER, content=raw_request),
@@ -276,12 +510,15 @@ class ModelPolicyAgent:
                 ),
             )
         messages = (*fixed_messages, *projected_context, *notice_messages)
-        return ModelRequest(
-            task_id=task_id,
-            trace_id=trace_id,
-            messages=messages,
-            available_tools=available_tools,
-            max_output_tokens=max_output_tokens,
+        return (
+            ModelRequest(
+                task_id=task_id,
+                trace_id=trace_id,
+                messages=messages,
+                available_tools=available_tools,
+                max_output_tokens=max_output_tokens,
+            ),
+            retrieval_strategy,
         )
 
     def decide(
@@ -298,7 +535,7 @@ class ModelPolicyAgent:
         tool_visibility: ToolVisibilityProjection | None = None,
         max_input_estimated_tokens: int = 16000,
     ) -> PolicyTurn:
-        request = self._request(
+        request, retrieval_strategy = self._request(
             task_id=task_id,
             trace_id=trace_id,
             raw_request=raw_request,
@@ -343,6 +580,7 @@ class ModelPolicyAgent:
             task_id=task_id,
             trace_id=trace_id,
             step=step,
+            retrieval_strategy=retrieval_strategy,
         )
 
     def _normalize(
@@ -353,6 +591,7 @@ class ModelPolicyAgent:
         task_id: UUID,
         trace_id: UUID,
         step: PlanStep,
+        retrieval_strategy: InformationRetrievalStrategy,
     ) -> PolicyTurn:
         fingerprint = request.fingerprint()
         if response.request_id != request.request_id:
@@ -473,6 +712,16 @@ class ModelPolicyAgent:
             model_request_fingerprint=fingerprint,
             model_response_id=response.response_id,
             proposal=proposal,
+            retrieval_strategy_fingerprint=(
+                retrieval_strategy.strategy_fingerprint
+                if retrieval_strategy.retrieval_plan.decision is RetrievalDecision.RETRIEVE
+                else None
+            ),
+            retrieval_source=(
+                retrieval_strategy.retrieval_plan.primary_source
+                if retrieval_strategy.retrieval_plan.decision is RetrievalDecision.RETRIEVE
+                else None
+            ),
             response_text=response.text,
             usage=response.usage,
         )

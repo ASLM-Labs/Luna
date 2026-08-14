@@ -831,13 +831,26 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     assert observations[-1].outcome.request.tool_name == "filesystem.read_text"
     assert observations[-1].outcome.result.stdout_excerpt == "isolated"
     assert len(backend.requests) == 2
+    first_turn_text = "\n".join(message.content for message in backend.requests[0].messages)
+    assert '"primary_source": "WORKSPACE_TOOL"' in first_turn_text
+    assert '"query": "OBSERVE_STATE:' in first_turn_text
+    assert '"stop_conditions": [' in first_turn_text
     second_turn_text = "\n".join(message.content for message in backend.requests[1].messages)
     assert "runtime://observation/" in second_turn_text
     assert str(observations[0].observation_id) in second_turn_text
     assert '"local_judgment"' in second_turn_text
+    assert '"decision_compression"' in second_turn_text
+    assert '"decision_alternatives"' in second_turn_text
+    assert '"decision_control"' in second_turn_text
+    assert '"retrieval_strategy"' in second_turn_text
     assert '"tool_advice"' in second_turn_text
     assert "advisory_only_no_authority" in second_turn_text
+    assert '"c2_authority_granted": false' in second_turn_text
     assert "expected_sha256" not in second_turn_text
+    observed_searches = runtime._policy_agent.observed_retrieval_strategy_fingerprints(
+        request.task_id
+    )
+    assert len(observed_searches) == 1
 
     runtime.cancel(task_id=request.task_id, reason="test cleanup")
     resume_request = _request(
@@ -1138,7 +1151,6 @@ def test_exact_call_approval_can_resume_same_call_on_unchanged_runtime_basis(
     assert not any("exact-call approval basis" in reason for reason in resumed.reasons)
 
 
-
 def test_runtime_rechecks_fresh_basis_after_early_exact_call_preflight(tmp_path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -1214,7 +1226,6 @@ def test_runtime_rechecks_fresh_basis_after_early_exact_call_preflight(tmp_path)
     assert resumed.usage.tool_calls == 0
     assert runtime._deps.runtime_journal.list_for_task(request.task_id) == ()
     assert any("basis no longer matches" in reason for reason in resumed.reasons)
-
 
 
 def test_runtime_exact_call_approval_basis_tracks_fresh_workspace_state(

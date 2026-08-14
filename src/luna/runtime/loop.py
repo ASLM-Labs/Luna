@@ -65,6 +65,7 @@ from luna.runtime.models import (
 from luna.runtime.policy_agent import (
     ModelPolicyAgent,
     ModelRequestWindowBlocked,
+    PolicyTurn,
     PolicyTurnStatus,
 )
 from luna.tools import (
@@ -976,6 +977,7 @@ class LunaRuntime:
             return_or_state = self._execute_one(
                 request=request,
                 tool_policy=tool_policy,
+                turn=turn,
                 proposal=proposal,
                 tool_request=tool_request,
                 context_fingerprint=context.fingerprint(),
@@ -992,6 +994,7 @@ class LunaRuntime:
         *,
         request: RuntimeRequest,
         tool_policy: ToolPolicy,
+        turn: PolicyTurn,
         proposal: ActionProposal,
         tool_request: ToolRequest,
         context_fingerprint: str,
@@ -1362,6 +1365,11 @@ class LunaRuntime:
         self._deps.runtime_journal.record_outcome(outcome)
 
         state = self._observe(state, outcome.observation.observation_id)
+        if outcome.result.status is ToolResultStatus.SUCCESS:
+            self._policy_agent.record_retrieval_observation(
+                turn=turn,
+                observation=outcome.observation,
+            )
         if receipt is not None:
             self._deps.runtime_journal.mark_observed(
                 idempotency_key=receipt.idempotency_key,

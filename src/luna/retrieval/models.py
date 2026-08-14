@@ -18,6 +18,7 @@ class KnowledgeSource(StrEnum):
     WORKING_CONTEXT = "WORKING_CONTEXT"
     VERIFIED_MEMORY = "VERIFIED_MEMORY"
     PROJECT_RAG = "PROJECT_RAG"
+    WORKSPACE_TOOL = "WORKSPACE_TOOL"
     RESEARCH_GATEWAY = "RESEARCH_GATEWAY"
     STRUCTURED_API = "STRUCTURED_API"
 
@@ -56,6 +57,7 @@ class RetrievalReason(StrEnum):
     USER_SPECIFIC = "USER_SPECIFIC"
     PROJECT_SPECIFIC = "PROJECT_SPECIFIC"
     DOCUMENT_SPECIFIC = "DOCUMENT_SPECIFIC"
+    DUPLICATE_SEARCH_BLOCKED = "DUPLICATE_SEARCH_BLOCKED"
     WORKING_CONTEXT_SUFFICIENT = "WORKING_CONTEXT_SUFFICIENT"
     INTERNAL_KNOWLEDGE_SUFFICIENT = "INTERNAL_KNOWLEDGE_SUFFICIENT"
     INSUFFICIENT_INTERNAL_EVIDENCE = "INSUFFICIENT_INTERNAL_EVIDENCE"
@@ -81,6 +83,7 @@ class KnowledgeRequestProfile(LunaContractModel):
     working_context_sufficient: bool = False
     verified_memory_available: bool = False
     project_rag_available: bool = False
+    workspace_read_available: bool = False
     research_gateway_available: bool = False
     structured_api_available: bool = False
 
