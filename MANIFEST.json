@@ -897,8 +897,8 @@
       "size_bytes": 5039
     },
     "src/luna/actions/selector.py": {
-      "sha256": "db697c72800e22868d8550735d26c49e963c24a002912f8d5b52e0c11113cf3f",
-      "size_bytes": 8921
+      "sha256": "f3219dbcd7bd8fb956648222f5b2065fd7ed864daa647be99c0524e73e25826c",
+      "size_bytes": 9972
     },
     "src/luna/audit/__init__.py": {
       "sha256": "fd11757abcd7088f2eca0fa276ddd46836310b1ad35e4c424690b21483516976",
@@ -1725,16 +1725,16 @@
       "size_bytes": 30733
     },
     "src/luna/runtime/loop.py": {
-      "sha256": "831d36d18d95a878148a870b745645201835a53afe46ad431d28a7b7e47716a8",
-      "size_bytes": 93049
+      "sha256": "042648a0ab63fc1f22568f2b2d57914d79e42e844b353bcc8114cea1b5d1e1ce",
+      "size_bytes": 96903
     },
     "src/luna/runtime/models.py": {
       "sha256": "4425143cb1850037534893d2996668b3468f219eb919fbfc1c89c854c49ee4f2",
       "size_bytes": 13403
     },
     "src/luna/runtime/policy_agent.py": {
-      "sha256": "f8efb5c27fb3aff284e2e22fa513188f624666936a5810bb97688e09e8dca5a2",
-      "size_bytes": 16264
+      "sha256": "588d606bfba6f7c9220529ced9de02f1a93f146c8232ee8df37bf0e15a73af1a",
+      "size_bytes": 16867
     },
     "src/luna/sessions/__init__.py": {
       "sha256": "482ba143b3e89cf6caf251b7357fec04e07dc2190ab91cff8086fdce087c4e00",
@@ -1797,8 +1797,8 @@
       "size_bytes": 2186
     },
     "src/luna/tools/__init__.py": {
-      "sha256": "2bc59c156762349e7856a459c488fb8f81bc8801f9cc8db6c76e1a65d63353dc",
-      "size_bytes": 1587
+      "sha256": "9800a90d9d51058e02d0dc2560d995a76f83abb06b7ac0e76e8b0591f4be5deb",
+      "size_bytes": 2043
     },
     "src/luna/tools/arguments.py": {
       "sha256": "1fd765294052f5812b4ce35ec9ca703d356e29513bfc44cd1608e395bd5d0db3",
@@ -1807,6 +1807,10 @@
     "src/luna/tools/builtins.py": {
       "sha256": "682d2b4e6dc0ceaee077d50d189abd5d8cb9ab0c11e75c06e0cbaafb0fd25e90",
       "size_bytes": 10218
+    },
+    "src/luna/tools/disclosure.py": {
+      "sha256": "9d6dcaac8beab85c27f2d10b484f8796f5fa3f60a72ccad9cb83fb0479cbd541",
+      "size_bytes": 12274
     },
     "src/luna/tools/dispatcher.py": {
       "sha256": "a968cead405be543c5130f6f6cf7ef2191a6695b96f5b2355d8c6fd92dc655e0",
@@ -1829,8 +1833,8 @@
       "size_bytes": 9945
     },
     "src/luna/tools/registry.py": {
-      "sha256": "43a1b4a574fb21153a0c2bb232ad1cf2cd8e01132b82d4d761bb8ea50efa8ae0",
-      "size_bytes": 2098
+      "sha256": "51b47d6bc16292be0aaeacdae4588e9022e90c9f9a682c44144333d895964020",
+      "size_bytes": 2820
     },
     "src/luna/trajectories/__init__.py": {
       "sha256": "b602c136054bd2ea0ab2dd2a821659ccbcf85fc957808122807a07a20e2be18c",
@@ -2081,8 +2085,8 @@
       "size_bytes": 14649
     },
     "tests/test_phase12c_action_selection.py": {
-      "sha256": "25b350dcab767279d028ac5e123bcd8d4155ed24382d0cf2c77e34c0ed2409c8",
-      "size_bytes": 14532
+      "sha256": "a987e9e3ef71646480f66e359cef5e1568f13354ebcc45da1268832bbbd58800",
+      "size_bytes": 16374
     },
     "tests/test_phase12d_recovery_policy.py": {
       "sha256": "b408cf1676a516456d23b05f0c72cfb00785c6088215ded3dfff56b2ca8c2229",
@@ -2231,6 +2235,10 @@
     "tests/test_tool_argument_bounds.py": {
       "sha256": "9380bec714241b3bef9cedc4f7d754bc28b2f99718928df161e08c769ba19682",
       "size_bytes": 1102
+    },
+    "tests/test_tool_disclosure.py": {
+      "sha256": "a7238151dec20230c1de0c74e22319bf0caad3187f50ef4b376694f505748781",
+      "size_bytes": 13148
     },
     "tests/test_tool_registry_dispatcher.py": {
       "sha256": "a9d74d08aa9fe5a4ea7b1c042aee06252db97f8b71216bb30f0e3f0ab544356f",

@@ -31,7 +31,7 @@ from luna.modeling import (
     ModelUsage,
 )
 from luna.planning import LocalJudgmentBuilder
-from luna.tools import ToolCapability, ToolPolicy
+from luna.tools import ToolCapability, ToolPolicy, ToolVisibilityProjection
 from luna.verification import VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
@@ -169,9 +169,17 @@ class ModelPolicyAgent:
         step: PlanStep,
         context: LayeredContextBundle,
         policy: ToolPolicy,
+        tool_visibility: ToolVisibilityProjection | None,
         max_output_tokens: int,
     ) -> ModelRequest:
         allowed = set(policy.allowed_tools)
+        if tool_visibility is not None:
+            if tool_visibility.task_id != task_id:
+                raise ValueError("tool visibility projection task does not match model request")
+            visible = set(tool_visibility.visible_tools)
+            if not visible.issubset(allowed):
+                raise ValueError("tool visibility projection cannot widen ToolPolicy")
+            allowed &= visible
         allowed_tools = tuple(
             spec for spec in self._selector.specs() if spec.name in allowed
         )
@@ -241,6 +249,7 @@ class ModelPolicyAgent:
         context: LayeredContextBundle,
         policy: ToolPolicy,
         max_output_tokens: int,
+        tool_visibility: ToolVisibilityProjection | None = None,
     ) -> PolicyTurn:
         request = self._request(
             task_id=task_id,
@@ -250,6 +259,7 @@ class ModelPolicyAgent:
             step=step,
             context=context,
             policy=policy,
+            tool_visibility=tool_visibility,
             max_output_tokens=max_output_tokens,
         )
         try:

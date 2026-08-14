@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
+from threading import RLock
 from time import monotonic
 from uuid import UUID, uuid4
 
@@ -62,7 +63,16 @@ from luna.runtime.models import (
     RuntimeUsage,
 )
 from luna.runtime.policy_agent import ModelPolicyAgent, PolicyTurnStatus
-from luna.tools import ToolCapability, ToolPolicy, ToolRequest, ToolResultStatus
+from luna.tools import (
+    ToolCapability,
+    ToolDisclosureDecision,
+    ToolDisclosureProjector,
+    ToolDisclosureState,
+    ToolPolicy,
+    ToolRequest,
+    ToolResultStatus,
+    ToolVisibilityProjection,
+)
 from luna.verification import VerificationPolicy, VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
@@ -130,6 +140,10 @@ class LunaRuntime:
             selector=dependencies.action_resolver.selector,
         )
         self._provider_retry = ProviderRetryCoordinator()
+        self._tool_selector = dependencies.action_resolver.selector
+        self._tool_disclosure_projector = ToolDisclosureProjector()
+        self._tool_disclosure_states: dict[UUID, ToolDisclosureState] = {}
+        self._tool_disclosure_lock = RLock()
         self._expectations = ExpectationEvaluator()
         self._verification_strategy = VerificationStrategySelector()
 
@@ -158,6 +172,80 @@ class LunaRuntime:
             command=RuntimeControlCommand.CANCEL,
             reason=reason,
         )
+
+    def configure_tool_disclosure(
+        self,
+        *,
+        task_id: UUID,
+        deferred_tools: tuple[str, ...],
+    ) -> ToolDisclosureState:
+        """Configure task-scoped deferred schemas without changing tool authority."""
+        registered = tuple(spec.name for spec in self._tool_selector.specs())
+        state = self._tool_disclosure_projector.configure(
+            task_id=task_id,
+            deferred_tools=deferred_tools,
+            registered_tools=registered,
+        )
+        with self._tool_disclosure_lock:
+            self._tool_disclosure_states[task_id] = state.model_copy(deep=True)
+        return state
+
+    def request_tool_disclosure(
+        self,
+        *,
+        task_id: UUID,
+        tool_names: tuple[str, ...],
+    ) -> ToolDisclosureDecision:
+        """Stage deferred schemas for the next model-request boundary."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                raise ValueError("tool disclosure is not configured for this task")
+            registered = tuple(spec.name for spec in self._tool_selector.specs())
+            decision = self._tool_disclosure_projector.request(
+                state,
+                tool_names=tool_names,
+                registered_tools=registered,
+            )
+            self._tool_disclosure_states[task_id] = decision.state.model_copy(deep=True)
+            return decision
+
+    def reset_tool_disclosure(self, *, task_id: UUID) -> ToolDisclosureState:
+        """Remove disclosed and pending schemas while preserving registration."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                raise ValueError("tool disclosure is not configured for this task")
+            reset = self._tool_disclosure_projector.reset(state)
+            self._tool_disclosure_states[task_id] = reset.model_copy(deep=True)
+            return reset
+
+    def tool_disclosure_state(self, *, task_id: UUID) -> ToolDisclosureState | None:
+        """Return an isolated snapshot of current model-visibility state."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            return state.model_copy(deep=True) if state is not None else None
+
+    def _tool_visibility_projection(
+        self,
+        *,
+        task_id: UUID,
+        basis_fingerprint: str,
+        policy: ToolPolicy,
+    ) -> ToolVisibilityProjection | None:
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                return None
+            registered = tuple(spec.name for spec in self._tool_selector.specs())
+            updated, projection = self._tool_disclosure_projector.project(
+                state,
+                basis_fingerprint=basis_fingerprint,
+                registered_tools=registered,
+                policy_allowed_tools=policy.allowed_tools,
+            )
+            self._tool_disclosure_states[task_id] = updated
+            return projection
 
     def _pending_cancellation_reason(self, task_id: UUID) -> str | None:
         control = self._deps.runtime_journal.pending_control(task_id)
@@ -573,6 +661,11 @@ class LunaRuntime:
             provider_scope_fingerprint = sha256(scope_payload.encode("utf-8")).hexdigest()
             while True:
                 provider_attempt += 1
+                tool_visibility = self._tool_visibility_projection(
+                    task_id=request.task_id,
+                    basis_fingerprint=context.fingerprint(),
+                    policy=tool_policy,
+                )
                 turn = self._policy_agent.decide(
                     task_id=request.task_id,
                     trace_id=request.trace_id,
@@ -582,6 +675,7 @@ class LunaRuntime:
                     context=context,
                     policy=tool_policy,
                     max_output_tokens=min(32768, remaining_output),
+                    tool_visibility=tool_visibility,
                 )
                 usage.model_calls += 1
                 usage.steps += 1

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from threading import RLock
 from typing import Protocol
 
 from luna.contracts.task import TaskContract
@@ -55,18 +56,35 @@ class RegisteredTool:
 
 
 class ToolRegistry:
-    """Unique registry; unregistered tools never reach a handler."""
+    """Thread-safe registry whose reads return stable registration snapshots.
+
+    Removal governs subsequent lookups; it does not revoke a handler that the
+    dispatcher already obtained for an in-flight execution.
+    """
 
     def __init__(self) -> None:
         self._tools: dict[str, RegisteredTool] = {}
+        self._lock = RLock()
 
     def register(self, spec: ToolSpec, handler: ToolHandler) -> None:
-        if spec.name in self._tools:
-            raise ValueError(f"tool already registered: {spec.name}")
-        self._tools[spec.name] = RegisteredTool(spec=spec, handler=handler)
+        with self._lock:
+            if spec.name in self._tools:
+                raise ValueError(f"tool already registered: {spec.name}")
+            self._tools[spec.name] = RegisteredTool(spec=spec, handler=handler)
 
     def get(self, name: str) -> RegisteredTool | None:
-        return self._tools.get(name)
+        with self._lock:
+            return self._tools.get(name)
+
+    def unregister(self, name: str) -> RegisteredTool | None:
+        """Remove a tool that is no longer available at its runtime source."""
+        with self._lock:
+            return self._tools.pop(name, None)
+
+    def snapshot(self) -> tuple[RegisteredTool, ...]:
+        """Return one coherent, name-sorted view of current registrations."""
+        with self._lock:
+            return tuple(self._tools[name] for name in sorted(self._tools))
 
     def specs(self) -> tuple[ToolSpec, ...]:
-        return tuple(self._tools[name].spec for name in sorted(self._tools))
+        return tuple(registered.spec for registered in self.snapshot())

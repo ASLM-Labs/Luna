@@ -7,6 +7,15 @@ from luna.autonomy import (
     FreeResearchContract,
 )
 from luna.tools.builtins import build_phase4_registry, build_phase5_registry
+from luna.tools.disclosure import (
+    ToolDisclosureDecision,
+    ToolDisclosureDecisionStatus,
+    ToolDisclosureDenial,
+    ToolDisclosureDenialCode,
+    ToolDisclosureProjector,
+    ToolDisclosureState,
+    ToolVisibilityProjection,
+)
 from luna.tools.dispatcher import ToolDispatcher
 from luna.tools.lifecycle import (
     ExecutionLifecycle,
@@ -47,6 +56,12 @@ __all__ = [
     "ToolArgumentRule",
     "ToolArgumentType",
     "ToolCapability",
+    "ToolDisclosureDecision",
+    "ToolDisclosureDecisionStatus",
+    "ToolDisclosureDenial",
+    "ToolDisclosureDenialCode",
+    "ToolDisclosureProjector",
+    "ToolDisclosureState",
     "ToolDispatcher",
     "ToolEvent",
     "ToolEventDecision",
@@ -61,6 +76,7 @@ __all__ = [
     "ToolResult",
     "ToolResultStatus",
     "ToolSpec",
+    "ToolVisibilityProjection",
     "build_phase4_registry",
     "build_phase5_registry",
 ]
