@@ -64,7 +64,9 @@ class PolicyTurn(LunaContractModel):
     response_text: str = Field(default="", max_length=200000)
     invalid_reason: str | None = Field(default=None, max_length=4000)
     backend_error_code: ModelBackendErrorCode | None = None
+    backend_error_backend_id: str | None = Field(default=None, max_length=300)
     backend_retryable: bool = False
+    backend_retry_after_seconds: float | None = Field(default=None, ge=0.0)
     usage: ModelUsage = Field(default_factory=ModelUsage)
 
     @model_validator(mode="after")
@@ -76,12 +78,21 @@ class PolicyTurn(LunaContractModel):
             raise ValueError("non-ACTION policy turn cannot carry a proposal")
 
         if self.status is PolicyTurnStatus.BACKEND_FAILURE:
-            if self.invalid_reason is None or self.backend_error_code is None:
+            if (
+                self.invalid_reason is None
+                or self.backend_error_code is None
+                or self.backend_error_backend_id is None
+            ):
                 raise ValueError("BACKEND_FAILURE requires structured backend error metadata")
             if self.model_response_id is not None:
                 raise ValueError("BACKEND_FAILURE cannot claim a model response ID")
         else:
-            if self.backend_error_code is not None or self.backend_retryable:
+            if (
+                self.backend_error_code is not None
+                or self.backend_error_backend_id is not None
+                or self.backend_retryable
+                or self.backend_retry_after_seconds is not None
+            ):
                 raise ValueError("backend error metadata is valid only for BACKEND_FAILURE")
             if self.model_response_id is None:
                 raise ValueError("non-backend-failure turn requires model_response_id")
@@ -252,7 +263,9 @@ class ModelPolicyAgent:
                 model_request_fingerprint=request.fingerprint(),
                 invalid_reason=exc.safe_reason,
                 backend_error_code=exc.code,
+                backend_error_backend_id=exc.backend_id,
                 backend_retryable=exc.retryable,
+                backend_retry_after_seconds=exc.retry_after_seconds,
             )
         except Exception:
             return PolicyTurn(
@@ -263,6 +276,7 @@ class ModelPolicyAgent:
                 model_request_fingerprint=request.fingerprint(),
                 invalid_reason="model backend raised an unclassified exception",
                 backend_error_code=ModelBackendErrorCode.UNKNOWN,
+                backend_error_backend_id=self._backend.backend_id,
                 backend_retryable=False,
             )
         return self._normalize(

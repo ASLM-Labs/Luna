@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 
 
 class ModelBackendErrorCode(StrEnum):
@@ -36,6 +37,7 @@ class ModelBackendError(RuntimeError):
         backend_id: str,
         safe_reason: str,
         retryable: bool | None = None,
+        retry_after_seconds: float | None = None,
     ) -> None:
         if not backend_id.strip():
             raise ValueError("backend_id must not be blank")
@@ -45,6 +47,11 @@ class ModelBackendError(RuntimeError):
         self.backend_id = backend_id.strip()
         self.safe_reason = safe_reason.strip()
         self.retryable = code in _RETRYABLE_CODES if retryable is None else retryable
+        if retry_after_seconds is not None and (
+            not isfinite(retry_after_seconds) or retry_after_seconds < 0
+        ):
+            raise ValueError("retry_after_seconds must be finite and non-negative")
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(f"{code.value}: {self.safe_reason}")
 
 

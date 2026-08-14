@@ -9,12 +9,12 @@ authoritative loop.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from time import monotonic
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from luna.actions import ActionProposal, ActionResolutionStatus
 from luna.context import (
@@ -40,6 +40,7 @@ from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
 from luna.contracts.evidence import Evidence
 from luna.contracts.plan import ExpectedObservation
+from luna.modeling import ProviderRetryCoordinator, ProviderRetryEvidence
 from luna.planning import AttemptBasis, AttemptRecord, ExpectationEvaluator
 from luna.recovery import ChangeEstimate, IsolationMode, RecoveryAction
 from luna.runtime.budgets import RuntimeBudget
@@ -98,6 +99,7 @@ class _UsageCounter:
     deleted_lines: int = 0
     questions: int = 0
     network_requests: int = 0
+    provider_retry_evidence: list[ProviderRetryEvidence] = field(default_factory=list)
 
     def snapshot(self) -> RuntimeUsage:
         return RuntimeUsage(
@@ -114,6 +116,7 @@ class _UsageCounter:
             deleted_lines=self.deleted_lines,
             questions=self.questions,
             network_requests=self.network_requests,
+            provider_retry_evidence=tuple(self.provider_retry_evidence),
         )
 
 
@@ -126,6 +129,7 @@ class LunaRuntime:
             backend=dependencies.core.model_backend,
             selector=dependencies.action_resolver.selector,
         )
+        self._provider_retry = ProviderRetryCoordinator()
         self._expectations = ExpectationEvaluator()
         self._verification_strategy = VerificationStrategySelector()
 
@@ -555,20 +559,123 @@ class LunaRuntime:
                 1,
                 request.runtime_budget.max_model_output_tokens - usage.model_output_tokens,
             )
-            turn = self._policy_agent.decide(
-                task_id=request.task_id,
-                trace_id=request.trace_id,
-                raw_request=request.raw_request,
-                state=state,
-                step=active_step,
-                context=context,
-                policy=tool_policy,
-                max_output_tokens=min(32768, remaining_output),
+            provider_history: tuple[AttemptRecord, ...] = ()
+            provider_basis: AttemptBasis | None = None
+            provider_retry_terminal_reason: str | None = None
+            cancelled_during_backoff = False
+            provider_attempt = 0
+            scope_payload = json.dumps(
+                state.contract.scope.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
             )
-            usage.model_calls += 1
-            usage.steps += 1
-            usage.model_input_tokens += turn.usage.input_tokens
-            usage.model_output_tokens += turn.usage.output_tokens
+            provider_scope_fingerprint = sha256(scope_payload.encode("utf-8")).hexdigest()
+            while True:
+                provider_attempt += 1
+                turn = self._policy_agent.decide(
+                    task_id=request.task_id,
+                    trace_id=request.trace_id,
+                    raw_request=request.raw_request,
+                    state=state,
+                    step=active_step,
+                    context=context,
+                    policy=tool_policy,
+                    max_output_tokens=min(32768, remaining_output),
+                )
+                usage.model_calls += 1
+                usage.steps += 1
+                usage.model_input_tokens += turn.usage.input_tokens
+                usage.model_output_tokens += turn.usage.output_tokens
+
+                if turn.status is not PolicyTurnStatus.BACKEND_FAILURE:
+                    break
+                assert turn.backend_error_code is not None
+                assert turn.backend_error_backend_id is not None
+                if not self._provider_retry.is_retryable(
+                    code=turn.backend_error_code,
+                    classified_retryable=turn.backend_retryable,
+                ):
+                    provider_retry_terminal_reason = (
+                        "provider retry denied by semantic failure classification"
+                    )
+                    break
+                if provider_attempt >= self._provider_retry.policy.max_attempts:
+                    provider_retry_terminal_reason = (
+                        "provider retry attempts exhausted: "
+                        f"{provider_attempt}/{self._provider_retry.policy.max_attempts}"
+                    )
+                    break
+                budget_stop = self._budget_stop(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    started_at=started_at,
+                )
+                if budget_stop is not None:
+                    return budget_stop
+                if provider_basis is None:
+                    provider_basis = self._provider_retry.initial_basis(
+                        backend_id=turn.backend_error_backend_id,
+                        request_fingerprint=turn.model_request_fingerprint,
+                        scope_fingerprint=provider_scope_fingerprint,
+                        assumption_revision=(
+                            state.decision_state.revision
+                            if state.decision_state is not None
+                            else 0
+                        ),
+                    )
+                retry_plan = self._provider_retry.plan(
+                    task_id=request.task_id,
+                    step_id=active_step.step_id,
+                    attempt_number=provider_attempt,
+                    code=turn.backend_error_code,
+                    backend_id=turn.backend_error_backend_id,
+                    request_fingerprint=turn.model_request_fingerprint,
+                    retry_after_seconds=turn.backend_retry_after_seconds,
+                    failure_ref=uuid4(),
+                    current_basis=provider_basis,
+                    history=provider_history,
+                )
+                provider_history = (*provider_history, retry_plan.failed_attempt)
+                if retry_plan.evidence is None:
+                    provider_retry_terminal_reason = (
+                        "provider retry blocked by unchanged basis: "
+                        f"{retry_plan.decision.reason.value}"
+                    )
+                    break
+                remaining_elapsed_seconds = max(
+                    0.0,
+                    request.runtime_budget.max_elapsed_seconds
+                    - (monotonic() - usage.started),
+                )
+                if retry_plan.evidence.delay_seconds >= remaining_elapsed_seconds:
+                    provider_retry_terminal_reason = (
+                        "provider retry delay exceeds remaining runtime elapsed budget"
+                    )
+                    break
+                usage.provider_retry_evidence.append(retry_plan.evidence)
+                cancellation = self._provider_retry.wait(
+                    retry_plan.evidence.delay_seconds,
+                    cancellation_probe=lambda: self._pending_cancellation_reason(
+                        request.task_id
+                    ),
+                )
+                if cancellation is not None:
+                    cancelled_during_backoff = True
+                    break
+                budget_stop = self._budget_stop(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    started_at=started_at,
+                )
+                if budget_stop is not None:
+                    return budget_stop
+                provider_basis = retry_plan.candidate_basis
+
+            if cancelled_during_backoff:
+                continue
 
             token_overruns = tuple(
                 reason
@@ -595,14 +702,18 @@ class LunaRuntime:
                 reason = turn.invalid_reason or "model backend failure"
                 state = self._deactivate_step(state, reason=None)
                 state = state.transition_to(TaskPhase.OBSERVING)
+                semantic_retryable = self._provider_retry.is_retryable(
+                    code=turn.backend_error_code,
+                    classified_retryable=turn.backend_retryable,
+                )
                 stop_reason = (
                     RuntimeStopReason.RESOURCE_SUSPENDED
-                    if turn.backend_retryable
+                    if semantic_retryable
                     else RuntimeStopReason.BLOCKED
                 )
                 next_step = (
                     "resume only after model backend health or availability changes"
-                    if turn.backend_retryable
+                    if semantic_retryable
                     else "owner model rollout or adapter decision required"
                 )
                 return self._checkpoint_outcome(
@@ -613,7 +724,8 @@ class LunaRuntime:
                     reasons=(
                         f"model_backend:{turn.backend_error_code.value}",
                         reason,
-                        "model backend failures are never blindly retried",
+                        provider_retry_terminal_reason
+                        or "provider retry ended without changed-basis authority",
                     ),
                     resume_phase=TaskPhase.PLANNED,
                     next_step=next_step,

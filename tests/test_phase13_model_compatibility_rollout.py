@@ -239,7 +239,7 @@ def test_controlled_backend_active_forwards_after_approved_compatibility() -> No
     assert backend.calls == calls_before + 1
 
 
-def test_retryable_model_backend_failure_suspends_runtime_without_blind_retry(
+def test_retryable_model_backend_failure_exhausts_bounded_changed_basis_retries(
     tmp_path: Path,
 ) -> None:
     backend = FailingBackend(
@@ -264,10 +264,11 @@ def test_retryable_model_backend_failure_suspends_runtime_without_blind_retry(
     )
 
     assert outcome.stop_reason is RuntimeStopReason.RESOURCE_SUSPENDED
-    assert outcome.usage.model_calls == 1
+    assert outcome.usage.model_calls == 3
     assert outcome.usage.tool_calls == 0
-    assert backend.calls == 1
-    assert any("never blindly retried" in reason for reason in outcome.reasons)
+    assert backend.calls == 3
+    assert len(outcome.usage.provider_retry_evidence) == 2
+    assert any("retry attempts exhausted" in reason for reason in outcome.reasons)
 
 
 def test_rollout_block_is_runtime_block_not_fallback_or_tool_dispatch(tmp_path: Path) -> None:
