@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from luna.contracts.task import TaskContract
+from luna.tools.lifecycle import ExecutionLifecycle
 from luna.tools.models import ToolArgumentValue, ToolScalar, ToolSpec
 
 
@@ -21,6 +22,7 @@ class ToolExecutionContext:
     timeout_ms: int
     max_output_chars: int
     working_directory: str | None
+    lifecycle: ExecutionLifecycle
 
 
 @dataclass(frozen=True, slots=True)

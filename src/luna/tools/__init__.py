@@ -8,6 +8,14 @@ from luna.autonomy import (
 )
 from luna.tools.builtins import build_phase4_registry, build_phase5_registry
 from luna.tools.dispatcher import ToolDispatcher
+from luna.tools.lifecycle import (
+    ExecutionLifecycle,
+    ExecutionSettlement,
+    ExecutionStop,
+    ExecutionStopKind,
+    ToolExecutionCancelled,
+    ToolExecutionDeadlineExceeded,
+)
 from luna.tools.models import (
     DispatchOutcome,
     ProcessApproval,
@@ -30,6 +38,10 @@ __all__ = [
     "AutonomyLevel",
     "AutonomyPolicy",
     "DispatchOutcome",
+    "ExecutionLifecycle",
+    "ExecutionSettlement",
+    "ExecutionStop",
+    "ExecutionStopKind",
     "FreeResearchContract",
     "ProcessApproval",
     "ToolArgumentRule",
@@ -38,7 +50,9 @@ __all__ = [
     "ToolDispatcher",
     "ToolEvent",
     "ToolEventDecision",
+    "ToolExecutionCancelled",
     "ToolExecutionContext",
+    "ToolExecutionDeadlineExceeded",
     "ToolExecutionOutput",
     "ToolOrigin",
     "ToolPolicy",

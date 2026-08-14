@@ -4,6 +4,7 @@ import subprocess
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from threading import Event, Thread
 from typing import cast
 from uuid import uuid4
 
@@ -50,7 +51,7 @@ from luna.runtime.environment import DeterministicFingerprintProvider
 from luna.runtime.isolation import GitWorktreeIsolationManager
 from luna.runtime.journal import RuntimeControlCommand, SideEffectStage, SQLiteRuntimeJournal
 from luna.runtime.loop import LunaRuntime
-from luna.runtime.models import RuntimeStopReason
+from luna.runtime.models import RuntimeOutcome, RuntimeStopReason
 from luna.tools import (
     DispatchOutcome,
     ToolDispatcher,
@@ -58,6 +59,9 @@ from luna.tools import (
     ToolRequest,
     build_phase5_registry,
 )
+from luna.tools.lifecycle import CancellationProbe
+from luna.tools.models import ToolArgumentValue
+from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
 from luna.verification import CompletionGate
 
 
@@ -74,10 +78,45 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
         request: ToolRequest,
         task_contract: TaskContract,
         policy: ToolPolicy,
+        cancellation_probe: CancellationProbe | None = None,
     ) -> DispatchOutcome:
-        del request, task_contract, policy
+        del request, task_contract, policy, cancellation_probe
         self.call_count += 1
         raise RuntimeError("synthetic crash after side-effect STARTED fence")
+
+
+class _CooperativeWriteTool:
+    """Write once, then cooperatively observe runtime cancellation."""
+
+    def __init__(self, started: Event) -> None:
+        self._started = started
+        self.call_count = 0
+
+    def execute(
+        self,
+        arguments: dict[str, ToolArgumentValue],
+        context: ToolExecutionContext,
+    ) -> ToolExecutionOutput:
+        self.call_count += 1
+        relative_path = arguments["path"]
+        content = arguments["content"]
+        if not isinstance(relative_path, str) or not isinstance(content, str):
+            raise TypeError("validated write arguments must be strings")
+        target = Path(context.task_contract.scope.workspace_root) / relative_path
+        target.write_text(content, encoding="utf-8")
+        self._started.set()
+        while True:
+            context.lifecycle.raise_if_cancelled()
+            self._started.wait(0.001)
+
+
+def _cooperative_write_dispatcher(handler: _CooperativeWriteTool) -> ToolDispatcher:
+    registry = ToolRegistry()
+    registered = build_phase5_registry().get("filesystem.write_text")
+    if registered is None:
+        raise AssertionError("built-in write tool must remain registered")
+    registry.register(registered.spec, handler)
+    return ToolDispatcher(registry)
 
 
 class _RecordingScriptedBackend(ScriptedTestBackend):
@@ -503,6 +542,90 @@ def test_resume_of_started_side_effect_never_replays_handler(tmp_path) -> None:
     assert resume_backend.call_count == 0
     assert not (tmp_path / "note.txt").exists()
     assert "automatic replay is forbidden" in " ".join(outcome.reasons)
+
+
+def test_cancellation_after_side_effect_started_is_fenced_without_replay(tmp_path) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-cancelled",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "may-have-executed",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+    started = Event()
+    handler = _CooperativeWriteTool(started)
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        dispatcher=_cooperative_write_dispatcher(handler),
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+    policy = _policy(allowed_tools=("filesystem.write_text",), write=True)
+    outcomes: list[RuntimeOutcome] = []
+    errors: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            outcomes.append(runtime.run(request=request, tool_policy=policy))
+        except BaseException as exc:  # pragma: no cover - assertion reports thread failure
+            errors.append(exc)
+
+    worker = Thread(target=run)
+    worker.start()
+    assert started.wait(timeout=2)
+    runtime.cancel(task_id=request.task_id, reason="cancel after handler start")
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert errors == []
+    assert len(outcomes) == 1
+    assert outcomes[0].stop_reason is RuntimeStopReason.INTERRUPTED
+    assert "automatic replay is forbidden" in " ".join(outcomes[0].reasons)
+    assert handler.call_count == 1
+    assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "may-have-executed"
+
+    receipts = runtime._deps.runtime_journal.list_for_task(request.task_id)
+    assert len(receipts) == 1
+    assert receipts[0].stage is SideEffectStage.CHECKPOINTED
+    assert receipts[0].outcome is not None
+    assert receipts[0].outcome.result.error_class == "ToolExecutionCancellationAmbiguous"
+
+    replay_probe = _CrashAfterFenceDispatcher()
+    resumed = _runtime(
+        tmp_path,
+        ScriptedTestBackend(()),
+        dispatcher=replay_probe,
+    ).resume(
+        request=_request(
+            tmp_path,
+            task_id=request.task_id,
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+            mode=RuntimeMode.RESUME,
+        ),
+        tool_policy=policy,
+    )
+
+    assert replay_probe.call_count == 0
+    assert resumed.usage.tool_calls == 0
 
 
 def test_zero_model_call_budget_blocks_without_invalid_budget_outcome(tmp_path) -> None:

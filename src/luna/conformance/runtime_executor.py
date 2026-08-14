@@ -64,6 +64,7 @@ from luna.tools import (
     ToolRequest,
     build_phase5_registry,
 )
+from luna.tools.lifecycle import CancellationProbe
 from luna.verification import (
     CompletionGate,
     SQLiteEvidenceStore,
@@ -100,8 +101,9 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
         request: ToolRequest,
         task_contract: TaskContract,
         policy: ToolPolicy,
+        cancellation_probe: CancellationProbe | None = None,
     ) -> DispatchOutcome:
-        del request, task_contract, policy
+        del request, task_contract, policy, cancellation_probe
         self.call_count += 1
         raise RuntimeError("synthetic crash after side-effect STARTED fence")
 

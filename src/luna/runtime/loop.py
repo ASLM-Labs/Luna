@@ -155,6 +155,12 @@ class LunaRuntime:
             reason=reason,
         )
 
+    def _pending_cancellation_reason(self, task_id: UUID) -> str | None:
+        control = self._deps.runtime_journal.pending_control(task_id)
+        if control is None or control.command is not RuntimeControlCommand.CANCEL:
+            return None
+        return control.reason
+
     def record_evidence(
         self,
         *,
@@ -1015,6 +1021,7 @@ class LunaRuntime:
             request=tool_request,
             task_contract=execution_contract,
             policy=tool_policy,
+            cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
         )
         usage.tool_calls += 1
         if ToolCapability.NETWORK in proposal.required_capabilities:
@@ -1068,6 +1075,60 @@ class LunaRuntime:
 
         active = self._active_step(state)
         expectation = active.expectation
+        lifecycle_error = outcome.result.error_class
+        if lifecycle_error in {
+            "ToolExecutionCancelled",
+            "ToolExecutionCancellationAmbiguous",
+            "ToolExecutionDeadlineExceeded",
+            "ToolExecutionDeadlineAmbiguous",
+        }:
+            ambiguous = lifecycle_error in {
+                "ToolExecutionCancellationAmbiguous",
+                "ToolExecutionDeadlineAmbiguous",
+            }
+            cancelled = lifecycle_error in {
+                "ToolExecutionCancelled",
+                "ToolExecutionCancellationAmbiguous",
+            }
+            reason = (
+                "tool execution cancellation was observed after a side effect may have started; "
+                "automatic replay is forbidden"
+                if ambiguous and cancelled
+                else "tool execution deadline expired after a side effect may have started; "
+                "automatic replay is forbidden"
+                if ambiguous
+                else "tool execution was cooperatively cancelled"
+                if cancelled
+                else "tool execution deadline expired"
+            )
+            state = self._fail_active_step(state, reason=reason)
+            if state.phase is TaskPhase.ACTING:
+                state = state.transition_to(TaskPhase.OBSERVING)
+            if cancelled:
+                control = self._deps.runtime_journal.pending_control(request.task_id)
+                if control is not None and control.command is RuntimeControlCommand.CANCEL:
+                    self._deps.runtime_journal.acknowledge_control(control.control_id)
+            return self._checkpoint_and_fence(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=(
+                    RuntimeStopReason.INTERRUPTED
+                    if ambiguous
+                    else RuntimeStopReason.CANCELLED
+                    if cancelled
+                    else RuntimeStopReason.BLOCKED
+                ),
+                reasons=(reason,),
+                resume_phase=TaskPhase.PLANNED,
+                next_step=(
+                    "reconcile the prior side effect before any retry"
+                    if ambiguous
+                    else "resume only after a fresh runtime decision"
+                ),
+                started_at=started_at,
+                receipt=receipt,
+            )
         if outcome.result.status is not ToolResultStatus.SUCCESS:
             failure = self._deps.failure_classifier.from_tool_result(
                 task_id=request.task_id,
@@ -1300,6 +1361,7 @@ class LunaRuntime:
                 request=receipt.request,
                 task_contract=execution_contract,
                 policy=policy,
+                cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
             )
             usage.tool_calls += 1
             self._deps.runtime_journal.mark_completed(
