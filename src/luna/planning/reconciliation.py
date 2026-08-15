@@ -258,6 +258,13 @@ class ReconciliationReport(LunaContractModel):
             raise ValueError("CONFLICT reconciliation requires conflicting claims")
         if self.verdict is ReconciliationVerdict.REJECT and not self.rejected_result_ids:
             raise ValueError("REJECT reconciliation requires rejected results")
+        if (
+            self.verdict is not ReconciliationVerdict.ACCEPT
+            and self.accepted_result_ids
+        ):
+            raise ValueError(
+                "only ACCEPT reconciliation may contain accepted result IDs"
+            )
         return self
 
 
@@ -349,19 +356,38 @@ class CoordinationReconciler:
         if len(reference_claim_keys) != len(set(reference_claim_keys)):
             raise ValueError("reference claim keys must be unique")
 
-        result_ids = tuple(item.result_id for item in results)
-        if len(result_ids) != len(set(result_ids)):
+        raw_result_ids = tuple(item.result_id for item in results)
+        if len(raw_result_ids) != len(set(raw_result_ids)):
             raise ValueError("worker result IDs must be unique")
 
         result_assignment_ids = tuple(item.assignment_id for item in results)
         if len(result_assignment_ids) != len(set(result_assignment_ids)):
             raise ValueError("each assignment may return at most one worker result")
 
+        assignment_order = {
+            assignment.assignment_id: index
+            for index, assignment in enumerate(plan.assignments)
+        }
+        ordered_results = tuple(
+            sorted(
+                results,
+                key=lambda item: (
+                    assignment_order.get(
+                        item.assignment_id,
+                        len(plan.assignments),
+                    ),
+                    item.assignment_id,
+                    item.result_id,
+                ),
+            )
+        )
+        result_ids = tuple(item.result_id for item in ordered_results)
+
         rejected: list[str] = []
         stale: list[str] = []
         accepted_results: list[WorkerResult] = []
 
-        for result in results:
+        for result in ordered_results:
             assignment = assignments_by_id.get(result.assignment_id)
             if assignment is None:
                 rejected.append(result.result_id)
@@ -389,7 +415,7 @@ class CoordinationReconciler:
         expected_assignment_ids = set(assignments_by_id)
         returned_assignment_ids = {
             result.assignment_id
-            for result in results
+            for result in ordered_results
             if result.assignment_id in assignments_by_id
         }
         missing_assignment_ids = expected_assignment_ids - returned_assignment_ids
@@ -503,7 +529,7 @@ class CoordinationReconciler:
         provenance_refs = (
             f"task:{plan.task_id}",
             f"c7:{plan.coordination_basis_fingerprint}",
-            *(result.result_id for result in results),
+            *(result.result_id for result in ordered_results),
         )
 
         return ReconciliationReport(
@@ -512,8 +538,10 @@ class CoordinationReconciler:
             source_task_revision=plan.source_task_revision,
             current_task_revision=current_task_revision,
             verdict=verdict,
-            accepted_result_ids=tuple(
-                result.result_id for result in accepted_results
+            accepted_result_ids=(
+                tuple(result.result_id for result in accepted_results)
+                if verdict is ReconciliationVerdict.ACCEPT
+                else ()
             ),
             stale_assignment_ids=tuple(stale),
             conflicting_claim_keys=tuple(sorted(conflicting_keys)),

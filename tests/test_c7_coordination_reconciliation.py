@@ -831,3 +831,93 @@ def test_c7_malformed_current_basis_cannot_create_stale_verdict() -> None:
             current_task_revision=11,
             current_assignment_basis_fingerprints=bases,
         )
+
+
+def test_c7_reconciliation_is_deterministic_across_result_arrival_order() -> None:
+    plan = _parallel_plan()
+    reconciler = CoordinationReconciler()
+    evidence_one = uuid4()
+    evidence_two = uuid4()
+
+    first = _success_result(
+        reconciler,
+        plan.assignments[0],
+        key="arrival:first",
+        value="PASS",
+        evidence_id=evidence_one,
+    )
+    second = _success_result(
+        reconciler,
+        plan.assignments[1],
+        key="arrival:second",
+        value="PASS",
+        evidence_id=evidence_two,
+    )
+
+    forward = reconciler.reconcile(
+        plan=plan,
+        results=(first, second),
+        current_task_revision=plan.source_task_revision,
+        current_assignment_basis_fingerprints=_current_bases(plan),
+    )
+    reversed_arrival = reconciler.reconcile(
+        plan=plan,
+        results=(second, first),
+        current_task_revision=plan.source_task_revision,
+        current_assignment_basis_fingerprints=_current_bases(plan),
+    )
+
+    assert forward.model_dump(mode="python") == reversed_arrival.model_dump(
+        mode="python"
+    )
+    assert forward.accepted_result_ids == (
+        first.result_id,
+        second.result_id,
+    )
+    assert forward.evidence_ids == (
+        evidence_one,
+        evidence_two,
+    )
+    assert forward.provenance_refs[-2:] == (
+        first.result_id,
+        second.result_id,
+    )
+
+
+def test_c7_non_accept_report_cannot_claim_accepted_result_ids() -> None:
+    plan = _parallel_plan()
+    reconciler = CoordinationReconciler()
+
+    first = _success_result(
+        reconciler,
+        plan.assignments[0],
+        key="shared:acceptance",
+        value="PASS",
+        evidence_id=uuid4(),
+    )
+    second = _success_result(
+        reconciler,
+        plan.assignments[1],
+        key="shared:acceptance",
+        value="FAIL",
+        evidence_id=uuid4(),
+    )
+
+    report = reconciler.reconcile(
+        plan=plan,
+        results=(first, second),
+        current_task_revision=plan.source_task_revision,
+        current_assignment_basis_fingerprints=_current_bases(plan),
+    )
+
+    assert report.verdict is ReconciliationVerdict.CONFLICT
+    assert report.accepted_result_ids == ()
+
+    payload = report.model_dump(mode="python")
+    payload["accepted_result_ids"] = (first.result_id,)
+
+    with pytest.raises(
+        ValidationError,
+        match="only ACCEPT reconciliation may contain accepted result IDs",
+    ):
+        ReconciliationReport.model_validate(payload)
