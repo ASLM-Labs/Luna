@@ -50,6 +50,14 @@ from luna.planning.models import (
     TaskPlan,
 )
 from luna.planning.planner import AdaptivePlanner
+from luna.planning.reconciliation import (
+    CoordinationClaim,
+    CoordinationReconciler,
+    ReconciliationReport,
+    ReconciliationVerdict,
+    WorkerResult,
+    WorkerResultStatus,
+)
 from luna.planning.replanner import AdaptiveReplanner
 from luna.planning.retry import RetryGuard
 
@@ -65,8 +73,10 @@ __all__ = [
     "CapabilityKind",
     "CapabilitySelectionEntry",
     "CapabilitySelectionPlan",
+    "CoordinationClaim",
     "CoordinationMode",
     "CoordinationPlan",
+    "CoordinationReconciler",
     "DecisionAlternative",
     "DecisionAlternativeSet",
     "DecisionBasis",
@@ -86,6 +96,8 @@ __all__ = [
     "LocalJudgmentContext",
     "PlanLifecycle",
     "PlanStatus",
+    "ReconciliationReport",
+    "ReconciliationVerdict",
     "ReplanAction",
     "ReplanOutcome",
     "RetryDecision",
@@ -95,5 +107,7 @@ __all__ = [
     "TaskComplexity",
     "TaskPlan",
     "WorkerAssignment",
+    "WorkerResult",
+    "WorkerResultStatus",
     "WorkerRole",
 ]
