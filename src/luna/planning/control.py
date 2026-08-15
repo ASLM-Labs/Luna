@@ -325,6 +325,11 @@ class DecisionControlAdvisor:
             "hard_constraints": decision_basis.hard_constraints,
             "objective": decision_basis.objective,
             "selected_information_need_id": information_gain.selected_need_id,
+            "specification_basis_fingerprint": (
+                state.specification_judgment.specification_basis_fingerprint
+                if state.specification_judgment is not None
+                else None
+            ),
             "verification_depth": decision_basis.verification_depth,
             "step_id": str(information_gain.step_id),
             "task_id": str(state.task_id),
@@ -633,6 +638,23 @@ class DecisionControlAdvisor:
             for item in decisions
             if item.status is DecisionStatus.INVALIDATED
         )
+
+        specification_blockers = tuple(
+            ref for ref in compression.blocker_refs if ref.startswith("c4:")
+        )
+        if specification_blockers:
+            return DecisionControlAssessment(
+                task_id=state.task_id,
+                step_id=information_gain.step_id,
+                action=DecisionControlAction.STOP_VERIFY,
+                selected_information_need_id=information_gain.selected_need_id,
+                reason_codes=(
+                    "c4_specification_requires_stop_verify",
+                    "hard_constraint_or_critical_ambiguity_unresolved",
+                ),
+                blocker_refs=specification_blockers,
+                verification_required=True,
+            )
 
         if contradicted:
             return DecisionControlAssessment(

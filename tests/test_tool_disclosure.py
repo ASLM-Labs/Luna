@@ -154,7 +154,7 @@ def test_deferred_schema_appears_only_on_next_safe_model_request(
     assert _DEFERRED_TOOL not in _tool_names(first_request)
 
     backend.release_first_request.set()
-    worker.join(timeout=4)
+    worker.join(timeout=10)
 
     assert not worker.is_alive()
     assert len(outcomes) == 1

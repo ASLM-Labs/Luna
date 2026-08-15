@@ -14,6 +14,7 @@ from luna.contracts.decision import DecisionStateSnapshot
 from luna.contracts.enums import CompletionStatus, TaskPhase
 from luna.contracts.invalidation import InvalidationStateSnapshot
 from luna.contracts.plan import PlanStep
+from luna.contracts.specification import IntentConstraintJudgment
 from luna.contracts.task import TaskContract
 
 _ALLOWED_TRANSITIONS_SOURCE: dict[TaskPhase, frozenset[TaskPhase]] = {
@@ -67,6 +68,7 @@ class TaskState(LunaContractModel):
     evidence_ids: tuple[UUID, ...] = ()
     failed_assumptions: tuple[str, ...] = ()
     decision_state: DecisionStateSnapshot | None = None
+    specification_judgment: IntentConstraintJudgment | None = None
     invalidation_state: InvalidationStateSnapshot | None = None
     completion_status: CompletionStatus | None = None
     checkpoint_id: UUID | None = None
@@ -94,6 +96,20 @@ class TaskState(LunaContractModel):
             raise ValueError("TaskState.task_id must match TaskContract.task_id")
         if self.decision_state is not None and self.decision_state.task_id != self.task_id:
             raise ValueError("TaskState.decision_state task_id must match TaskState.task_id")
+        if (
+            self.specification_judgment is not None
+            and self.specification_judgment.task_id != self.task_id
+        ):
+            raise ValueError(
+                "TaskState.specification_judgment task_id must match TaskState.task_id"
+            )
+        if (
+            self.specification_judgment is not None
+            and self.specification_judgment.literal_objective != self.contract.objective
+        ):
+            raise ValueError(
+                "C4 literal objective must match the authoritative TaskContract objective"
+            )
         if self.invalidation_state is not None and self.invalidation_state.task_id != self.task_id:
             raise ValueError("TaskState.invalidation_state task_id must match TaskState.task_id")
         report = (
@@ -143,6 +159,7 @@ class TaskState(LunaContractModel):
         evidence_ids: tuple[UUID, ...] | None = None,
         failed_assumptions: tuple[str, ...] | None = None,
         decision_state: DecisionStateSnapshot | None = None,
+        specification_judgment: IntentConstraintJudgment | None = None,
         invalidation_state: InvalidationStateSnapshot | None = None,
         updated_at: datetime | None = None,
     ) -> TaskState:
@@ -168,6 +185,11 @@ class TaskState(LunaContractModel):
                     decision_state
                     if decision_state is not None
                     else self.decision_state
+                ),
+                "specification_judgment": (
+                    specification_judgment
+                    if specification_judgment is not None
+                    else self.specification_judgment
                 ),
                 "invalidation_state": (
                     invalidation_state

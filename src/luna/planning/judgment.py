@@ -15,6 +15,7 @@ from pydantic import Field, field_validator, model_validator
 from luna.contracts.base import LunaContractModel
 from luna.contracts.decision import AssumptionStatus, DecisionStatus
 from luna.contracts.plan import PlanStep
+from luna.contracts.specification import SpecificationControlAction
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract
 
@@ -226,7 +227,12 @@ class LocalJudgmentBuilder:
                 item.critical and item.status is not AssumptionStatus.SUPPORTED
                 for item in decision_state.assumptions
             )
-        if state.contract.unknowns or critical_gap:
+        specification_blocked = bool(
+            state.specification_judgment is not None
+            and state.specification_judgment.action
+            is SpecificationControlAction.STOP_VERIFY
+        )
+        if state.contract.unknowns or critical_gap or specification_blocked:
             description = "Resolve task-critical unknowns or unsupported critical assumptions."
             needs.append(
                 InformationNeed(
@@ -240,6 +246,8 @@ class LocalJudgmentBuilder:
                 )
             )
             reasons.append("critical_uncertainty_present")
+            if specification_blocked:
+                reasons.append("c4_specification_blocker_present")
 
         is_last_step = step.sequence == max(item.sequence for item in state.plan)
         if is_last_step:
@@ -305,21 +313,37 @@ class LocalJudgmentBuilder:
                 if decision.status in {DecisionStatus.BLOCKED, DecisionStatus.INVALIDATED}:
                     blocker_refs.append(f"decision:{decision.decision_id}:{decision.status.value}")
 
+        specification = state.specification_judgment
         scope = state.contract.scope
-        hard_constraints = (
+        base_hard_constraints = (
             f"risk_level:{state.contract.risk_level.value}",
             f"write_allowed:{str(scope.write_allowed).lower()}",
             f"network_allowed:{str(scope.network_allowed).lower()}",
             f"process_allowed:{str(scope.process_allowed).lower()}",
-            *(f"forbidden_outcome:{item}" for item in state.contract.forbidden_outcomes),
+            *(
+                f"forbidden_outcome:{item}"
+                for item in state.contract.forbidden_outcomes
+            ),
         )
+        if specification is not None:
+            blocker_refs.extend(specification.blocker_refs)
+            hard_constraints = base_hard_constraints
+            objective = specification.reconstructed_objective
+            if (
+                specification.action is not SpecificationControlAction.ACCEPT_LITERAL
+                or specification.context_basis_refs
+            ):
+                reasons.append("c4_specification_bound")
+        else:
+            hard_constraints = base_hard_constraints
+            objective = state.contract.objective
         if blocker_refs:
             reasons.append("blockers_present")
 
         return DecisionBasis(
             task_id=state.task_id,
             step_id=step.step_id,
-            objective=state.contract.objective,
+            objective=objective,
             selected_information_need_id=information_gain.selected_need_id,
             acceptance_target_ids=tuple(item.target_id for item in acceptance.targets),
             evidence_refs=tuple(dict.fromkeys(evidence_refs)),

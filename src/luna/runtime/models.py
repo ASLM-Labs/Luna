@@ -82,6 +82,7 @@ class RuntimeRequest(LunaContractModel):
     required_conditions: tuple[str, ...] = ()
     forbidden_outcomes: tuple[str, ...] = ()
     evidence_required: tuple[str, ...] = ()
+    soft_preferences: tuple[str, ...] = ()
     risk_level: RiskLevel = RiskLevel.LOW
     priority: RuntimePriority = RuntimePriority.NORMAL
     mode: RuntimeMode = RuntimeMode.DRY_RUN
@@ -97,6 +98,7 @@ class RuntimeRequest(LunaContractModel):
         "required_conditions",
         "forbidden_outcomes",
         "evidence_required",
+        "soft_preferences",
     )
     @classmethod
     def validate_unique_text(cls, values: tuple[str, ...]) -> tuple[str, ...]:

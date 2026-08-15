@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from enum import StrEnum
+from hashlib import sha256
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -34,7 +35,10 @@ from luna.contracts.base import LunaContractModel
 from luna.contracts.enums import ObservationStatus
 from luna.contracts.observation import Observation
 from luna.contracts.plan import PlanStep
+from luna.contracts.specification import ConstraintKind
 from luna.contracts.state import TaskState
+from luna.intent.judgment import IntentConstraintJudge
+from luna.intent.resolver import DeterministicIntentResolver
 from luna.modeling import (
     MessageRole,
     ModelBackend,
@@ -173,6 +177,7 @@ class ModelPolicyAgent:
         self._backend = backend
         self._selector = selector
         self._judgment_builder = LocalJudgmentBuilder()
+        self._intent_constraint_judge = IntentConstraintJudge()
         self._decision_control = DecisionControlAdvisor()
         self._retrieval_strategist = InformationRetrievalStrategist()
         self._observed_retrieval_strategies = ObservedRetrievalStrategyLedger()
@@ -270,7 +275,12 @@ class ModelPolicyAgent:
             if working_context_sufficient
             else KnowledgeUncertainty.MEDIUM
         )
-        query = f"{selected.kind.value}: {state.contract.objective}"[:512]
+        objective = (
+            state.specification_judgment.reconstructed_objective
+            if state.specification_judgment is not None
+            else state.contract.objective
+        )
+        query = f"{selected.kind.value}: {objective}"[:512]
         return KnowledgeRequestProfile(
             task_id=state.task_id,
             query=query,
@@ -361,32 +371,53 @@ class ModelPolicyAgent:
         allowed_tools = tuple(
             spec for spec in self._selector.specs() if spec.name in allowed
         )
+        persisted_specification = state.specification_judgment
+        if persisted_specification is not None:
+            normalized_request = DeterministicIntentResolver.normalize(raw_request)
+            request_fingerprint = sha256(normalized_request.encode("utf-8")).hexdigest()
+            if persisted_specification.request_fingerprint != request_fingerprint:
+                raise ValueError(
+                    "C4 persisted specification judgment does not match current request"
+                )
+            base_specification = persisted_specification
+        else:
+            base_specification = self._intent_constraint_judge.from_contract(
+                raw_request=raw_request,
+                contract=state.contract,
+            )
+        specification = self._intent_constraint_judge.refine_from_state(
+            base=base_specification,
+            state=state,
+        )
+        judgment_state = state.model_copy(
+            update={"specification_judgment": specification}
+        )
         verification = self._verification_selector.select(
             contract=state.contract,
             step=step,
         )
         judgment = self._judgment_builder.build(
-            state=state,
+            state=judgment_state,
             step=step,
             verification_depth=verification.depth.value,
         )
         compression = self._decision_control.compress(
-            state=state,
+            state=judgment_state,
             information_gain=judgment.information_gain,
             decision_basis=judgment.decision_basis,
         )
         alternatives = self._decision_control.alternatives(
-            state=state,
+            state=judgment_state,
             compression=compression,
         )
         decision_control = self._decision_control.assess(
-            state=state,
+            state=judgment_state,
             information_gain=judgment.information_gain,
             compression=compression,
             alternatives=alternatives,
         )
         retrieval_profile = self._retrieval_profile(
-            state=state,
+            state=judgment_state,
             information_gain=judgment.information_gain,
             compression=compression,
             context=context,
@@ -415,6 +446,9 @@ class ModelPolicyAgent:
             available_tools=allowed_tools,
             advice=advice,
         )
+        constraints_by_id = {
+            item.constraint_id: item for item in specification.constraints
+        }
         judgment_payload = {
             "local_judgment": judgment.model_dump(mode="json"),
             "decision_compression": {
@@ -458,6 +492,87 @@ class ModelPolicyAgent:
             },
             "c2_authority_granted": False,
         }
+        project_policies = tuple(
+            item.statement
+            for item in specification.constraints
+            if item.kind is ConstraintKind.PROJECT_POLICY
+        )
+        accepted_preferences = tuple(
+            constraints_by_id[ref].statement
+            for ref in specification.accepted_preference_refs
+        )
+        c4_preference_message: tuple[ModelMessage, ...] = ()
+        if accepted_preferences:
+            preference_payload = {
+                "preferences": accepted_preferences,
+                "optional": True,
+                "authority": False,
+            }
+            c4_preference_message = (
+                ModelMessage(
+                    role=MessageRole.SYSTEM,
+                    name="c4_preferences",
+                    content=json.dumps(
+                        preference_payload,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                ),
+            )
+
+        soft_only_accept_literal = (
+            specification.action.value == "ACCEPT_LITERAL"
+            and bool(specification.accepted_preference_refs)
+            and not specification.traded_off_preference_refs
+            and not specification.blocker_refs
+            and not project_policies
+        )
+
+        c4_message: tuple[ModelMessage, ...] = ()
+        if (
+            specification.action.value != "ACCEPT_LITERAL"
+            or specification.accepted_preference_refs
+            or specification.traded_off_preference_refs
+            or specification.blocker_refs
+            or project_policies
+        ):
+            c4_payload: dict[str, object]
+            if soft_only_accept_literal:
+                c4_payload = {
+                    "action": specification.action.value,
+                    "accepted_preference_count": len(
+                        specification.accepted_preference_refs
+                    ),
+                    "preference_details_optional": True,
+                    "authority": False,
+                }
+            else:
+                c4_payload = {
+                    "action": specification.action.value,
+                    "objective": specification.reconstructed_objective,
+                    "project_policies": project_policies,
+                    "accepted_preference_count": len(
+                        specification.accepted_preference_refs
+                    ),
+                    "traded_off_preference_count": len(
+                        specification.traded_off_preference_refs
+                    ),
+                    "preference_details_optional": bool(accepted_preferences),
+                    "blockers": specification.blocker_refs,
+                    "authority": False,
+                }
+            c4_message = (
+                ModelMessage(
+                    role=MessageRole.SYSTEM,
+                    name="c4_specification",
+                    content=json.dumps(
+                        c4_payload,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                ),
+            )
+
         fixed_messages = (
             ModelMessage(
                 role=MessageRole.SYSTEM,
@@ -478,6 +593,7 @@ class ModelPolicyAgent:
                 ),
             ),
             ModelMessage(role=MessageRole.USER, content=raw_request),
+            *c4_message,
             self._state_message(state, step),
             ModelMessage(
                 role=MessageRole.SYSTEM,
@@ -499,6 +615,26 @@ class ModelPolicyAgent:
         if projection.status is ModelWindowProjectionStatus.BLOCKED:
             raise ModelRequestWindowBlocked(projection)
 
+        optional_c4_messages: tuple[ModelMessage, ...] = ()
+        if c4_preference_message:
+            preference_estimated_tokens = estimate_model_messages_tokens(
+                c4_preference_message
+            )
+            if (
+                projection.total_estimated_tokens + preference_estimated_tokens
+                <= max_input_estimated_tokens
+            ):
+                preference_projection = self._window_projector.project(
+                    bundle=context,
+                    max_estimated_tokens=max_input_estimated_tokens,
+                    fixed_estimated_tokens=(
+                        fixed_estimated_tokens + preference_estimated_tokens
+                    ),
+                )
+                if preference_projection.status is not ModelWindowProjectionStatus.BLOCKED:
+                    projection = preference_projection
+                    optional_c4_messages = c4_preference_message
+
         projected_context = self._render_context_entries(projection.retained_entries)
         notice_messages: tuple[ModelMessage, ...] = ()
         if projection.projection_notice is not None:
@@ -509,7 +645,12 @@ class ModelPolicyAgent:
                     content=projection.projection_notice,
                 ),
             )
-        messages = (*fixed_messages, *projected_context, *notice_messages)
+        messages = (
+            *fixed_messages,
+            *optional_c4_messages,
+            *projected_context,
+            *notice_messages,
+        )
         return (
             ModelRequest(
                 task_id=task_id,

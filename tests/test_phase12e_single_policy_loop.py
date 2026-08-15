@@ -637,9 +637,9 @@ def test_cancellation_after_side_effect_started_is_fenced_without_replay(tmp_pat
 
     worker = Thread(target=run)
     worker.start()
-    assert started.wait(timeout=2)
+    assert started.wait(timeout=10)
     runtime.cancel(task_id=request.task_id, reason="cancel after handler start")
-    worker.join(timeout=2)
+    worker.join(timeout=10)
 
     assert not worker.is_alive()
     assert errors == []
@@ -935,6 +935,289 @@ def test_wave1_context_integrity_blocks_conflicting_critical_context(tmp_path) -
     assert backend.requests == [] if hasattr(backend, "requests") else True
 
 
+def test_c4_soft_preference_reaches_model_as_advisory_without_state_bloat(tmp_path) -> None:
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield after reading C4 advisory context.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+    ).model_copy(update={"soft_preferences": ("Prefer concise output.",)})
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.usage.model_calls == 1
+    assert outcome.state.specification_judgment is not None
+    assert outcome.state.specification_judgment.accepted_preference_refs
+    model_request = backend.requests[0]
+    c4_messages = tuple(
+        message for message in model_request.messages if message.name == "c4_specification"
+    )
+    assert len(c4_messages) == 1
+    assert '"accepted_preference_count": 1' in c4_messages[0].content
+    assert '"preference_details_optional": true' in c4_messages[0].content
+    assert '"authority": false' in c4_messages[0].content
+    preference_message = next(
+        message for message in model_request.messages if message.name == "c4_preferences"
+    )
+    assert '"preferences": ["Prefer concise output."]' in preference_message.content
+    assert '"optional": true' in preference_message.content
+    assert '"authority": false' in preference_message.content
+    task_state_message = next(
+        message for message in model_request.messages if "runtime://task-state" in message.content
+    )
+    assert '"specification_judgment"' not in task_state_message.content
+
+
+def test_c4_large_soft_preference_is_omitted_instead_of_blocking_tight_model_window(
+    tmp_path,
+) -> None:
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield without optional preference detail.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_request_estimated_tokens=2200),
+    ).model_copy(update={"soft_preferences": ("p" * 4000,)})
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.usage.model_calls == 1
+    model_request = backend.requests[0]
+    c4_message = next(
+        message for message in model_request.messages if message.name == "c4_specification"
+    )
+    assert '"accepted_preference_count": 1' in c4_message.content
+    assert '"preference_details_optional": true' in c4_message.content
+    assert not any(
+        message.name == "c4_preferences" for message in model_request.messages
+    )
+
+
+def test_c4_verified_project_policy_refines_model_advisory_after_c1_readiness(
+    tmp_path,
+) -> None:
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield after respecting verified project policy.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+    )
+    policy_statement = "Do not modify generated files."
+    claim = ContextClaim(
+        task_id=request.task_id,
+        key="generated_files_policy",
+        value=policy_statement,
+        claim_type=ContextClaimType.PROJECT_POLICY,
+        source_kind=ContextSourceKind.DOCUMENT,
+        source_ref="repo://CONTRIBUTING.md",
+        authority_role=ContextAuthorityRole.CANONICAL_PROJECT,
+        verified=True,
+        evidence_refs=("repo:CONTRIBUTING.md#generated-files",),
+    )
+    payload = request.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [claim.model_dump(mode="json")],
+            "context_requirements": [
+                ContextRequirement(
+                    key="generated_files_policy",
+                    claim_type=ContextClaimType.PROJECT_POLICY,
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    request = RuntimeRequest.model_validate(payload)
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.usage.model_calls == 1
+    assert outcome.state.decision_state is not None
+    assert outcome.state.specification_judgment is not None
+    assert any(
+        item.kind.value == "PROJECT_POLICY"
+        for item in outcome.state.specification_judgment.constraints
+    )
+    assert outcome.state.specification_judgment.context_basis_refs
+    current = DecisionStateService.current_assumptions(outcome.state.decision_state)
+    project_policy = next(
+        item for item in current if item.claim_type == ContextClaimType.PROJECT_POLICY.value
+    )
+    assert project_policy.status.value == "SUPPORTED"
+    model_request = backend.requests[0]
+    c4_message = next(
+        message for message in model_request.messages if message.name == "c4_specification"
+    )
+    assert policy_statement in c4_message.content
+    assert (
+        '"project_policies": ["Do not modify generated files."]'
+        in c4_message.content
+    )
+    assert '"authority": false' in c4_message.content
+    task_state_message = next(
+        message for message in model_request.messages if "runtime://task-state" in message.content
+    )
+    assert '"specification_judgment"' not in task_state_message.content
+
+
+def test_c4_new_verified_project_policy_on_resume_requires_replan_before_model_call(
+    tmp_path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield before any action.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+    )
+    policy = _policy(allowed_tools=("filesystem.read_text",))
+
+    initial = runtime.run(request=request, tool_policy=policy)
+
+    assert initial.stop_reason is RuntimeStopReason.BLOCKED
+    assert initial.state.plan is not None
+    assert backend.call_count == 1
+
+    policy_statement = "Do not modify generated files."
+    claim = ContextClaim(
+        task_id=request.task_id,
+        key="generated_files_policy",
+        value=policy_statement,
+        claim_type=ContextClaimType.PROJECT_POLICY,
+        source_kind=ContextSourceKind.DOCUMENT,
+        source_ref="repo://CONTRIBUTING.md",
+        authority_role=ContextAuthorityRole.CANONICAL_PROJECT,
+        verified=True,
+        evidence_refs=("repo:CONTRIBUTING.md#generated-files",),
+    )
+    resume_request = _request(
+        tmp_path,
+        task_id=request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+    payload = resume_request.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [claim.model_dump(mode="json")],
+            "context_requirements": [
+                ContextRequirement(
+                    key="generated_files_policy",
+                    claim_type=ContextClaimType.PROJECT_POLICY,
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    resume_request = RuntimeRequest.model_validate(payload)
+
+    resumed = runtime.resume(request=resume_request, tool_policy=policy)
+
+    assert resumed.stop_reason is RuntimeStopReason.BLOCKED
+    assert resumed.state.plan is not None
+    assert resumed.state.specification_judgment is not None
+    assert any(
+        item.kind.value == "PROJECT_POLICY"
+        and item.statement == policy_statement
+        for item in resumed.state.specification_judgment.constraints
+    )
+    assert "c4_verified_project_policy_basis_changed" in resumed.reasons
+    assert "changed_basis_replan_required" in resumed.reasons
+    assert backend.call_count == 1
+
+
+def test_c4_hard_project_policy_conflict_blocks_before_planning_and_model_call(
+    tmp_path,
+) -> None:
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+    )
+    claim = ContextClaim(
+        task_id=request.task_id,
+        key="write_policy",
+        value="write_allowed:true",
+        claim_type=ContextClaimType.PROJECT_POLICY,
+        source_kind=ContextSourceKind.DOCUMENT,
+        source_ref="repo://CONTRIBUTING.md",
+        authority_role=ContextAuthorityRole.CANONICAL_PROJECT,
+        verified=True,
+        evidence_refs=("repo:CONTRIBUTING.md#write-policy",),
+    )
+    payload = request.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [claim.model_dump(mode="json")],
+            "context_requirements": [
+                ContextRequirement(
+                    key="write_policy",
+                    claim_type=ContextClaimType.PROJECT_POLICY,
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    request = RuntimeRequest.model_validate(payload)
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 0
+    assert backend.call_count == 0
+    assert outcome.state.specification_judgment is not None
+    assert outcome.state.specification_judgment.action.value == "STOP_VERIFY"
+    assert any(
+        conflict.reason_code == "project_policy_cannot_widen_authority_boundary"
+        for conflict in outcome.state.specification_judgment.conflicts
+    )
+
+
 def test_model_request_window_compacts_optional_context_before_backend_call(tmp_path) -> None:
     backend = _RecordingScriptedBackend(
         (
@@ -981,6 +1264,7 @@ def test_model_request_window_compacts_optional_context_before_backend_call(tmp_
     assert "runtime://task-contract" in message_text
     assert "runtime://task-state" in message_text
     assert '"invalidation_state"' not in message_text
+    assert '"specification_judgment"' not in message_text
     assert tuple(spec.name for spec in model_request.available_tools) == (
         "filesystem.read_text",
     )

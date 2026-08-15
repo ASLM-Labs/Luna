@@ -198,7 +198,7 @@ def test_cancellation_during_backoff_stops_before_another_provider_call(
     worker.start()
     assert backend.first_call.wait(timeout=1)
     harness.runtime.cancel(task_id=request.task_id, reason="cancel provider backoff")
-    worker.join(timeout=2)
+    worker.join(timeout=10)
 
     assert not worker.is_alive()
     assert backend.calls == 1

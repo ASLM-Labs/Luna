@@ -60,6 +60,9 @@ def build_task_fingerprint(request: RuntimeRequest) -> TaskFingerprint:
         "evidence_required": sorted(
             _normalize_text(value) for value in request.evidence_required
         ),
+        "soft_preferences": sorted(
+            _normalize_text(value) for value in request.soft_preferences
+        ),
     }
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return TaskFingerprint(

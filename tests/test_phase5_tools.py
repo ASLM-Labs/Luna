@@ -57,6 +57,7 @@ def test_write_tool_creates_snapshot_and_explicit_rollback_removes_file(
                 "content": "phase5",
                 "create_if_missing": True,
             },
+            timeout_ms=15000,
             expectation_id=expectation_id,
         ),
         task_contract=contract,

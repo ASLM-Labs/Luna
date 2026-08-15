@@ -30,10 +30,13 @@ from luna.context import (
 from luna.continuity import ResumePolicy, ResumeStatus
 from luna.contracts import (
     CompletionStatus,
+    ConstraintKind,
+    IntentConstraintJudgment,
     InvalidationControlAction,
     ObservationStatus,
     PlanStep,
     PlanStepStatus,
+    SpecificationControlAction,
     TaskContract,
     TaskState,
 )
@@ -281,6 +284,20 @@ class LunaRuntime:
             observation_id=observation_id,
         )
 
+    @staticmethod
+    def _c4_project_policy_basis(
+        specification: IntentConstraintJudgment | None,
+    ) -> tuple[str, ...]:
+        if specification is None:
+            return ()
+        return tuple(
+            sorted(
+                item.statement
+                for item in specification.constraints
+                if item.kind is ConstraintKind.PROJECT_POLICY
+            )
+        )
+
     def run(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
         """Start a new single-policy-agent task invocation."""
         if request.mode is RuntimeMode.RESUME:
@@ -297,6 +314,7 @@ class LunaRuntime:
             required_conditions=request.required_conditions,
             forbidden_outcomes=request.forbidden_outcomes,
             evidence_required=request.evidence_required,
+            soft_preferences=request.soft_preferences,
             risk_level=request.risk_level,
             owner=request.actor.actor_id,
             task_id=request.task_id,
@@ -310,6 +328,7 @@ class LunaRuntime:
         state = TaskState(
             task_id=request.task_id,
             contract=preparation.contract,
+            specification_judgment=preparation.specification_judgment,
             decision_state=self._deps.decision_state_service.ensure(request.task_id, None),
         )
         state = state.transition_to(TaskPhase.CONTRACTED)
@@ -373,8 +392,33 @@ class LunaRuntime:
             )
 
         state = state.transition_to(TaskPhase.CONTEXT_READY)
-        task_plan = self._deps.core.planner.plan(preparation)
-        state = state.revise(plan=task_plan.steps)
+        specification = self._deps.core.task_preparer.refine_specification(
+            base=preparation.specification_judgment,
+            state=state,
+        )
+        if specification.action is SpecificationControlAction.STOP_VERIFY:
+            state = state.revise(specification_judgment=specification)
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    *specification.reason_codes,
+                    *specification.blocker_refs,
+                ),
+                resume_phase=TaskPhase.CONTEXT_READY,
+                next_step="resolve C4 specification blockers before planning",
+                started_at=started_at,
+            )
+        task_plan = self._deps.core.planner.plan(
+            preparation,
+            specification_judgment=specification,
+        )
+        state = state.revise(
+            plan=task_plan.steps,
+            specification_judgment=specification,
+        )
         state = state.transition_to(TaskPhase.PLANNED)
         return self._drive(
             request=request,
@@ -461,6 +505,26 @@ class LunaRuntime:
             claims=request.context_claims,
             requirements=request.context_requirements,
         )
+        prior_project_policy_basis = self._c4_project_policy_basis(
+            pre_context_state.specification_judgment
+        )
+        refined_specification = self._deps.core.task_preparer.specification_for_state(
+            raw_request=request.raw_request,
+            state=state,
+            soft_preferences=request.soft_preferences,
+        )
+        if (
+            state.specification_judgment is None
+            or refined_specification.specification_basis_fingerprint
+            != state.specification_judgment.specification_basis_fingerprint
+        ):
+            state = state.revise(specification_judgment=refined_specification)
+        current_project_policy_basis = self._c4_project_policy_basis(
+            state.specification_judgment
+        )
+        project_policy_basis_changed = (
+            prior_project_policy_basis != current_project_policy_basis
+        )
         invalidation, state = self._invalidation.reconcile(
             previous_state=pre_context_state,
             current_state=state,
@@ -511,6 +575,25 @@ class LunaRuntime:
                 started_at=started_at,
             )
 
+        specification = state.specification_judgment
+        if (
+            specification is not None
+            and specification.action is SpecificationControlAction.STOP_VERIFY
+        ):
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    *specification.reason_codes,
+                    *specification.blocker_refs,
+                ),
+                resume_phase=state.phase,
+                next_step="resolve C4 specification blockers before resume",
+                started_at=started_at,
+            )
+
         if invalidation.control_action is not InvalidationControlAction.NONE:
             return self._checkpoint_outcome(
                 request=request,
@@ -529,6 +612,21 @@ class LunaRuntime:
                     TaskPhase.PLANNED if state.plan else TaskPhase.CONTEXT_READY
                 ),
                 next_step="changed-basis replan from targeted invalidation",
+                started_at=started_at,
+            )
+
+        if project_policy_basis_changed and state.plan:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    "c4_verified_project_policy_basis_changed",
+                    "changed_basis_replan_required",
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="replan under the current verified project policy",
                 started_at=started_at,
             )
 
@@ -1895,7 +1993,7 @@ class LunaRuntime:
                     text=json.dumps(
                         state.model_dump(
                             mode="json",
-                            exclude={"invalidation_state"},
+                            exclude={"invalidation_state", "specification_judgment"},
                         ),
                         ensure_ascii=False,
                         sort_keys=True,
