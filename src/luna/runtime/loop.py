@@ -50,6 +50,7 @@ from luna.planning import (
     AttemptBasis,
     AttemptRecord,
     ExpectationEvaluator,
+    LocalJudgmentBuilder,
     TargetedInvalidationCoordinator,
 )
 from luna.recovery import ChangeEstimate, IsolationMode, RecoveryAction
@@ -411,13 +412,24 @@ class LunaRuntime:
                 next_step="resolve C4 specification blockers before planning",
                 started_at=started_at,
             )
+        acceptance = LocalJudgmentBuilder().acceptance_from_basis(
+            contract=preparation.contract,
+            specification=specification,
+        )
         task_plan = self._deps.core.planner.plan(
             preparation,
             specification_judgment=specification,
         )
+        acceptance_target_ids = tuple(item.target_id for item in acceptance.targets)
+        if task_plan.acceptance_target_ids != acceptance_target_ids:
+            raise ValueError("planner acceptance targets must match the current C5 backchain")
+        if acceptance.acceptance_basis_fingerprint is None:
+            raise ValueError("C5 planning requires an acceptance basis fingerprint")
         state = state.revise(
             plan=task_plan.steps,
             specification_judgment=specification,
+            acceptance_target_ids=acceptance_target_ids,
+            acceptance_basis_fingerprint=acceptance.acceptance_basis_fingerprint,
         )
         state = state.transition_to(TaskPhase.PLANNED)
         return self._drive(
@@ -1993,7 +2005,12 @@ class LunaRuntime:
                     text=json.dumps(
                         state.model_dump(
                             mode="json",
-                            exclude={"invalidation_state", "specification_judgment"},
+                            exclude={
+                                "acceptance_basis_fingerprint",
+                                "acceptance_target_ids",
+                                "invalidation_state",
+                                "specification_judgment",
+                            },
                         ),
                         ensure_ascii=False,
                         sort_keys=True,

@@ -92,7 +92,10 @@ class AdaptivePlanner:
             raise ValueError("planning specification must preserve contract objective")
 
         complexity = self.classify(preparation)
-        acceptance = LocalJudgmentBuilder().acceptance_from_contract(contract)
+        acceptance = LocalJudgmentBuilder().acceptance_from_basis(
+            contract=contract,
+            specification=specification,
+        )
         actions = set(preparation.intent.actions)
         write_actions = {
             RequestedAction.MODIFY,

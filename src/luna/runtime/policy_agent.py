@@ -449,8 +449,25 @@ class ModelPolicyAgent:
         constraints_by_id = {
             item.constraint_id: item for item in specification.constraints
         }
+        model_visible_acceptance = {
+            "task_id": str(judgment.acceptance.task_id),
+            "targets": tuple(
+                {
+                    "target_id": item.target_id,
+                    "kind": item.kind.value,
+                    "text": item.text,
+                    "evidence_requirements": item.evidence_requirements,
+                }
+                for item in judgment.acceptance.targets
+            ),
+        }
+        model_visible_judgment = {
+            "acceptance": model_visible_acceptance,
+            "information_gain": judgment.information_gain.model_dump(mode="json"),
+            "decision_basis": judgment.decision_basis.model_dump(mode="json"),
+        }
         judgment_payload = {
-            "local_judgment": judgment.model_dump(mode="json"),
+            "local_judgment": model_visible_judgment,
             "decision_compression": {
                 "decision_question": compression.decision_question,
                 "decision_changing_evidence_refs": (

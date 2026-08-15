@@ -69,6 +69,10 @@ class TaskState(LunaContractModel):
     failed_assumptions: tuple[str, ...] = ()
     decision_state: DecisionStateSnapshot | None = None
     specification_judgment: IntentConstraintJudgment | None = None
+    acceptance_target_ids: tuple[str, ...] = ()
+    acceptance_basis_fingerprint: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
     invalidation_state: InvalidationStateSnapshot | None = None
     completion_status: CompletionStatus | None = None
     checkpoint_id: UUID | None = None
@@ -79,6 +83,16 @@ class TaskState(LunaContractModel):
     @classmethod
     def validate_updated_at(cls, value: datetime) -> datetime:
         return require_utc(value)
+
+    @field_validator("acceptance_target_ids")
+    @classmethod
+    def validate_acceptance_target_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(value.strip() for value in values)
+        if any(not value for value in cleaned):
+            raise ValueError("acceptance target IDs must not be blank")
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("acceptance target IDs must be unique")
+        return cleaned
 
     @field_validator("failed_assumptions")
     @classmethod
@@ -110,6 +124,12 @@ class TaskState(LunaContractModel):
             raise ValueError(
                 "C4 literal objective must match the authoritative TaskContract objective"
             )
+        has_acceptance_targets = bool(self.acceptance_target_ids)
+        has_acceptance_basis = self.acceptance_basis_fingerprint is not None
+        if has_acceptance_targets != has_acceptance_basis:
+            raise ValueError("C5 acceptance targets and basis fingerprint must be stored together")
+        if has_acceptance_basis and self.specification_judgment is None:
+            raise ValueError("C5 acceptance basis requires an observable C4 specification")
         if self.invalidation_state is not None and self.invalidation_state.task_id != self.task_id:
             raise ValueError("TaskState.invalidation_state task_id must match TaskState.task_id")
         report = (
@@ -160,10 +180,49 @@ class TaskState(LunaContractModel):
         failed_assumptions: tuple[str, ...] | None = None,
         decision_state: DecisionStateSnapshot | None = None,
         specification_judgment: IntentConstraintJudgment | None = None,
+        acceptance_target_ids: tuple[str, ...] | None = None,
+        acceptance_basis_fingerprint: str | None = None,
         invalidation_state: InvalidationStateSnapshot | None = None,
         updated_at: datetime | None = None,
     ) -> TaskState:
         """Return the same phase with one validated authoritative-state revision."""
+        next_specification = (
+            specification_judgment
+            if specification_judgment is not None
+            else self.specification_judgment
+        )
+        specification_basis_changed = (
+            specification_judgment is not None
+            and (
+                self.specification_judgment is None
+                or specification_judgment.specification_basis_fingerprint
+                != self.specification_judgment.specification_basis_fingerprint
+            )
+        )
+        acceptance_update_requested = (
+            acceptance_target_ids is not None
+            or acceptance_basis_fingerprint is not None
+        )
+        if acceptance_update_requested and (
+            acceptance_target_ids is None
+            or acceptance_basis_fingerprint is None
+        ):
+            raise ValueError(
+                "C5 acceptance targets and basis fingerprint must be revised together"
+            )
+
+        if specification_basis_changed and not acceptance_update_requested:
+            next_acceptance_target_ids: tuple[str, ...] = ()
+            next_acceptance_basis_fingerprint: str | None = None
+        elif acceptance_update_requested:
+            assert acceptance_target_ids is not None
+            assert acceptance_basis_fingerprint is not None
+            next_acceptance_target_ids = acceptance_target_ids
+            next_acceptance_basis_fingerprint = acceptance_basis_fingerprint
+        else:
+            next_acceptance_target_ids = self.acceptance_target_ids
+            next_acceptance_basis_fingerprint = self.acceptance_basis_fingerprint
+
         payload = stable_payload(self)
         payload.update(
             {
@@ -186,11 +245,9 @@ class TaskState(LunaContractModel):
                     if decision_state is not None
                     else self.decision_state
                 ),
-                "specification_judgment": (
-                    specification_judgment
-                    if specification_judgment is not None
-                    else self.specification_judgment
-                ),
+                "specification_judgment": next_specification,
+                "acceptance_target_ids": next_acceptance_target_ids,
+                "acceptance_basis_fingerprint": next_acceptance_basis_fingerprint,
                 "invalidation_state": (
                     invalidation_state
                     if invalidation_state is not None
