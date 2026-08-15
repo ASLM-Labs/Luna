@@ -1163,8 +1163,19 @@ def test_c4_new_verified_project_policy_on_resume_requires_replan_before_model_c
         and item.statement == policy_statement
         for item in resumed.state.specification_judgment.constraints
     )
-    assert "c4_verified_project_policy_basis_changed" in resumed.reasons
+    assert "acceptance_backchain_basis_invalidated" in resumed.reasons
     assert "changed_basis_replan_required" in resumed.reasons
+    assert any(
+        reason.startswith("invalidated_basis:acceptance_backchain:")
+        for reason in resumed.reasons
+    )
+    assert resumed.state.invalidation_state is not None
+    invalidation = resumed.state.invalidation_state.latest_report
+    assert invalidation is not None
+    assert any(
+        item.layer is InvalidationLayer.ACCEPTANCE_BACKCHAIN
+        for item in invalidation.impacts
+    )
     assert backend.call_count == 1
 
 

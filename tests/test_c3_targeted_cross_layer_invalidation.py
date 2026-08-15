@@ -8,10 +8,13 @@ import pytest
 
 from luna.context import (
     ContextAuthorityRole,
+    ContextBudget,
+    ContextCandidate,
     ContextClaim,
     ContextClaimType,
     ContextIntegrityGate,
     ContextRequirement,
+    ContextSource,
     ContextSourceKind,
     LayeredContextComposer,
 )
@@ -40,6 +43,7 @@ from luna.planning import (
     LocalJudgmentBuilder,
     TargetedInvalidationCoordinator,
 )
+from luna.preparation import TaskPreparation, TaskPreparer
 
 
 def _state(task_id: UUID, *, plan: tuple[PlanStep, ...] = ()) -> TaskState:
@@ -55,6 +59,57 @@ def _state(task_id: UUID, *, plan: tuple[PlanStep, ...] = ()) -> TaskState:
         ),
         plan=plan,
         decision_state=DecisionStateSnapshot.empty(task_id),
+    )
+
+
+def _c5_preparation(
+    *,
+    task_id: UUID,
+    soft_preferences: tuple[str, ...],
+) -> TaskPreparation:
+    request = "Exercise targeted cross-layer invalidation."
+    return TaskPreparer().prepare(
+        request=request,
+        scope=TaskScope(workspace_root="C:/repo"),
+        context_candidates=[
+            ContextCandidate(
+                source=ContextSource.from_text(
+                    kind=ContextSourceKind.USER_MESSAGE,
+                    locator="user:request",
+                    text=request,
+                    verified=True,
+                ),
+                required=True,
+                priority=100,
+            )
+        ],
+        context_budget=ContextBudget(),
+        required_conditions=("Only dependent cognition is invalidated.",),
+        evidence_required=("Changed-basis evidence is preserved.",),
+        soft_preferences=soft_preferences,
+        task_id=task_id,
+    )
+
+
+def _c5_bound_state(
+    *,
+    preparation: TaskPreparation,
+    plan: tuple[PlanStep, ...],
+) -> TaskState:
+    assert preparation.contract is not None
+    backchain = LocalJudgmentBuilder().acceptance_from_basis(
+        contract=preparation.contract,
+        specification=preparation.specification_judgment,
+    )
+    assert backchain.acceptance_basis_fingerprint is not None
+    return TaskState(
+        task_id=preparation.contract.task_id,
+        contract=preparation.contract,
+        plan=plan,
+        decision_state=DecisionStateSnapshot.empty(preparation.contract.task_id),
+        specification_judgment=preparation.specification_judgment,
+        acceptance_target_ids=tuple(item.target_id for item in backchain.targets),
+        acceptance_basis_fingerprint=backchain.acceptance_basis_fingerprint,
     )
 
 
@@ -116,6 +171,184 @@ def _transition_assumption(
 
 def _impact_refs(report) -> set[str]:
     return {item.target_ref for item in report.impacts}
+
+
+def test_c5_acceptance_basis_change_invalidates_bound_plan_via_native_c3_graph() -> None:
+    task_id = uuid4()
+    first_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer concise output.",),
+    )
+    second_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer detailed output.",),
+    )
+    first = PlanStep(sequence=1, description="Work under the original acceptance basis.")
+    second = PlanStep(
+        sequence=2,
+        description="Verify the basis-bound work.",
+        depends_on=(first.step_id,),
+    )
+    previous = _c5_bound_state(
+        preparation=first_preparation,
+        plan=(first, second),
+    )
+    old_basis = previous.acceptance_basis_fingerprint
+    assert old_basis is not None
+    assert (
+        first_preparation.specification_judgment.specification_basis_fingerprint
+        != second_preparation.specification_judgment.specification_basis_fingerprint
+    )
+
+    current = previous.revise(
+        specification_judgment=second_preparation.specification_judgment,
+    )
+    assert current.acceptance_target_ids == ()
+    assert current.acceptance_basis_fingerprint is None
+
+    report, revised = TargetedInvalidationCoordinator().reconcile(
+        previous_state=previous,
+        current_state=current,
+        evidence_refs=("repo:policy:new",),
+        provenance_refs=("repo://CONTRIBUTING.md",),
+    )
+
+    acceptance_ref = TargetedInvalidationCoordinator.acceptance_backchain_ref(old_basis)
+    acceptance_impact = next(
+        item for item in report.impacts if item.target_ref == acceptance_ref
+    )
+    assert report.trigger_refs == (acceptance_ref,)
+    assert report.control_action is InvalidationControlAction.REPLAN
+    assert report.completion_claim_stale is False
+    assert "acceptance_backchain_basis_invalidated" in report.reason_codes
+    assert acceptance_impact.layer is InvalidationLayer.ACCEPTANCE_BACKCHAIN
+    assert acceptance_impact.direct is True
+    assert acceptance_impact.changed_basis_evidence_refs == ()
+    assert (
+        "c4:specification_basis:"
+        + first_preparation.specification_judgment.specification_basis_fingerprint
+        in report.provenance_refs
+    )
+    assert (
+        "c4:specification_basis:"
+        + second_preparation.specification_judgment.specification_basis_fingerprint
+        in report.provenance_refs
+    )
+    assert all(item.status is PlanStepStatus.BLOCKED for item in revised.plan)
+
+
+def test_c5_rebound_acceptance_basis_does_not_revalidate_the_old_plan() -> None:
+    task_id = uuid4()
+    first_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer concise output.",),
+    )
+    second_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer detailed output.",),
+    )
+    step = PlanStep(sequence=1, description="Plan built under the original acceptance basis.")
+    previous = _c5_bound_state(preparation=first_preparation, plan=(step,))
+    assert second_preparation.contract is not None
+    next_backchain = LocalJudgmentBuilder().acceptance_from_basis(
+        contract=second_preparation.contract,
+        specification=second_preparation.specification_judgment,
+    )
+    old_basis = previous.acceptance_basis_fingerprint
+    new_basis = next_backchain.acceptance_basis_fingerprint
+    assert old_basis is not None
+    assert new_basis is not None
+    assert new_basis != old_basis
+
+    current = previous.revise(
+        specification_judgment=second_preparation.specification_judgment,
+        acceptance_target_ids=tuple(item.target_id for item in next_backchain.targets),
+        acceptance_basis_fingerprint=new_basis,
+    )
+    report, revised = TargetedInvalidationCoordinator().reconcile(
+        previous_state=previous,
+        current_state=current,
+        evidence_refs=("repo:policy:new",),
+        provenance_refs=("repo://CONTRIBUTING.md",),
+    )
+
+    old_ref = TargetedInvalidationCoordinator.acceptance_backchain_ref(old_basis)
+    new_ref = TargetedInvalidationCoordinator.acceptance_backchain_ref(new_basis)
+    assert report.trigger_refs == (old_ref,)
+    assert report.control_action is InvalidationControlAction.REPLAN
+    assert new_ref in report.preserved_refs
+    assert revised.plan[0].status is PlanStepStatus.BLOCKED
+
+
+def test_c5_acceptance_basis_change_stales_existing_completion_claim() -> None:
+    task_id = uuid4()
+    first_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer concise output.",),
+    )
+    second_preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer detailed output.",),
+    )
+    step = PlanStep(
+        sequence=1,
+        description="Previously verified basis-bound work.",
+        status=PlanStepStatus.COMPLETE,
+    )
+    previous = _c5_bound_state(
+        preparation=first_preparation,
+        plan=(step,),
+    ).model_copy(
+        update={
+            "phase": TaskPhase.REPORTING,
+            "completion_status": CompletionStatus.VERIFIED_COMPLETE,
+        }
+    )
+    old_basis = previous.acceptance_basis_fingerprint
+    assert old_basis is not None
+    current = previous.revise(
+        specification_judgment=second_preparation.specification_judgment,
+    )
+
+    report, revised = TargetedInvalidationCoordinator().reconcile(
+        previous_state=previous,
+        current_state=current,
+        evidence_refs=("repo:policy:new",),
+        provenance_refs=("repo://CONTRIBUTING.md",),
+    )
+
+    assert report.control_action is InvalidationControlAction.STOP_VERIFY
+    assert report.completion_claim_stale is True
+    assert revised.completion_status is CompletionStatus.VERIFIED_COMPLETE
+    layers = {item.layer for item in report.impacts}
+    assert InvalidationLayer.ACCEPTANCE_BACKCHAIN in layers
+    assert InvalidationLayer.COMPLETION_CLAIM in layers
+    assert TargetedInvalidationCoordinator.acceptance_backchain_ref(old_basis) in (
+        report.trigger_refs
+    )
+
+
+def test_c5_same_acceptance_basis_does_not_seed_invalidation() -> None:
+    task_id = uuid4()
+    preparation = _c5_preparation(
+        task_id=task_id,
+        soft_preferences=("Prefer concise output.",),
+    )
+    step = PlanStep(sequence=1, description="Remain on the same acceptance basis.")
+    previous = _c5_bound_state(preparation=preparation, plan=(step,))
+    current = previous.revise()
+
+    report, same = TargetedInvalidationCoordinator().reconcile(
+        previous_state=previous,
+        current_state=current,
+        evidence_refs=("repo:policy:unchanged",),
+        provenance_refs=("repo://CONTRIBUTING.md",),
+    )
+
+    assert report.control_action is InvalidationControlAction.NONE
+    assert report.impacts == ()
+    assert report.trigger_refs == ()
+    assert same is current
 
 
 def test_assumption_invalidation_propagates_only_to_dependent_decision() -> None:

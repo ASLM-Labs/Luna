@@ -389,9 +389,19 @@ class ModelPolicyAgent:
             base=base_specification,
             state=state,
         )
-        judgment_state = state.model_copy(
-            update={"specification_judgment": specification}
-        )
+        judgment_update: dict[str, object] = {"specification_judgment": specification}
+        if (
+            state.specification_judgment is not None
+            and specification.specification_basis_fingerprint
+            != state.specification_judgment.specification_basis_fingerprint
+        ):
+            judgment_update.update(
+                {
+                    "acceptance_target_ids": (),
+                    "acceptance_basis_fingerprint": None,
+                }
+            )
+        judgment_state = state.model_copy(update=judgment_update)
         verification = self._verification_selector.select(
             contract=state.contract,
             step=step,

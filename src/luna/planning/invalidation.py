@@ -72,6 +72,10 @@ class TargetedInvalidationCoordinator:
         return f"plan_step:{step_id}"
 
     @staticmethod
+    def acceptance_backchain_ref(acceptance_basis_fingerprint: str) -> str:
+        return f"acceptance_backchain:{acceptance_basis_fingerprint}"
+
+    @staticmethod
     def _compression_ref(compression: _CompressionLike) -> str:
         return f"decision_compression:{compression.decision_basis_fingerprint}"
 
@@ -150,6 +154,18 @@ class TargetedInvalidationCoordinator:
             seeds.append(decision)
         return tuple(seeds)
 
+    @classmethod
+    def _direct_acceptance_seed(
+        cls,
+        *,
+        previous: TaskState,
+        current: TaskState,
+    ) -> str | None:
+        previous_basis = previous.acceptance_basis_fingerprint
+        if previous_basis is None or previous_basis == current.acceptance_basis_fingerprint:
+            return None
+        return cls.acceptance_backchain_ref(previous_basis)
+
     @staticmethod
     def _direct_plan_seeds(
         *,
@@ -218,6 +234,15 @@ class TargetedInvalidationCoordinator:
         previous_snapshot = self._decision_state.ensure(previous.task_id, previous.decision_state)
         current_snapshot = self._decision_state.ensure(current.task_id, current.decision_state)
 
+        for basis in (
+            previous.acceptance_basis_fingerprint,
+            current.acceptance_basis_fingerprint,
+        ):
+            if basis is not None:
+                layers[self.acceptance_backchain_ref(basis)] = (
+                    InvalidationLayer.ACCEPTANCE_BACKCHAIN
+                )
+
         for assumption in (*previous_snapshot.assumptions, *current_snapshot.assumptions):
             layers[self.assumption_ref(assumption.assumption_id)] = InvalidationLayer.ASSUMPTION
 
@@ -242,6 +267,14 @@ class TargetedInvalidationCoordinator:
                 dependency_ref = self.plan_step_ref(dependency_id)
                 layers.setdefault(dependency_ref, InvalidationLayer.PLAN_STEP)
                 dependents[dependency_ref].add(step_ref)
+
+        for basis_state in (previous, current):
+            basis = basis_state.acceptance_basis_fingerprint
+            if basis is None:
+                continue
+            acceptance_ref = self.acceptance_backchain_ref(basis)
+            for step in basis_state.plan:
+                dependents[acceptance_ref].add(self.plan_step_ref(step.step_id))
 
         for decision in all_decisions.values():
             subject_ref = decision.subject_ref
@@ -275,6 +308,10 @@ class TargetedInvalidationCoordinator:
         completion_ref = self._completion_ref(current)
         if completion_ref is not None:
             layers[completion_ref] = InvalidationLayer.COMPLETION_CLAIM
+            for basis_state in (previous, current):
+                basis = basis_state.acceptance_basis_fingerprint
+                if basis is not None:
+                    dependents[self.acceptance_backchain_ref(basis)].add(completion_ref)
             for step in current.plan:
                 dependents[self.plan_step_ref(step.step_id)].add(completion_ref)
             for decision in current_snapshot.decisions:
@@ -369,6 +406,10 @@ class TargetedInvalidationCoordinator:
         if current_decision_revision < previous_decision_revision:
             raise ValueError("C3 cannot reconcile a stale decision-state revision")
 
+        acceptance_seed = self._direct_acceptance_seed(
+            previous=previous_state,
+            current=current_state,
+        )
         assumption_seeds = self._direct_assumption_seeds(
             previous=previous_state,
             current=current_state,
@@ -386,6 +427,7 @@ class TargetedInvalidationCoordinator:
 
         seed_refs = self._unique(
             (
+                *((acceptance_seed,) if acceptance_seed is not None else ()),
                 *(self.assumption_ref(item.assumption_id) for item in assumption_seeds),
                 *(self.decision_ref(item.decision_id) for item in decision_seeds),
                 *(self.plan_step_ref(item.step_id) for item in plan_seeds),
@@ -406,6 +448,16 @@ class TargetedInvalidationCoordinator:
         collected_evidence = list(evidence_refs)
         collected_provenance = list(provenance_refs)
         seed_changed_evidence: dict[str, tuple[str, ...]] = {}
+        if acceptance_seed is not None:
+            for specification in (
+                previous_state.specification_judgment,
+                current_state.specification_judgment,
+            ):
+                if specification is not None:
+                    collected_provenance.append(
+                        "c4:specification_basis:"
+                        + specification.specification_basis_fingerprint
+                    )
         for seed in assumption_seeds:
             collected_evidence.extend(seed.evidence_refs)
             collected_provenance.extend(seed.provenance_refs)
@@ -486,6 +538,8 @@ class TargetedInvalidationCoordinator:
             "unrelated_state_preserved",
             "changed_basis_required",
         ]
+        if acceptance_seed is not None:
+            reasons.append("acceptance_backchain_basis_invalidated")
         if critical_invalidated:
             reasons.append("critical_basis_requires_verification")
         elif control_action is InvalidationControlAction.REPLAN:
