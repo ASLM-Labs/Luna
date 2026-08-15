@@ -1,5 +1,12 @@
 """Adaptive planning, expectation evaluation, retry guard, and replanning."""
 
+from luna.planning.capability_selection import (
+    CapabilityDisposition,
+    CapabilityKind,
+    CapabilitySelectionEntry,
+    CapabilitySelectionPlan,
+    GeneralCapabilitySelector,
+)
 from luna.planning.control import (
     DecisionAlternative,
     DecisionAlternativeSet,
@@ -47,6 +54,10 @@ __all__ = [
     "AdaptiveReplanner",
     "AttemptBasis",
     "AttemptRecord",
+    "CapabilityDisposition",
+    "CapabilityKind",
+    "CapabilitySelectionEntry",
+    "CapabilitySelectionPlan",
     "DecisionAlternative",
     "DecisionAlternativeSet",
     "DecisionBasis",
@@ -57,6 +68,7 @@ __all__ = [
     "ExpectationAssessment",
     "ExpectationEvaluator",
     "FailedAssumption",
+    "GeneralCapabilitySelector",
     "InformationGainPlan",
     "InformationNeed",
     "InformationNeedKind",

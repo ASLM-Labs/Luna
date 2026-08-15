@@ -51,8 +51,10 @@ from luna.modeling import (
     ModelUsage,
 )
 from luna.planning import (
+    CapabilitySelectionPlan,
     DecisionCompression,
     DecisionControlAdvisor,
+    GeneralCapabilitySelector,
     InformationGainPlan,
     InformationNeedKind,
     LocalJudgmentBuilder,
@@ -101,6 +103,7 @@ class PolicyTurn(LunaContractModel):
     model_request_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     model_response_id: UUID | None = None
     proposal: ActionProposal | None = None
+    capability_selection: CapabilitySelectionPlan
     retrieval_strategy_fingerprint: str | None = Field(
         default=None, pattern=r"^[0-9a-f]{64}$"
     )
@@ -115,6 +118,8 @@ class PolicyTurn(LunaContractModel):
 
     @model_validator(mode="after")
     def validate_status(self) -> PolicyTurn:
+        if self.capability_selection.task_id != self.task_id:
+            raise ValueError("capability selection task must match policy turn task")
         if self.status is PolicyTurnStatus.ACTION:
             if self.proposal is None or self.invalid_reason is not None:
                 raise ValueError("ACTION policy turn requires exactly one proposal")
@@ -179,6 +184,7 @@ class ModelPolicyAgent:
         self._judgment_builder = LocalJudgmentBuilder()
         self._intent_constraint_judge = IntentConstraintJudge()
         self._decision_control = DecisionControlAdvisor()
+        self._capability_selector = GeneralCapabilitySelector()
         self._retrieval_strategist = InformationRetrievalStrategist()
         self._observed_retrieval_strategies = ObservedRetrievalStrategyLedger()
         self._verification_selector = VerificationStrategySelector()
@@ -359,7 +365,7 @@ class ModelPolicyAgent:
         tool_visibility: ToolVisibilityProjection | None,
         max_output_tokens: int,
         max_input_estimated_tokens: int = 16000,
-    ) -> tuple[ModelRequest, InformationRetrievalStrategy]:
+    ) -> tuple[ModelRequest, InformationRetrievalStrategy, CapabilitySelectionPlan]:
         allowed = set(policy.allowed_tools)
         if tool_visibility is not None:
             if tool_visibility.task_id != task_id:
@@ -452,6 +458,21 @@ class ModelPolicyAgent:
                 else None
             ),
         )
+        acceptance_basis = judgment.acceptance.acceptance_basis_fingerprint
+        if acceptance_basis is None:
+            raise ValueError("C6 policy selection requires a C5 acceptance basis")
+        capability_selection = self._capability_selector.select(
+            task_id=state.task_id,
+            step_id=step.step_id,
+            specification_basis_fingerprint=specification.specification_basis_fingerprint,
+            acceptance_basis_fingerprint=acceptance_basis,
+            decision_basis_fingerprint=compression.decision_basis_fingerprint,
+            retrieval_strategy_fingerprint=retrieval_strategy.strategy_fingerprint,
+            decision_control_action=decision_control.action.value,
+            retrieval_decision=retrieval_strategy.retrieval_plan.decision.value,
+            verification_depth=verification.depth.value,
+            considered_tool_names=advice.considered_tool_names,
+        )
         available_tools = self._tool_advisor.ordered_specs(
             available_tools=allowed_tools,
             advice=advice,
@@ -517,6 +538,9 @@ class ModelPolicyAgent:
                 ),
                 "reason_codes": advice.reason_codes,
             },
+            # C6 selection stays runtime-internal here. The owner outputs above already carry
+            # the decision-changing semantics, so repeating the selection plan would duplicate
+            # fixed model context without adding authority or information.
             "c2_authority_granted": False,
         }
         project_policies = tuple(
@@ -687,6 +711,7 @@ class ModelPolicyAgent:
                 max_output_tokens=max_output_tokens,
             ),
             retrieval_strategy,
+            capability_selection,
         )
 
     def decide(
@@ -703,7 +728,7 @@ class ModelPolicyAgent:
         tool_visibility: ToolVisibilityProjection | None = None,
         max_input_estimated_tokens: int = 16000,
     ) -> PolicyTurn:
-        request, retrieval_strategy = self._request(
+        request, retrieval_strategy, capability_selection = self._request(
             task_id=task_id,
             trace_id=trace_id,
             raw_request=raw_request,
@@ -724,6 +749,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.BACKEND_FAILURE,
                 model_request_id=request.request_id,
                 model_request_fingerprint=request.fingerprint(),
+                capability_selection=capability_selection,
                 invalid_reason=exc.safe_reason,
                 backend_error_code=exc.code,
                 backend_error_backend_id=exc.backend_id,
@@ -737,6 +763,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.BACKEND_FAILURE,
                 model_request_id=request.request_id,
                 model_request_fingerprint=request.fingerprint(),
+                capability_selection=capability_selection,
                 invalid_reason="model backend raised an unclassified exception",
                 backend_error_code=ModelBackendErrorCode.UNKNOWN,
                 backend_error_backend_id=self._backend.backend_id,
@@ -749,6 +776,7 @@ class ModelPolicyAgent:
             trace_id=trace_id,
             step=step,
             retrieval_strategy=retrieval_strategy,
+            capability_selection=capability_selection,
         )
 
     def _normalize(
@@ -760,6 +788,7 @@ class ModelPolicyAgent:
         trace_id: UUID,
         step: PlanStep,
         retrieval_strategy: InformationRetrievalStrategy,
+        capability_selection: CapabilitySelectionPlan,
     ) -> PolicyTurn:
         fingerprint = request.fingerprint()
         if response.request_id != request.request_id:
@@ -769,6 +798,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INVALID,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason="model response request_id does not match request",
@@ -781,6 +811,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INVALID,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason="model backend returned ERROR finish reason",
@@ -793,6 +824,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INCOMPLETE,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 usage=response.usage,
@@ -804,6 +836,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.YIELD,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 usage=response.usage,
@@ -815,6 +848,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INVALID,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason=(
@@ -834,6 +868,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INVALID,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason=f"model proposed unregistered or unrouted tool: {call.tool_name}",
@@ -846,6 +881,7 @@ class ModelPolicyAgent:
                 status=PolicyTurnStatus.INVALID,
                 model_request_id=request.request_id,
                 model_request_fingerprint=fingerprint,
+                capability_selection=capability_selection,
                 model_response_id=response.response_id,
                 response_text=response.text,
                 invalid_reason=f"tool route is not singular: {call.tool_name}",
@@ -878,6 +914,7 @@ class ModelPolicyAgent:
             status=PolicyTurnStatus.ACTION,
             model_request_id=request.request_id,
             model_request_fingerprint=fingerprint,
+            capability_selection=capability_selection,
             model_response_id=response.response_id,
             proposal=proposal,
             retrieval_strategy_fingerprint=(

@@ -856,6 +856,7 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     assert '"decision_control"' in second_turn_text
     assert '"retrieval_strategy"' in second_turn_text
     assert '"tool_advice"' in second_turn_text
+    assert '"capability_selection"' not in second_turn_text
     assert "advisory_only_no_authority" in second_turn_text
     assert '"c2_authority_granted": false' in second_turn_text
     assert "expected_sha256" not in second_turn_text
