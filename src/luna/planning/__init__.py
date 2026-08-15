@@ -15,6 +15,13 @@ from luna.planning.control import (
     DecisionControlAdvisor,
     DecisionControlAssessment,
 )
+from luna.planning.coordination import (
+    CoordinationMode,
+    CoordinationPlan,
+    GeneralCoordinationPlanner,
+    WorkerAssignment,
+    WorkerRole,
+)
 from luna.planning.expectation import ExpectationEvaluator
 from luna.planning.invalidation import TargetedInvalidationCoordinator
 from luna.planning.judgment import (
@@ -58,6 +65,8 @@ __all__ = [
     "CapabilityKind",
     "CapabilitySelectionEntry",
     "CapabilitySelectionPlan",
+    "CoordinationMode",
+    "CoordinationPlan",
     "DecisionAlternative",
     "DecisionAlternativeSet",
     "DecisionBasis",
@@ -69,6 +78,7 @@ __all__ = [
     "ExpectationEvaluator",
     "FailedAssumption",
     "GeneralCapabilitySelector",
+    "GeneralCoordinationPlanner",
     "InformationGainPlan",
     "InformationNeed",
     "InformationNeedKind",
@@ -84,4 +94,6 @@ __all__ = [
     "TargetedInvalidationCoordinator",
     "TaskComplexity",
     "TaskPlan",
+    "WorkerAssignment",
+    "WorkerRole",
 ]
