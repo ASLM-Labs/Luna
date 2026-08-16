@@ -28,6 +28,14 @@ from luna.context import (
     ReadinessDecision,
 )
 from luna.continuity import ResumePolicy, ResumeStatus
+from luna.continuity.policy_reconciliation import (
+    reconcile_cognitive_rehydration_requirements,
+)
+from luna.continuity.store import (
+    CheckpointNotFoundError,
+    CognitivePolicyNotFoundError,
+    ContinuityError,
+)
 from luna.contracts import (
     CompletionStatus,
     ConstraintKind,
@@ -447,6 +455,65 @@ class LunaRuntime:
         self._validate_policy_boundary(request=request, policy=tool_policy)
         started_at = utc_now()
         usage = _UsageCounter(request.runtime_budget, monotonic())
+
+        # C2B-G1: a RuntimeRequest carries the complete current readiness-policy
+        # snapshot. On RESUME, reconcile that snapshot against the exact policy
+        # bound to the latest durable checkpoint before any path may checkpoint
+        # again (including side-effect reconciliation).
+        try:
+            policy_source = self._deps.core.continuity_service.store.load_latest(
+                request.task_id
+            )
+        except CheckpointNotFoundError:
+            # A recoverable side-effect receipt can exist before the task has ever
+            # produced a continuity checkpoint. With no historical checkpoint,
+            # there is no historical cognitive policy to reconcile.
+            effective_requirements = request.context_requirements
+        else:
+            try:
+                historical_policy = (
+                    self._deps.core.continuity_service.store.load_checkpoint_cognitive_policy(
+                        policy_source.envelope.checkpoint.checkpoint_id
+                    ).policy
+                )
+            except CognitivePolicyNotFoundError:
+                # Legacy/non-integrated checkpoints intentionally carry no policy
+                # sidecar. Their current request requirements become the new basis.
+                effective_requirements = request.context_requirements
+            except ContinuityError as exc:
+                return self._outcome(
+                    request=request,
+                    state=policy_source.envelope.state,
+                    usage=usage.snapshot(),
+                    stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                    reasons=(f"cognitive rehydration policy integrity failure: {exc}",),
+                    started_at=started_at,
+                )
+            else:
+                try:
+                    reconciliation = reconcile_cognitive_rehydration_requirements(
+                        historical_policy=historical_policy,
+                        current_requirements=request.context_requirements,
+                        decision_state=policy_source.envelope.state.decision_state,
+                    )
+                except ValueError as exc:
+                    return self._outcome(
+                        request=request,
+                        state=policy_source.envelope.state,
+                        usage=usage.snapshot(),
+                        stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                        reasons=(
+                            f"cognitive rehydration policy reconciliation failed: {exc}",
+                        ),
+                        started_at=started_at,
+                    )
+                effective_requirements = reconciliation.effective_requirements
+
+        if effective_requirements != request.context_requirements:
+            # Derive an invocation-local request; never mutate the caller's object.
+            request = request.model_copy(
+                update={"context_requirements": effective_requirements}
+            )
 
         recoverable = self._deps.runtime_journal.latest_recoverable(request.task_id)
         if recoverable is not None:
@@ -2481,6 +2548,7 @@ class LunaRuntime:
             attempts=attempts,
             resume_phase=resume_phase,
             trace_id=request.trace_id,
+            cognitive_requirements=request.context_requirements,
         )
         return stored.envelope.state, stored.envelope.checkpoint.checkpoint_id
 

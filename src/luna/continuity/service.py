@@ -7,6 +7,12 @@ from uuid import UUID
 
 from luna.audit.models import AuditEventKind
 from luna.audit.session import AuditSession
+from luna.context.integrity_models import ContextRequirement
+from luna.continuity.cognitive import (
+    CognitiveOwnerBinding,
+    build_cognitive_rehydration_manifest,
+    build_cognitive_rehydration_policy,
+)
 from luna.continuity.models import (
     CheckpointEnvelope,
     ResumeCompatibilityDimension,
@@ -15,6 +21,7 @@ from luna.continuity.models import (
     ResumePolicy,
     ResumeStatus,
     StoredCheckpoint,
+    model_digest,
 )
 from luna.continuity.store import (
     CheckpointNotFoundError,
@@ -98,10 +105,20 @@ class ContinuityService:
         attempts: Iterable[AttemptRecord] = (),
         resume_phase: TaskPhase | None = None,
         trace_id: UUID | None = None,
+        cognitive_bindings: Iterable[CognitiveOwnerBinding] | None = None,
+        cognitive_requirements: Iterable[ContextRequirement] | None = None,
     ) -> StoredCheckpoint:
         if self.audit is not None and trace_id is None:
             raise ValueError("audited checkpoint requires trace_id")
 
+        cognitive_bindings_tuple = (
+            tuple(cognitive_bindings) if cognitive_bindings is not None else None
+        )
+        cognitive_requirements_tuple = (
+            tuple(cognitive_requirements)
+            if cognitive_requirements is not None
+            else None
+        )
         latest: StoredCheckpoint | None
         try:
             latest = self.store.load_latest(state.task_id)
@@ -180,7 +197,53 @@ class ContinuityService:
             attempt_records=tuple(attempts),
             terminal=terminal,
         )
-        stored = self.store.save_checkpoint(envelope)
+        if cognitive_bindings_tuple is None and cognitive_requirements_tuple is None:
+            stored = self.store.save_checkpoint(envelope)
+        else:
+            state_sha256 = model_digest(envelope.state)
+            manifest = (
+                build_cognitive_rehydration_manifest(
+                    task_id=envelope.state.task_id,
+                    checkpoint_id=envelope.checkpoint.checkpoint_id,
+                    task_revision=envelope.state.revision,
+                    task_state_sha256=state_sha256,
+                    bindings=cognitive_bindings_tuple,
+                )
+                if cognitive_bindings_tuple is not None
+                else None
+            )
+            policy = (
+                build_cognitive_rehydration_policy(
+                    task_id=envelope.state.task_id,
+                    checkpoint_id=envelope.checkpoint.checkpoint_id,
+                    task_revision=envelope.state.revision,
+                    task_state_sha256=state_sha256,
+                    requirements=cognitive_requirements_tuple,
+                )
+                if cognitive_requirements_tuple is not None
+                else None
+            )
+
+            if manifest is not None and policy is not None:
+                stored, _, _ = (
+                    self.store.save_checkpoint_with_cognitive_manifest_and_policy(
+                        envelope=envelope,
+                        manifest=manifest,
+                        policy=policy,
+                    )
+                )
+            elif manifest is not None:
+                stored, _ = self.store.save_checkpoint_with_cognitive_manifest(
+                    envelope=envelope,
+                    manifest=manifest,
+                )
+            elif policy is not None:
+                stored, _ = self.store.save_checkpoint_with_cognitive_policy(
+                    envelope=envelope,
+                    policy=policy,
+                )
+            else:
+                raise AssertionError("unreachable cognitive checkpoint routing state")
 
         if self.audit is not None:
             assert trace_id is not None

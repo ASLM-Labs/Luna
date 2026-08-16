@@ -57,7 +57,7 @@ def test_store_uses_wal_and_schema_migration(tmp_path: Path) -> None:
     store = SQLiteContinuityStore(tmp_path / "runtime.sqlite3")
 
     assert store.journal_mode() == "wal"
-    assert store.schema_version() == 1
+    assert store.schema_version() == 4
 
 
 def test_checkpoint_round_trip_survives_new_store_instance(
@@ -175,7 +175,7 @@ def test_read_connections_release_windows_file_handles(tmp_path: Path) -> None:
         next_step="Run second step.",
     )
 
-    assert store.schema_version() == 1
+    assert store.schema_version() == 4
     assert store.journal_mode() == "wal"
     assert store.load_checkpoint(stored.envelope.checkpoint.checkpoint_id) == stored
     assert store.load_latest(state.task_id) == stored

@@ -1576,3 +1576,150 @@ def test_runtime_exact_call_approval_basis_tracks_fresh_workspace_state(
 
     assert repeated == first
     assert changed != first
+# C2B-G1_RUNTIME_POLICY_CONTINUITY_TESTS_BEGIN
+
+def _c2b_g1_requirement(key: str) -> ContextRequirement:
+    return ContextRequirement(
+        key=key,
+        claim_type=ContextClaimType.REPOSITORY_STATE,
+    )
+
+
+def test_c2b_g1_fresh_runtime_checkpoint_persists_explicit_empty_policy(tmp_path) -> None:
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_calls=0),
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    store = runtime._deps.core.continuity_service.store
+    stored = store.load_latest(request.task_id)
+    bound = store.load_checkpoint_cognitive_policy(
+        stored.envelope.checkpoint.checkpoint_id
+    )
+    assert bound.policy.requirements == ()
+
+
+def test_c2b_g1_resume_gate_failure_forward_carries_current_policy(tmp_path) -> None:
+    runtime = _runtime(tmp_path, ScriptedTestBackend(()))
+    initial_request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_calls=0),
+    )
+    policy = _policy(allowed_tools=("filesystem.read_text",))
+    runtime.run(request=initial_request, tool_policy=policy)
+
+    store = runtime._deps.core.continuity_service.store
+    source = store.load_latest(initial_request.task_id)
+    requirement = _c2b_g1_requirement("g1_current_repository_state")
+    resume_request = _request(
+        tmp_path,
+        task_id=initial_request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+    payload = resume_request.model_dump(mode="json")
+    payload["context_requirements"] = [requirement.model_dump(mode="json")]
+    resume_request = RuntimeRequest.model_validate(payload)
+    caller_requirements = resume_request.context_requirements
+
+    resumed = runtime.resume(request=resume_request, tool_policy=policy)
+
+    assert resumed.stop_reason is RuntimeStopReason.CONTEXT_INCOMPLETE
+    assert resume_request.context_requirements == caller_requirements
+    latest = store.load_latest(initial_request.task_id)
+    assert latest.envelope.checkpoint.checkpoint_id != source.envelope.checkpoint.checkpoint_id
+    bound = store.load_checkpoint_cognitive_policy(
+        latest.envelope.checkpoint.checkpoint_id
+    )
+    assert bound.policy.requirements == caller_requirements
+
+
+def test_c2b_g1_legacy_checkpoint_upgrades_current_policy_forward(tmp_path) -> None:
+    import sqlite3
+
+    runtime = _runtime(tmp_path, ScriptedTestBackend(()))
+    initial_request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_calls=0),
+    )
+    policy = _policy(allowed_tools=("filesystem.read_text",))
+    runtime.run(request=initial_request, tool_policy=policy)
+
+    store = runtime._deps.core.continuity_service.store
+    source = store.load_latest(initial_request.task_id)
+    with sqlite3.connect(store.path) as connection:
+        connection.execute(
+            "DELETE FROM checkpoint_cognitive_policies WHERE checkpoint_id = ?",
+            (str(source.envelope.checkpoint.checkpoint_id),),
+        )
+    assert store.verify_integrity().valid
+
+    requirement = _c2b_g1_requirement("g1_legacy_current_repository_state")
+    resume_request = _request(
+        tmp_path,
+        task_id=initial_request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+    payload = resume_request.model_dump(mode="json")
+    payload["context_requirements"] = [requirement.model_dump(mode="json")]
+    resume_request = RuntimeRequest.model_validate(payload)
+
+    resumed = runtime.resume(request=resume_request, tool_policy=policy)
+
+    assert resumed.stop_reason is RuntimeStopReason.CONTEXT_INCOMPLETE
+    latest = store.load_latest(initial_request.task_id)
+    assert latest.envelope.checkpoint.checkpoint_id != source.envelope.checkpoint.checkpoint_id
+    bound = store.load_checkpoint_cognitive_policy(
+        latest.envelope.checkpoint.checkpoint_id
+    )
+    assert bound.policy.requirements == resume_request.context_requirements
+
+
+def test_c2b_g1_corrupt_bound_policy_fails_safe_without_advancing_checkpoint(tmp_path) -> None:
+    import sqlite3
+
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(tmp_path, backend)
+    initial_request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_calls=0),
+    )
+    policy = _policy(allowed_tools=("filesystem.read_text",))
+    runtime.run(request=initial_request, tool_policy=policy)
+
+    store = runtime._deps.core.continuity_service.store
+    source = store.load_latest(initial_request.task_id)
+    source_id = source.envelope.checkpoint.checkpoint_id
+    with sqlite3.connect(store.path) as connection:
+        connection.execute(
+            "UPDATE checkpoint_cognitive_policies SET policy_id = ? WHERE checkpoint_id = ?",
+            ("missing-cognitive-policy-artifact", str(source_id)),
+        )
+
+    resume_request = _request(
+        tmp_path,
+        task_id=initial_request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+    resumed = runtime.resume(request=resume_request, tool_policy=policy)
+
+    assert resumed.stop_reason is RuntimeStopReason.INTEGRITY_FAILURE
+    assert backend.call_count == 0
+    assert store.load_latest(initial_request.task_id).envelope.checkpoint.checkpoint_id == source_id
+    assert "cognitive rehydration policy integrity failure" in " ".join(resumed.reasons)
+
+# C2B-G1_RUNTIME_POLICY_CONTINUITY_TESTS_END
