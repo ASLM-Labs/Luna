@@ -115,7 +115,7 @@ def compute_verification_basis_fingerprint(
     return _canonical_sha256(payload)
 
 
-def _artifact_sha256(model: LunaContractModel) -> str:
+def compute_artifact_sha256(model: LunaContractModel) -> str:
     return _canonical_sha256(stable_payload(model))
 
 
@@ -155,15 +155,15 @@ def build_verification_episode(
     input_refs = tuple(
         VerificationEvidenceRef(
             evidence_id=item.evidence_id,
-            payload_sha256=_artifact_sha256(item),
+            payload_sha256=compute_artifact_sha256(item),
         )
         for item in evidence_records
     )
 
-    task_contract_sha256 = _artifact_sha256(contract)
-    verification_policy_sha256 = _artifact_sha256(policy)
-    verification_report_sha256 = _artifact_sha256(report)
-    completion_decision_sha256 = _artifact_sha256(decision)
+    task_contract_sha256 = compute_artifact_sha256(contract)
+    verification_policy_sha256 = compute_artifact_sha256(policy)
+    verification_report_sha256 = compute_artifact_sha256(report)
+    completion_decision_sha256 = compute_artifact_sha256(decision)
 
     occurrence_payload = {
         "schema_version": SCHEMA_VERSION,
