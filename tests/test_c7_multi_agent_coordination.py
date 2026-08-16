@@ -429,3 +429,32 @@ def test_c7_patch1_plan_rejects_assignment_dependencies() -> None:
         match="C7 Patch1 worker assignments must remain dependency-free",
     ):
         CoordinationPlan.model_validate(payload)
+
+def test_c7_coordination_plan_rejects_duplicate_assignment_identity() -> None:
+    contract = _contract()
+    steps = _steps()
+
+    valid_plan = GeneralCoordinationPlanner().plan(
+        task_contract=contract,
+        source_task_revision=11,
+        steps=steps,
+        capability_selection_basis_fingerprint=_C6_BASIS,
+        parallelizable_step_ids=(steps[0].step_id, steps[1].step_id),
+        worker_capacity=2,
+    )
+
+    duplicate = valid_plan.assignments[0]
+
+    with pytest.raises(ValidationError):
+        CoordinationPlan(
+            task_id=valid_plan.task_id,
+            source_task_revision=valid_plan.source_task_revision,
+            capability_selection_basis_fingerprint=(
+                valid_plan.capability_selection_basis_fingerprint
+            ),
+            mode=CoordinationMode.PARALLEL_WORKERS,
+            assignments=(duplicate, duplicate),
+            coordination_basis_fingerprint=valid_plan.coordination_basis_fingerprint,
+            reason_codes=valid_plan.reason_codes,
+            provenance_refs=valid_plan.provenance_refs,
+        )

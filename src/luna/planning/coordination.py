@@ -124,6 +124,20 @@ class CoordinationPlan(LunaContractModel):
                 "C7 Patch1 worker assignments must remain dependency-free"
             )
 
+        assignment_ids = tuple(
+            item.assignment_id for item in self.assignments
+        )
+        if len(assignment_ids) != len(set(assignment_ids)):
+            raise ValueError("coordination assignments must have unique IDs")
+
+        assignment_bases = tuple(
+            item.assignment_basis_fingerprint for item in self.assignments
+        )
+        if len(assignment_bases) != len(set(assignment_bases)):
+            raise ValueError(
+                "coordination assignments must have unique basis fingerprints"
+            )
+
         if self.mode is CoordinationMode.SOLO:
             if self.assignments:
                 raise ValueError("SOLO coordination cannot contain worker assignments")

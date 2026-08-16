@@ -390,35 +390,41 @@ def test_c7_execution_and_cleanup_failures_preserve_both_blockers() -> None:
 
 def test_c7_cancellation_stops_new_worker_starts_at_safe_boundary() -> None:
     plan = _parallel_plan(count=3)
-    workers = tuple(
-        _Worker(f"worker:{index}", _success_result)
-        for index in range(3)
+    cancellation = Event()
+
+    def cancel_after_first_execution(
+        assignment: WorkerAssignment,
+    ) -> WorkerResult:
+        cancellation.set()
+        return _success_result(assignment)
+
+    workers = (
+        _Worker("worker:0", cancel_after_first_execution),
+        _Worker("worker:1", _success_result),
+        _Worker("worker:2", _success_result),
     )
     factory = _SequenceFactory(workers)
-
-    checks = 0
-
-    def cancellation_requested() -> bool:
-        nonlocal checks
-        checks += 1
-        return checks >= 4
 
     report = CoordinationRuntime().execute(
         plan=plan,
         worker_factory=factory,
         max_concurrent_worker_executions=2,
-        cancellation_requested=cancellation_requested,
+        cancellation_requested=cancellation.is_set,
     )
 
     assert report.status is CoordinationExecutionStatus.CANCELLED
-    assert tuple(worker.execute_count for worker in workers) == (1, 1, 0)
-    assert factory.create_count == 2
+    assert workers[0].execute_count == 1
+
+    # Cancellation may race with creation/submission of worker 1,
+    # but no new worker may start after the cancellation boundary.
+    assert workers[2].execute_count == 0
+    assert factory.create_count <= 2
     assert workers[2].close_count == 0
+
     assert report.results[2].status is WorkerResultStatus.BLOCKED
     assert report.results[2].blocker_refs == (
         "coordination:cancelled_before_worker_start",
     )
-
 
 def test_c7_zero_worker_capacity_is_rejected() -> None:
     with pytest.raises(
@@ -510,4 +516,121 @@ def test_c7_worker_creation_failure_becomes_failed_result() -> None:
     assert report.results[0].status is WorkerResultStatus.FAILED
     assert report.results[0].blocker_refs == (
         "coordination:worker_creation_failed",
+    )
+
+def test_c7_cancellation_during_worker_creation_prevents_execution() -> None:
+    plan = _review_plan()
+    cancellation = Event()
+    worker = _Worker("worker:cancel-during-create", _success_result)
+
+    class CancellingFactory:
+        def create(self, assignment: WorkerAssignment) -> _Worker:
+            del assignment
+            cancellation.set()
+            return worker
+
+    report = CoordinationRuntime().execute(
+        plan=plan,
+        worker_factory=CancellingFactory(),
+        max_concurrent_worker_executions=1,
+        cancellation_requested=cancellation.is_set,
+    )
+
+    assert report.status is CoordinationExecutionStatus.CANCELLED
+    assert report.worker_ids == ("worker:cancel-during-create",)
+    assert worker.execute_count == 0
+    assert worker.close_count == 1
+    assert report.results[0].status is WorkerResultStatus.BLOCKED
+    assert report.results[0].blocker_refs == (
+        "coordination:cancelled_before_worker_start",
+    )
+
+
+def test_c7_worker_id_is_read_once_before_execution() -> None:
+    plan = _review_plan()
+
+    class UnstableIdWorker:
+        def __init__(self) -> None:
+            self.worker_id_reads = 0
+            self.execute_count = 0
+            self.close_count = 0
+
+        @property
+        def worker_id(self) -> str:
+            self.worker_id_reads += 1
+            if self.worker_id_reads > 1:
+                raise RuntimeError("worker ID must not be read twice")
+            return "worker:stable-snapshot"
+
+        def execute(self, assignment: WorkerAssignment) -> WorkerResult:
+            del assignment
+            self.execute_count += 1
+            raise RuntimeError("synthetic execution failure")
+
+        def close(self) -> None:
+            self.close_count += 1
+
+    worker = UnstableIdWorker()
+
+    class Factory:
+        def create(self, assignment: WorkerAssignment) -> UnstableIdWorker:
+            del assignment
+            return worker
+
+    report = CoordinationRuntime().execute(
+        plan=plan,
+        worker_factory=Factory(),
+        max_concurrent_worker_executions=1,
+    )
+
+    assert report.status is CoordinationExecutionStatus.COLLECTED
+    assert worker.worker_id_reads == 1
+    assert worker.execute_count == 1
+    assert worker.close_count == 1
+    assert report.results[0].status is WorkerResultStatus.FAILED
+    assert report.results[0].blocker_refs == (
+        "coordination:worker_execution_failed",
+    )
+
+
+def test_c7_worker_id_failure_is_contained_and_worker_is_closed() -> None:
+    plan = _review_plan()
+
+    class BrokenIdentityWorker:
+        def __init__(self) -> None:
+            self.execute_count = 0
+            self.close_count = 0
+
+        @property
+        def worker_id(self) -> str:
+            raise RuntimeError("synthetic worker identity failure")
+
+        def execute(self, assignment: WorkerAssignment) -> WorkerResult:
+            del assignment
+            self.execute_count += 1
+            raise AssertionError("worker with invalid identity must not execute")
+
+        def close(self) -> None:
+            self.close_count += 1
+
+    worker = BrokenIdentityWorker()
+
+    class Factory:
+        def create(self, assignment: WorkerAssignment) -> BrokenIdentityWorker:
+            del assignment
+            return worker
+
+    report = CoordinationRuntime().execute(
+        plan=plan,
+        worker_factory=Factory(),
+        max_concurrent_worker_executions=1,
+    )
+
+    assert report.status is CoordinationExecutionStatus.COLLECTED
+    assert report.worker_ids == ()
+    assert worker.execute_count == 0
+    assert worker.close_count == 1
+    assert report.results[0].status is WorkerResultStatus.FAILED
+    assert report.results[0].blocker_refs == (
+        "coordination:worker_identity_failed",
     )

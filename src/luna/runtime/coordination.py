@@ -174,7 +174,7 @@ class CoordinationRuntime:
             result = self._failed_result(
                 assignment=assignment,
                 blocker="coordination:worker_execution_failed",
-                worker_id=worker.worker_id,
+                worker_id=worker_id,
             )
         finally:
             try:
@@ -285,7 +285,24 @@ class CoordinationRuntime:
                             "coordination worker factory must return distinct worker objects"
                         )
 
-                    worker_id = worker.worker_id.strip()
+                    try:
+                        worker_id = worker.worker_id.strip()
+                    except Exception:
+                        result = self._failed_result(
+                            assignment=assignment,
+                            blocker="coordination:worker_identity_failed",
+                        )
+                        try:
+                            worker.close()
+                        except Exception:
+                            result = self._failed_result(
+                                assignment=assignment,
+                                blocker="coordination:worker_cleanup_failed",
+                                previous=result,
+                            )
+                        result_by_assignment[assignment.assignment_id] = result
+                        continue
+
                     if not worker_id:
                         with suppress(Exception):
                             worker.close()
@@ -303,6 +320,38 @@ class CoordinationRuntime:
                     seen_worker_objects.append(worker)
                     seen_worker_ids.add(worker_id)
                     worker_ids_by_assignment[assignment.assignment_id] = worker_id
+
+                    if (
+                        cancellation_requested is not None
+                        and cancellation_requested()
+                    ):
+                        cancelled = True
+                        try:
+                            worker.close()
+                        except Exception:
+                            result_by_assignment[assignment.assignment_id] = (
+                                self._failed_result(
+                                    assignment=assignment,
+                                    blocker="coordination:worker_cleanup_failed",
+                                    worker_id=worker_id,
+                                )
+                            )
+                        else:
+                            result_by_assignment[assignment.assignment_id] = (
+                                self._reconciler.result(
+                                    assignment=assignment,
+                                    status=WorkerResultStatus.BLOCKED,
+                                    blocker_refs=(
+                                        "coordination:cancelled_before_worker_start",
+                                    ),
+                                    provenance_refs=(
+                                        f"task:{assignment.task_id}",
+                                        assignment.assignment_id,
+                                        f"worker:{worker_id}",
+                                    ),
+                                )
+                            )
+                        return
 
                     future = pool.submit(
                         self._execute_one,
