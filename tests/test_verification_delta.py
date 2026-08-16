@@ -11,7 +11,10 @@ from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.contracts.enums import EvidenceResult, EvidenceSourceKind
 from luna.contracts.evidence import Evidence
 from luna.verification.claims import required_condition_claim_id
-from luna.verification.delta import build_verification_delta
+from luna.verification.delta import (
+    build_verification_delta,
+    validate_verification_delta_integrity,
+)
 from luna.verification.episode import (
     VerificationEpisodeManifest,
     build_verification_episode,
@@ -328,6 +331,12 @@ def test_same_evidence_id_with_different_payload_is_identity_conflict(
     conflict = delta.evidence_identity_conflicts[0]
     assert conflict.evidence_id == evidence_id
     assert conflict.before_payload_sha256 != conflict.after_payload_sha256
+
+    assert all(
+        change.evidence_id != evidence_id
+        for change in delta.evidence_changes
+    )
+
     assert delta.verification_output_changed is False
 
 
@@ -412,3 +421,30 @@ def test_cross_task_delta_is_rejected(tmp_path: Path) -> None:
             after_episode=after,
             after_report=after_report,
         )
+
+def test_delta_integrity_rejects_tampered_semantic_payload(
+    tmp_path: Path,
+) -> None:
+    contract = _contract(tmp_path)
+    evidence = (_evidence(contract),)
+    episode, report = _run(
+        tmp_path,
+        contract=contract,
+        policy=_policy(),
+        evidence=evidence,
+        label="delta-integrity",
+    )
+
+    delta = build_verification_delta(
+        before_episode=episode,
+        before_report=report,
+        after_episode=episode,
+        after_report=report,
+    )
+
+    tampered = delta.model_copy(
+        update={"policy_changed": not delta.policy_changed}
+    )
+
+    with pytest.raises(ValueError, match="delta ID"):
+        validate_verification_delta_integrity(tampered)

@@ -14,7 +14,11 @@ from pydantic import Field, field_validator
 from luna.contracts.base import SCHEMA_VERSION, LunaContractModel, require_utc, stable_payload
 from luna.contracts.evidence import Evidence
 from luna.contracts.task import TaskContract
-from luna.verification.models import CompletionGateResult, VerificationPolicy
+from luna.verification.models import (
+    CompletionGateResult,
+    VerificationPolicy,
+    VerificationReport,
+)
 
 DETERMINISTIC_VERIFIER_SEMANTICS_VERSION = "1"
 VERIFICATION_BASIS_SCHEMA_VERSION = 1
@@ -119,6 +123,199 @@ def compute_artifact_sha256(model: LunaContractModel) -> str:
     return _canonical_sha256(stable_payload(model))
 
 
+def _verification_episode_occurrence_payload(
+    *,
+    task_id: UUID,
+    trace_id: UUID,
+    source_task_revision: int,
+    verifier_semantics_version: str,
+    verification_time: datetime,
+    task_contract_sha256: str,
+    verification_policy_sha256: str,
+    input_evidence: tuple[VerificationEvidenceRef, ...],
+    verification_basis_fingerprint: str,
+    verification_report_id: UUID,
+    verification_report_sha256: str,
+    completion_decision_id: UUID,
+    completion_decision_sha256: str,
+    verification_event_id: UUID,
+    completion_event_id: UUID,
+    execution_authority: bool,
+    verification_authority: bool,
+    completion_authority: bool,
+) -> dict[str, object]:
+    """Return the canonical payload bound by an episode ID."""
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "task_id": str(task_id),
+        "trace_id": str(trace_id),
+        "source_task_revision": source_task_revision,
+        "verifier_semantics_version": verifier_semantics_version,
+        "verification_time": verification_time.isoformat(),
+        "task_contract_sha256": task_contract_sha256,
+        "verification_policy_sha256": verification_policy_sha256,
+        "input_evidence": tuple(
+            stable_payload(item)
+            for item in input_evidence
+        ),
+        "verification_basis_fingerprint": (
+            verification_basis_fingerprint
+        ),
+        "verification_report_id": str(verification_report_id),
+        "verification_report_sha256": verification_report_sha256,
+        "completion_decision_id": str(completion_decision_id),
+        "completion_decision_sha256": completion_decision_sha256,
+        "verification_event_id": str(verification_event_id),
+        "completion_event_id": str(completion_event_id),
+        "execution_authority": execution_authority,
+        "verification_authority": verification_authority,
+        "completion_authority": completion_authority,
+    }
+
+def compute_verification_episode_id(
+    episode: VerificationEpisodeManifest,
+) -> str:
+    """Recompute the content-addressed identity of a frozen episode."""
+    digest = _canonical_sha256(
+        _verification_episode_occurrence_payload(
+            task_id=episode.task_id,
+            trace_id=episode.trace_id,
+            source_task_revision=episode.source_task_revision,
+            verifier_semantics_version=(
+                episode.verifier_semantics_version
+            ),
+            verification_time=episode.verification_time,
+            task_contract_sha256=episode.task_contract_sha256,
+            verification_policy_sha256=(
+                episode.verification_policy_sha256
+            ),
+            input_evidence=episode.input_evidence,
+            verification_basis_fingerprint=(
+                episode.verification_basis_fingerprint
+            ),
+            verification_report_id=episode.verification_report_id,
+            verification_report_sha256=(
+                episode.verification_report_sha256
+            ),
+            completion_decision_id=episode.completion_decision_id,
+            completion_decision_sha256=(
+                episode.completion_decision_sha256
+            ),
+            verification_event_id=episode.verification_event_id,
+            completion_event_id=episode.completion_event_id,
+            execution_authority=episode.execution_authority,
+            verification_authority=episode.verification_authority,
+            completion_authority=episode.completion_authority,
+        )
+    )
+    return f"verification-episode:sha256:{digest}"
+
+
+def validate_verification_episode_integrity(
+    episode: VerificationEpisodeManifest,
+) -> VerificationEpisodeManifest:
+    """Reject a manifest whose occurrence payload does not match its ID."""
+    evidence_ids = tuple(
+        item.evidence_id
+        for item in episode.input_evidence
+    )
+    if len(evidence_ids) != len(set(evidence_ids)):
+        raise ValueError(
+            "verification episode input evidence IDs must be unique"
+        )
+
+    expected_id = compute_verification_episode_id(episode)
+    if episode.episode_id != expected_id:
+        raise ValueError(
+            "verification episode ID does not match occurrence payload"
+        )
+
+    return episode
+
+
+def validate_verification_episode_report_binding(
+    *,
+    episode: VerificationEpisodeManifest,
+    report: VerificationReport,
+) -> VerificationReport:
+    """Validate one report against its frozen verification episode."""
+    validate_verification_episode_integrity(episode)
+
+    if report.task_id != episode.task_id:
+        raise ValueError(
+            "verification report task does not match episode"
+        )
+
+    if report.report_id != episode.verification_report_id:
+        raise ValueError(
+            "verification report ID does not match episode"
+        )
+
+    if (
+        compute_artifact_sha256(report)
+        != episode.verification_report_sha256
+    ):
+        raise ValueError(
+            "verification report digest does not match episode"
+        )
+
+    if (
+        compute_artifact_sha256(report.policy)
+        != episode.verification_policy_sha256
+    ):
+        raise ValueError(
+            "verification report policy digest does not match episode"
+        )
+
+    if report.generated_at != episode.verification_time:
+        raise ValueError(
+            "verification report time does not match episode"
+        )
+
+    input_ids = {
+        item.evidence_id
+        for item in episode.input_evidence
+    }
+
+    referenced_ids = set(report.accepted_evidence_ids)
+
+    referenced_ids.update(
+        item.evidence_id
+        for item in report.rejected_evidence
+    )
+    referenced_ids.update(
+        item.evidence_id
+        for item in report.evidence_strength_assessments
+    )
+
+    for claim_assessment in report.claim_assessments:
+        referenced_ids.update(
+            claim_assessment.considered_evidence_ids
+        )
+        referenced_ids.update(
+            claim_assessment.qualifying_evidence_ids
+        )
+
+    for requirement_assessment in report.evidence_requirement_assessments:
+        referenced_ids.update(
+            requirement_assessment.matched_evidence_ids
+        )
+
+    for disagreement in report.disagreements:
+        referenced_ids.update(
+            disagreement.supporting_evidence_ids
+        )
+        referenced_ids.update(
+            disagreement.contradicting_evidence_ids
+        )
+
+    if not referenced_ids.issubset(input_ids):
+        raise ValueError(
+            "verification report references evidence absent from episode"
+        )
+
+    return report
+
 def build_verification_episode(
     *,
     contract: TaskContract,
@@ -165,31 +362,26 @@ def build_verification_episode(
     verification_report_sha256 = compute_artifact_sha256(report)
     completion_decision_sha256 = compute_artifact_sha256(decision)
 
-    occurrence_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "task_id": str(contract.task_id),
-        "trace_id": str(trace_id),
-        "source_task_revision": source_task_revision,
-        "verifier_semantics_version": DETERMINISTIC_VERIFIER_SEMANTICS_VERSION,
-        "verification_time": verification_time.isoformat(),
-        "task_contract_sha256": task_contract_sha256,
-        "verification_policy_sha256": verification_policy_sha256,
-        "input_evidence": tuple(
-            stable_payload(item)
-            for item in input_refs
-        ),
-        "verification_basis_fingerprint": basis,
-        "verification_report_id": str(report.report_id),
-        "verification_report_sha256": verification_report_sha256,
-        "completion_decision_id": str(decision.decision_id),
-        "completion_decision_sha256": completion_decision_sha256,
-        "verification_event_id": str(gate_result.verification_event_id),
-        "completion_event_id": str(gate_result.completion_event_id),
-        "execution_authority": False,
-        "verification_authority": False,
-        "completion_authority": False,
-    }
-
+    occurrence_payload = _verification_episode_occurrence_payload(
+        task_id=contract.task_id,
+        trace_id=trace_id,
+        source_task_revision=source_task_revision,
+        verifier_semantics_version=DETERMINISTIC_VERIFIER_SEMANTICS_VERSION,
+        verification_time=verification_time,
+        task_contract_sha256=task_contract_sha256,
+        verification_policy_sha256=verification_policy_sha256,
+        input_evidence=input_refs,
+        verification_basis_fingerprint=basis,
+        verification_report_id=report.report_id,
+        verification_report_sha256=verification_report_sha256,
+        completion_decision_id=decision.decision_id,
+        completion_decision_sha256=completion_decision_sha256,
+        verification_event_id=gate_result.verification_event_id,
+        completion_event_id=gate_result.completion_event_id,
+        execution_authority=False,
+        verification_authority=False,
+        completion_authority=False,
+    )
     episode_digest = _canonical_sha256(occurrence_payload)
 
     return VerificationEpisodeManifest(

@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from luna.audit import AuditSession
 from luna.contracts import RiskLevel, TaskContract, TaskScope, TaskState
 from luna.contracts.enums import EvidenceResult, EvidenceSourceKind, TaskPhase
@@ -18,6 +20,8 @@ from luna.verification.episode import (
     VerificationEpisodeManifest,
     build_verification_episode,
     compute_verification_basis_fingerprint,
+    validate_verification_episode_integrity,
+    validate_verification_episode_report_binding,
 )
 from luna.verification.gate import CompletionGate
 from luna.verification.models import VerificationPolicy
@@ -231,3 +235,85 @@ def test_coordinator_freezes_evidence_and_returns_episode(tmp_path: Path) -> Non
         finalization.verification_episode.verification_report_id
         == finalization.gate_result.report.report_id
     )
+
+def test_episode_integrity_rejects_tampered_occurrence_payload(
+    tmp_path: Path,
+) -> None:
+    contract = _contract(tmp_path)
+    policy = _policy()
+    now = datetime.now(UTC)
+    evidence = (_evidence(contract, observed_at=now),)
+    audit = AuditSession(tmp_path / "audit-integrity")
+    trace_id = uuid4()
+
+    audit.record_task_contract(contract=contract, trace_id=trace_id)
+    gate_result = CompletionGate(audit).evaluate(
+        contract=contract,
+        evidence=evidence,
+        policy=policy,
+        trace_id=trace_id,
+    )
+
+    episode = build_verification_episode(
+        contract=contract,
+        source_task_revision=3,
+        evidence=evidence,
+        policy=policy,
+        gate_result=gate_result,
+        trace_id=trace_id,
+    )
+
+    tampered = episode.model_copy(
+        update={"source_task_revision": episode.source_task_revision + 1}
+    )
+
+    with pytest.raises(ValueError, match="episode ID"):
+        validate_verification_episode_integrity(tampered)
+
+def test_episode_report_binding_rejects_tampered_report(
+    tmp_path: Path,
+) -> None:
+    contract = _contract(tmp_path)
+    policy = _policy()
+    now = datetime.now(UTC)
+    evidence = (_evidence(contract, observed_at=now),)
+    audit = AuditSession(tmp_path / "audit-report-binding")
+    trace_id = uuid4()
+
+    audit.record_task_contract(contract=contract, trace_id=trace_id)
+    gate_result = CompletionGate(audit).evaluate(
+        contract=contract,
+        evidence=evidence,
+        policy=policy,
+        trace_id=trace_id,
+    )
+
+    episode = build_verification_episode(
+        contract=contract,
+        source_task_revision=4,
+        evidence=evidence,
+        policy=policy,
+        gate_result=gate_result,
+        trace_id=trace_id,
+    )
+
+    # Untampered pair must bind successfully.
+    validate_verification_episode_report_binding(
+        episode=episode,
+        report=gate_result.report,
+    )
+
+    tampered_report = gate_result.report.model_copy(
+        update={
+            "rationale": (
+                *gate_result.report.rationale,
+                "tampered diagnostic rationale",
+            )
+        }
+    )
+
+    with pytest.raises(ValueError, match="report digest"):
+        validate_verification_episode_report_binding(
+            episode=episode,
+            report=tampered_report,
+        )

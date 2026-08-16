@@ -13,6 +13,7 @@ from luna.contracts.enums import CompletionStatus
 from luna.verification.episode import (
     VerificationEpisodeManifest,
     compute_artifact_sha256,
+    validate_verification_episode_report_binding,
 )
 from luna.verification.models import (
     ClaimAssessment,
@@ -291,6 +292,33 @@ class VerificationDelta(LunaContractModel):
     completion_authority: Literal[False] = False
 
 
+def compute_verification_delta_id(
+    delta: VerificationDelta,
+) -> str:
+    """Recompute the content-addressed identity of a verification delta."""
+    identity_payload = _VerificationDeltaIdentityPayload.model_validate(
+        delta.model_dump(
+            mode="python",
+            exclude={"delta_id"},
+        )
+    )
+    digest = compute_artifact_sha256(identity_payload)
+    return f"verification-delta:sha256:{digest}"
+
+
+def validate_verification_delta_integrity(
+    delta: VerificationDelta,
+) -> VerificationDelta:
+    """Reject a delta whose semantic payload does not match its ID."""
+    expected_id = compute_verification_delta_id(delta)
+
+    if delta.delta_id != expected_id:
+        raise ValueError(
+            "verification delta ID does not match semantic payload"
+        )
+
+    return delta
+
 def _unique_map[K: Hashable, T](
     items: tuple[T, ...],
     key: Callable[[T], K],
@@ -308,86 +336,6 @@ def _unique_map[K: Hashable, T](
         result[item_key] = item
 
     return result
-
-
-def _validate_report_binding(
-    *,
-    episode: VerificationEpisodeManifest,
-    report: VerificationReport,
-    label: str,
-) -> None:
-    if report.task_id != episode.task_id:
-        raise ValueError(
-            f"{label} report task does not match episode"
-        )
-
-    if report.report_id != episode.verification_report_id:
-        raise ValueError(
-            f"{label} report ID does not match episode"
-        )
-
-    if (
-        compute_artifact_sha256(report)
-        != episode.verification_report_sha256
-    ):
-        raise ValueError(
-            f"{label} report digest does not match episode"
-        )
-
-    if (
-        compute_artifact_sha256(report.policy)
-        != episode.verification_policy_sha256
-    ):
-        raise ValueError(
-            f"{label} report policy digest does not match episode"
-        )
-
-    if report.generated_at != episode.verification_time:
-        raise ValueError(
-            f"{label} report verification time does not match episode"
-        )
-
-    input_ids = {
-        item.evidence_id
-        for item in episode.input_evidence
-    }
-
-    referenced_ids = set(report.accepted_evidence_ids)
-
-    referenced_ids.update(
-        item.evidence_id
-        for item in report.rejected_evidence
-    )
-    referenced_ids.update(
-        item.evidence_id
-        for item in report.evidence_strength_assessments
-    )
-
-    for claim_assessment in report.claim_assessments:
-        referenced_ids.update(
-            claim_assessment.considered_evidence_ids
-        )
-        referenced_ids.update(
-            claim_assessment.qualifying_evidence_ids
-        )
-
-    for requirement_assessment in report.evidence_requirement_assessments:
-        referenced_ids.update(
-            requirement_assessment.matched_evidence_ids
-        )
-
-    for disagreement in report.disagreements:
-        referenced_ids.update(
-            disagreement.supporting_evidence_ids
-        )
-        referenced_ids.update(
-            disagreement.contradicting_evidence_ids
-        )
-
-    if not referenced_ids.issubset(input_ids):
-        raise ValueError(
-            f"{label} report references evidence absent from episode"
-        )
 
 
 def _evidence_states(
@@ -581,15 +529,13 @@ def build_verification_delta(
             "verification delta requires episodes from the same task"
         )
 
-    _validate_report_binding(
+    validate_verification_episode_report_binding(
         episode=before_episode,
         report=before_report,
-        label="before",
     )
-    _validate_report_binding(
+    validate_verification_episode_report_binding(
         episode=after_episode,
         report=after_report,
-        label="after",
     )
 
     before_evidence = _evidence_states(
@@ -599,22 +545,6 @@ def build_verification_delta(
     after_evidence = _evidence_states(
         after_episode,
         after_report,
-    )
-
-    evidence_changes = tuple(
-        VerificationEvidenceChange(
-            evidence_id=evidence_id,
-            before=before_evidence.get(evidence_id),
-            after=after_evidence.get(evidence_id),
-        )
-        for evidence_id in sorted(
-            set(before_evidence) | set(after_evidence),
-            key=str,
-        )
-        if (
-            before_evidence.get(evidence_id)
-            != after_evidence.get(evidence_id)
-        )
     )
 
     evidence_identity_conflicts = tuple(
@@ -634,6 +564,28 @@ def build_verification_delta(
         if (
             before_evidence[evidence_id].payload_sha256
             != after_evidence[evidence_id].payload_sha256
+        )
+    )
+
+    identity_conflict_ids = {
+        conflict.evidence_id
+        for conflict in evidence_identity_conflicts
+    }
+
+    evidence_changes = tuple(
+        VerificationEvidenceChange(
+            evidence_id=evidence_id,
+            before=before_evidence.get(evidence_id),
+            after=after_evidence.get(evidence_id),
+        )
+        for evidence_id in sorted(
+            set(before_evidence) | set(after_evidence),
+            key=str,
+        )
+        if (
+            evidence_id not in identity_conflict_ids
+            and before_evidence.get(evidence_id)
+            != after_evidence.get(evidence_id)
         )
     )
 
