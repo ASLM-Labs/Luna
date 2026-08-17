@@ -53,6 +53,7 @@ class DecisionCompression(LunaContractModel):
     current_assumption_refs: tuple[str, ...] = ()
     current_decision_refs: tuple[str, ...] = ()
     blocker_refs: tuple[str, ...] = ()
+    hard_constraint_refs: tuple[str, ...] = ()
     invalidated_decision_refs: tuple[str, ...] = ()
     evidence_bound_invalidated_decision_refs: tuple[str, ...] = ()
     reason_codes: tuple[str, ...] = Field(min_length=1)
@@ -66,6 +67,7 @@ class DecisionCompression(LunaContractModel):
         "current_assumption_refs",
         "current_decision_refs",
         "blocker_refs",
+        "hard_constraint_refs",
         "invalidated_decision_refs",
         "evidence_bound_invalidated_decision_refs",
         "reason_codes",
@@ -99,6 +101,90 @@ class DecisionCompression(LunaContractModel):
         return self
 
 
+
+class DecisionRouteTradeoffSignal(LunaContractModel):
+    """External route trade-off input; planning reconciles but does not invent it."""
+
+    task_id: UUID
+    step_id: UUID
+    decision_basis_fingerprint: str = Field(
+        pattern=r"^[0-9a-f]{64}$"
+    )
+    decision_ref: str = Field(
+        min_length=1,
+        max_length=1000,
+    )
+
+    expected_information_gain: int = Field(
+        ge=0,
+        le=100,
+    )
+    risk_cost: int = Field(
+        ge=0,
+        le=100,
+    )
+
+    violated_hard_constraint_refs: tuple[str, ...] = ()
+    evidence_refs: tuple[str, ...] = ()
+    provenance_refs: tuple[str, ...] = Field(
+        min_length=1
+    )
+
+    truth_authority: Literal[False] = False
+    verification_authority: Literal[False] = False
+    decision_control_authority: Literal[False] = False
+    ranking_authority: Literal[False] = False
+    execution_authority: Literal[False] = False
+    runtime_authority: Literal[False] = False
+
+    @field_validator(
+        "violated_hard_constraint_refs",
+        "evidence_refs",
+        "provenance_refs",
+    )
+    @classmethod
+    def validate_tradeoff_refs(
+        cls,
+        values: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        cleaned = tuple(
+            value.strip()
+            for value in values
+        )
+
+        if any(
+            not value
+            for value in cleaned
+        ):
+            raise ValueError(
+                "decision route trade-off refs cannot be blank"
+            )
+
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError(
+                "decision route trade-off refs must be unique"
+            )
+
+        return tuple(sorted(cleaned))
+
+    @model_validator(mode="after")
+    def validate_material_tradeoff_basis(
+        self,
+    ) -> Self:
+        material = bool(
+            self.expected_information_gain
+            or self.risk_cost
+            or self.violated_hard_constraint_refs
+        )
+
+        if material and not self.evidence_refs:
+            raise ValueError(
+                "material route trade-off requires external evidence"
+            )
+
+        return self
+
+
 class DecisionAlternative(LunaContractModel):
     """One observable decision route ranked without creating execution authority."""
 
@@ -108,11 +194,34 @@ class DecisionAlternative(LunaContractModel):
     status: DecisionStatus
     evidence_refs: tuple[str, ...] = ()
     blocker_refs: tuple[str, ...] = ()
+
+    expected_information_gain: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+    )
+    risk_cost: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+    )
+
+    hard_constraint_violation_refs: tuple[str, ...] = ()
+    tradeoff_evidence_refs: tuple[str, ...] = ()
+    tradeoff_provenance_refs: tuple[str, ...] = ()
+
     admissible: bool
     reason_codes: tuple[str, ...] = Field(min_length=1)
     runtime_authority: Literal[False] = False
 
-    @field_validator("evidence_refs", "blocker_refs", "reason_codes")
+    @field_validator(
+        "evidence_refs",
+        "blocker_refs",
+        "hard_constraint_violation_refs",
+        "tradeoff_evidence_refs",
+        "tradeoff_provenance_refs",
+        "reason_codes",
+    )
     @classmethod
     def validate_unique_text(cls, values: tuple[str, ...]) -> tuple[str, ...]:
         cleaned = tuple(value.strip() for value in values)
@@ -124,16 +233,43 @@ class DecisionAlternative(LunaContractModel):
 
     @model_validator(mode="after")
     def validate_admissibility(self) -> Self:
-        expected_admissible = self.status in {
-            DecisionStatus.ACTIVE,
-            DecisionStatus.PENDING,
-        } and not self.blocker_refs
+        material_tradeoff = bool(
+            self.expected_information_gain
+            or self.risk_cost
+            or self.hard_constraint_violation_refs
+        )
+
+        if material_tradeoff and (
+            not self.tradeoff_evidence_refs
+            or not self.tradeoff_provenance_refs
+        ):
+            raise ValueError(
+                "material decision trade-off requires "
+                "evidence and provenance"
+            )
+
+        expected_admissible = (
+            self.status
+            in {
+                DecisionStatus.ACTIVE,
+                DecisionStatus.PENDING,
+            }
+            and not self.blocker_refs
+            and not self.hard_constraint_violation_refs
+        )
+
         if self.admissible is not expected_admissible:
-            raise ValueError("decision alternative admissibility must match status and blockers")
+            raise ValueError(
+                "decision alternative admissibility must match "
+                "status, blockers, and hard constraints"
+            )
+
         return self
 
 
-def _alternative_rank_key(item: DecisionAlternative) -> tuple[int, int, int, str]:
+def _alternative_rank_key(
+    item: DecisionAlternative,
+) -> tuple[int, int, int, int, int, str]:
     status_order = {
         DecisionStatus.ACTIVE: 0,
         DecisionStatus.PENDING: 1,
@@ -141,10 +277,20 @@ def _alternative_rank_key(item: DecisionAlternative) -> tuple[int, int, int, str
         DecisionStatus.BLOCKED: 3,
         DecisionStatus.INVALIDATED: 4,
     }
+
+    evidence_count = len(
+        {
+            *item.evidence_refs,
+            *item.tradeoff_evidence_refs,
+        }
+    )
+
     return (
         0 if item.admissible else 1,
         status_order[item.status],
-        -len(item.evidence_refs),
+        -item.expected_information_gain,
+        item.risk_cost,
+        -evidence_count,
         item.decision_ref,
     )
 
@@ -462,6 +608,7 @@ class DecisionControlAdvisor:
             current_assumption_refs=assumption_refs,
             current_decision_refs=decision_refs,
             blocker_refs=blocker_refs,
+            hard_constraint_refs=decision_basis.hard_constraints,
             invalidated_decision_refs=invalidated_refs,
             evidence_bound_invalidated_decision_refs=tuple(evidence_bound_invalidated_refs),
             reason_codes=tuple(reasons),
@@ -472,6 +619,10 @@ class DecisionControlAdvisor:
         *,
         state: TaskState,
         compression: DecisionCompression,
+        tradeoff_signals: tuple[
+            DecisionRouteTradeoffSignal,
+            ...,
+        ] = (),
     ) -> DecisionAlternativeSet:
         """Regenerate and rank current observable decision routes from C1 state."""
         if compression.task_id != state.task_id:
@@ -483,6 +634,59 @@ class DecisionControlAdvisor:
             raise ValueError(
                 "C2 decision alternatives require a current decision-state compression"
             )
+
+        signal_refs = tuple(
+            item.decision_ref
+            for item in tradeoff_signals
+        )
+
+        if len(signal_refs) != len(set(signal_refs)):
+            raise ValueError(
+                "decision route trade-off signals must be unique"
+            )
+
+        current_decision_refs = {
+            self._decision_ref(item)
+            for item in decisions
+        }
+
+        for signal in tradeoff_signals:
+            if (
+                signal.task_id != state.task_id
+                or signal.step_id != compression.step_id
+            ):
+                raise ValueError(
+                    "decision route trade-off task/step mismatch"
+                )
+
+            if (
+                signal.decision_basis_fingerprint
+                != compression.decision_basis_fingerprint
+            ):
+                raise ValueError(
+                    "stale decision route trade-off basis"
+                )
+
+            if signal.decision_ref not in current_decision_refs:
+                raise ValueError(
+                    "decision route trade-off references "
+                    "a non-current decision"
+                )
+
+            if not set(
+                signal.violated_hard_constraint_refs
+            ).issubset(
+                set(compression.hard_constraint_refs)
+            ):
+                raise ValueError(
+                    "decision route trade-off references "
+                    "an unknown hard constraint"
+                )
+
+        tradeoff_by_ref = {
+            item.decision_ref: item
+            for item in tradeoff_signals
+        }
 
         assumptions_by_id = {item.assumption_id: item for item in assumptions}
         alternatives: list[DecisionAlternative] = []
@@ -518,11 +722,62 @@ class DecisionControlAdvisor:
                     )
                 )
             )
-            admissible = decision.status in {
-                DecisionStatus.ACTIVE,
-                DecisionStatus.PENDING,
-            } and not blocker_refs
-            reasons = [f"status:{decision.status.value}"]
+            decision_ref = self._decision_ref(
+                decision
+            )
+            tradeoff = tradeoff_by_ref.get(
+                decision_ref
+            )
+
+            expected_information_gain = (
+                tradeoff.expected_information_gain
+                if tradeoff is not None
+                else 0
+            )
+            risk_cost = (
+                tradeoff.risk_cost
+                if tradeoff is not None
+                else 0
+            )
+            hard_constraint_violations = (
+                tradeoff.violated_hard_constraint_refs
+                if tradeoff is not None
+                else ()
+            )
+            tradeoff_evidence_refs = (
+                tradeoff.evidence_refs
+                if tradeoff is not None
+                else ()
+            )
+            tradeoff_provenance_refs = (
+                tradeoff.provenance_refs
+                if tradeoff is not None
+                else ()
+            )
+
+            admissible = (
+                decision.status
+                in {
+                    DecisionStatus.ACTIVE,
+                    DecisionStatus.PENDING,
+                }
+                and not blocker_refs
+                and not hard_constraint_violations
+            )
+
+            reasons = [
+                f"status:{decision.status.value}"
+            ]
+
+            if tradeoff is not None:
+                reasons.append(
+                    "external_tradeoff_signal_consumed"
+                )
+
+            if hard_constraint_violations:
+                reasons.append(
+                    "hard_constraint_violation"
+                )
             if evidence_refs:
                 reasons.append("evidence_linked")
             if blocker_refs:
@@ -533,12 +788,25 @@ class DecisionControlAdvisor:
                 reasons.append("inadmissible_current_route")
             alternatives.append(
                 DecisionAlternative(
-                    decision_ref=self._decision_ref(decision),
+                    decision_ref=decision_ref,
                     action_key=decision.action_key,
                     description=decision.description,
                     status=decision.status,
                     evidence_refs=evidence_refs,
                     blocker_refs=blocker_refs,
+                    expected_information_gain=(
+                        expected_information_gain
+                    ),
+                    risk_cost=risk_cost,
+                    hard_constraint_violation_refs=(
+                        hard_constraint_violations
+                    ),
+                    tradeoff_evidence_refs=(
+                        tradeoff_evidence_refs
+                    ),
+                    tradeoff_provenance_refs=(
+                        tradeoff_provenance_refs
+                    ),
                     admissible=admissible,
                     reason_codes=tuple(reasons),
                 )
@@ -689,6 +957,109 @@ class DecisionControlAdvisor:
                     f"information_need:{selected.kind.value}",
                 ),
                 blocker_refs=blockers,
+                verification_required=True,
+            )
+
+        hard_constraint_blocked_active = tuple(
+            item
+            for item in alternatives.alternatives
+            if (
+                item.status is DecisionStatus.ACTIVE
+                and item.hard_constraint_violation_refs
+            )
+        )
+
+        if hard_constraint_blocked_active:
+            violating_decision_refs = tuple(
+                item.decision_ref
+                for item in hard_constraint_blocked_active
+            )
+            violated_constraints = tuple(
+                dict.fromkeys(
+                    ref
+                    for item in hard_constraint_blocked_active
+                    for ref in item.hard_constraint_violation_refs
+                )
+            )
+            tradeoff_evidence = tuple(
+                dict.fromkeys(
+                    ref
+                    for item in hard_constraint_blocked_active
+                    for ref in item.tradeoff_evidence_refs
+                )
+            )
+            selected_alternative = (
+                alternatives.selected_alternative_ref
+            )
+
+            if (
+                tradeoff_evidence
+                and selected_alternative is not None
+                and selected_alternative
+                not in set(violating_decision_refs)
+            ):
+                return DecisionControlAssessment(
+                    task_id=state.task_id,
+                    step_id=information_gain.step_id,
+                    action=DecisionControlAction.SWITCH,
+                    selected_information_need_id=(
+                        information_gain.selected_need_id
+                    ),
+                    selected_alternative_ref=(
+                        selected_alternative
+                    ),
+                    reason_codes=(
+                        "hard_constraint_blocks_current_route",
+                        "evidence_bound_constraint_change",
+                        "admissible_alternative_present",
+                    ),
+                    changed_basis_refs=tuple(
+                        dict.fromkeys(
+                            (
+                                *violating_decision_refs,
+                                *violated_constraints,
+                                *tradeoff_evidence,
+                                selected_alternative,
+                            )
+                        )
+                    ),
+                )
+
+            reasons = [
+                "stop_verify_before_constraint_switch"
+            ]
+            constraint_switch_blockers = [
+                *violating_decision_refs,
+                *violated_constraints,
+            ]
+
+            if not tradeoff_evidence:
+                reasons.append(
+                    "hard_constraint_violation_lacks_evidence"
+                )
+                constraint_switch_blockers.append(
+                    "missing_constraint_change_evidence"
+                )
+
+            if selected_alternative is None:
+                reasons.append(
+                    "hard_constraint_violation_lacks_admissible_alternative"
+                )
+                constraint_switch_blockers.append(
+                    "missing_admissible_alternative"
+                )
+
+            return DecisionControlAssessment(
+                task_id=state.task_id,
+                step_id=information_gain.step_id,
+                action=DecisionControlAction.STOP_VERIFY,
+                selected_information_need_id=(
+                    information_gain.selected_need_id
+                ),
+                reason_codes=tuple(reasons),
+                blocker_refs=tuple(
+                    dict.fromkeys(constraint_switch_blockers)
+                ),
                 verification_required=True,
             )
 

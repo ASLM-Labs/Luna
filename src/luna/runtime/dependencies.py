@@ -29,6 +29,7 @@ from luna.runtime.change_inspector import WorkspaceChangeInspector
 from luna.runtime.environment import RuntimeFingerprintProvider
 from luna.runtime.isolation import WorkspaceIsolationManager
 from luna.runtime.journal import SQLiteRuntimeJournal
+from luna.runtime.knowledge_evolution import KnowledgeEvolutionRuntimeHandoffProvider
 from luna.tools import ToolDispatcher
 from luna.verification import CompletionGate, VerifiedEvidenceRegistry
 from luna.verification.coordinator import VerificationCoordinator
@@ -132,7 +133,7 @@ class Phase12FServices:
 
 @dataclass(frozen=True, slots=True)
 class RuntimeLoopDependencies:
-    """Phase 12E loop services plus optional Phase 12F finalization services."""
+    """Phase 12E loop services plus optional bounded extension services."""
 
     core: RuntimeDependencies
     context_composer: LayeredContextComposer
@@ -147,11 +148,17 @@ class RuntimeLoopDependencies:
     runtime_journal: SQLiteRuntimeJournal
     isolation_manager: WorkspaceIsolationManager
     fingerprint_provider: RuntimeFingerprintProvider
+    knowledge_evolution_handoff_provider: (
+        KnowledgeEvolutionRuntimeHandoffProvider | None
+    ) = None
     phase12f: Phase12FServices | None = None
 
     def __post_init__(self) -> None:
         for item in fields(self):
-            if item.name == "phase12f":
+            if item.name in {
+                "knowledge_evolution_handoff_provider",
+                "phase12f",
+            }:
                 continue
             if getattr(self, item.name) is None:
                 raise ValueError(f"runtime loop dependency cannot be None: {item.name}")

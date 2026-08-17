@@ -14,6 +14,7 @@ from luna.planning.control import (
     DecisionControlAction,
     DecisionControlAdvisor,
     DecisionControlAssessment,
+    DecisionRouteTradeoffSignal,
 )
 from luna.planning.coordination import (
     CoordinationMode,
@@ -34,6 +35,14 @@ from luna.planning.judgment import (
     InformationNeedKind,
     LocalJudgmentBuilder,
     LocalJudgmentContext,
+)
+from luna.planning.knowledge_evolution import (
+    KnowledgeInformationGainRefresh,
+    KnowledgeInformationGainRefresher,
+)
+from luna.planning.knowledge_option_space import (
+    KnowledgeOptionSpaceAttributionBinding,
+    KnowledgeOptionSpaceProjector,
 )
 from luna.planning.lifecycle import PlanLifecycle
 from luna.planning.models import (
@@ -84,6 +93,7 @@ __all__ = [
     "DecisionControlAction",
     "DecisionControlAdvisor",
     "DecisionControlAssessment",
+    "DecisionRouteTradeoffSignal",
     "ExpectationAssessment",
     "ExpectationEvaluator",
     "FailedAssumption",
@@ -92,6 +102,10 @@ __all__ = [
     "InformationGainPlan",
     "InformationNeed",
     "InformationNeedKind",
+    "KnowledgeInformationGainRefresh",
+    "KnowledgeInformationGainRefresher",
+    "KnowledgeOptionSpaceAttributionBinding",
+    "KnowledgeOptionSpaceProjector",
     "LocalJudgmentBuilder",
     "LocalJudgmentContext",
     "PlanLifecycle",

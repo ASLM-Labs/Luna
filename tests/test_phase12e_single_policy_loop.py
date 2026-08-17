@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from threading import Event, Thread
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -35,7 +36,17 @@ from luna.contracts import (
     TaskScope,
     TaskState,
 )
-from luna.decision_state import DecisionStateService
+from luna.decision_state import (
+    DecisionStateService,
+    KnowledgeDecisionStateBinding,
+)
+from luna.knowledge_evolution import (
+    KnowledgeApplicabilitySignal,
+    KnowledgeApplicabilitySignalState,
+    KnowledgeOptionSpaceChangeSignal,
+    KnowledgeValiditySignal,
+    KnowledgeValiditySignalState,
+)
 from luna.memory import VerifiedMemoryService
 from luna.modeling import (
     ModelFinishReason,
@@ -61,6 +72,10 @@ from luna.runtime.dependencies import RuntimeDependencies, RuntimeLoopDependenci
 from luna.runtime.environment import DeterministicFingerprintProvider
 from luna.runtime.isolation import GitWorktreeIsolationManager
 from luna.runtime.journal import RuntimeControlCommand, SideEffectStage, SQLiteRuntimeJournal
+from luna.runtime.knowledge_evolution import (
+    KnowledgeEvolutionRuntimeHandoff,
+    KnowledgeEvolutionRuntimeHandoffProvider,
+)
 from luna.runtime.loop import LunaRuntime
 from luna.runtime.models import RuntimeOutcome, RuntimeStopReason
 from luna.tools import (
@@ -179,6 +194,9 @@ def _runtime(
     *,
     dispatcher: ToolDispatcher | None = None,
     state_root: Path | None = None,
+    knowledge_evolution_handoff_provider: (
+        KnowledgeEvolutionRuntimeHandoffProvider | None
+    ) = None,
 ) -> LunaRuntime:
     registry = build_phase5_registry()
     persistence_root = state_root or tmp_path
@@ -211,6 +229,9 @@ def _runtime(
             runtime_journal=SQLiteRuntimeJournal(persistence_root / "journal.sqlite3"),
             isolation_manager=GitWorktreeIsolationManager(),
             fingerprint_provider=DeterministicFingerprintProvider(),
+            knowledge_evolution_handoff_provider=(
+                knowledge_evolution_handoff_provider
+            ),
         )
     )
 
@@ -1723,3 +1744,419 @@ def test_c2b_g1_corrupt_bound_policy_fails_safe_without_advancing_checkpoint(tmp
     assert "cognitive rehydration policy integrity failure" in " ".join(resumed.reasons)
 
 # C2B-G1_RUNTIME_POLICY_CONTINUITY_TESTS_END
+
+
+# KE_RUNTIME_HANDOFF_TESTS_BEGIN
+
+
+class _KnowledgeEvolutionHandoffTestProvider:
+    def __init__(self) -> None:
+        self.calls: list[tuple[UUID, UUID, int]] = []
+        self._assumption_id: UUID | None = None
+        self._mode: str | None = None
+        self._revision_delta = 0
+
+    def configure(
+        self,
+        *,
+        assumption_id: UUID,
+        mode: str,
+        revision_delta: int = 0,
+    ) -> None:
+        if mode not in {"VERIFY", "CONTRADICT"}:
+            raise ValueError("unsupported KE runtime test mode")
+        self._assumption_id = assumption_id
+        self._mode = mode
+        self._revision_delta = revision_delta
+
+    def handoff_for_turn(
+        self,
+        *,
+        task_id: UUID,
+        step_id: UUID,
+        decision_state_revision: int,
+    ) -> KnowledgeEvolutionRuntimeHandoff | None:
+        self.calls.append(
+            (
+                task_id,
+                step_id,
+                decision_state_revision,
+            )
+        )
+
+        if self._assumption_id is None or self._mode is None:
+            return None
+
+        knowledge_ref = "knowledge:test:runtime-owner-output"
+
+        validity = KnowledgeValiditySignal(
+            knowledge_ref=knowledge_ref,
+            state=(
+                KnowledgeValiditySignalState.CONTRADICTED
+                if self._mode == "CONTRADICT"
+                else KnowledgeValiditySignalState.UNRESOLVED
+            ),
+            source_ref="owner://ke-runtime/validity",
+            evidence_refs=(
+                ("evidence:ke-runtime:contradiction",)
+                if self._mode == "CONTRADICT"
+                else ()
+            ),
+            provenance_refs=("owner:ke-runtime:validity",),
+        )
+
+        applicability = KnowledgeApplicabilitySignal(
+            knowledge_ref=knowledge_ref,
+            state=KnowledgeApplicabilitySignalState.UNRESOLVED,
+            source_ref="owner://ke-runtime/applicability",
+            condition_refs=("condition:ke-runtime:active-task",),
+            provenance_refs=("owner:ke-runtime:applicability",),
+        )
+
+        option_space_change = KnowledgeOptionSpaceChangeSignal(
+            knowledge_ref=knowledge_ref,
+            material_change=False,
+            source_ref="owner://ke-runtime/option-space",
+            provenance_refs=("owner:ke-runtime:option-space",),
+        )
+
+        binding = KnowledgeDecisionStateBinding(
+            task_id=task_id,
+            knowledge_ref=knowledge_ref,
+            assumption_id=self._assumption_id,
+            provenance_refs=("owner:ke-runtime:decision-state-binding",),
+        )
+
+        return KnowledgeEvolutionRuntimeHandoff(
+            task_id=task_id,
+            step_id=step_id,
+            source_decision_state_revision=(
+                decision_state_revision + self._revision_delta
+            ),
+            validity=validity,
+            applicability=applicability,
+            option_space_change=option_space_change,
+            binding=binding,
+        )
+
+
+def _ke_runtime_owner_request(
+    request: RuntimeRequest,
+) -> RuntimeRequest:
+    claim = ContextClaim(
+        task_id=request.task_id,
+        key="ke_runtime_owner_fact",
+        value="owner-observed-current-value",
+        claim_type=ContextClaimType.PROJECT_POLICY,
+        source_kind=ContextSourceKind.DOCUMENT,
+        source_ref="owner://ke-runtime/context",
+        authority_role=ContextAuthorityRole.CANONICAL_PROJECT,
+        verified=True,
+        evidence_refs=("evidence:ke-runtime:context",),
+    )
+
+    payload = request.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [
+                claim.model_dump(mode="json")
+            ],
+            "context_requirements": [
+                ContextRequirement(
+                    key="ke_runtime_owner_fact",
+                    claim_type=ContextClaimType.PROJECT_POLICY,
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    return RuntimeRequest.model_validate(payload)
+
+
+def _ke_runtime_resume_request(
+    *,
+    root: Path,
+    initial_request: RuntimeRequest,
+) -> RuntimeRequest:
+    """Resume with the exact owner context identity from the initial turn."""
+
+    base = _request(
+        root,
+        task_id=initial_request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+
+    payload = base.model_dump(mode="json")
+    payload.update(
+        {
+            "context_claims": [
+                claim.model_dump(mode="json")
+                for claim in initial_request.context_claims
+            ],
+            "context_requirements": [
+                requirement.model_dump(mode="json")
+                for requirement
+                in initial_request.context_requirements
+            ],
+        }
+    )
+
+    return RuntimeRequest.model_validate(payload)
+
+
+def _ke_runtime_owner_assumption_id(
+    state: TaskState,
+) -> UUID:
+    assert state.decision_state is not None
+
+    matches = tuple(
+        item
+        for item in DecisionStateService.current_assumptions(
+            state.decision_state
+        )
+        if item.claim_type
+        == ContextClaimType.PROJECT_POLICY.value
+    )
+
+    assert len(matches) == 1
+    return matches[0].assumption_id
+
+
+def _ke_runtime_two_turn_backend() -> _RecordingScriptedBackend:
+    return _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield after the first owner-state turn.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Yield after the KE owner-output turn.",
+                    finish_reason=ModelFinishReason.STOP,
+                )
+            ),
+        )
+    )
+
+
+def test_ke_runtime_zero_model_budget_does_not_consume_owner_handoff(
+    tmp_path: Path,
+) -> None:
+    provider = _KnowledgeEvolutionHandoffTestProvider()
+    backend = ScriptedTestBackend(())
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        knowledge_evolution_handoff_provider=provider,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.read_text",),
+        runtime_budget=RuntimeBudget(max_model_calls=0),
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.read_text",)
+        ),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.BLOCKED
+    assert outcome.usage.model_calls == 0
+    assert provider.calls == []
+
+
+def test_ke_runtime_verify_handoff_refreshes_information_gain_and_basis(
+    tmp_path: Path,
+) -> None:
+    provider = _KnowledgeEvolutionHandoffTestProvider()
+    backend = _ke_runtime_two_turn_backend()
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        knowledge_evolution_handoff_provider=provider,
+    )
+    policy = _policy(
+        allowed_tools=("filesystem.read_text",)
+    )
+
+    initial_request = _ke_runtime_owner_request(
+        _request(
+            tmp_path,
+            allowed_tools=("filesystem.read_text",),
+        )
+    )
+    initial = runtime.run(
+        request=initial_request,
+        tool_policy=policy,
+    )
+
+    assumption_id = _ke_runtime_owner_assumption_id(
+        initial.state
+    )
+    provider.configure(
+        assumption_id=assumption_id,
+        mode="VERIFY",
+    )
+    provider.calls.clear()
+
+    resume_request = _ke_runtime_resume_request(
+        root=tmp_path,
+        initial_request=initial_request,
+    )
+    resumed = runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert resumed.usage.model_calls == 1
+    assert len(provider.calls) == 1
+    assert len(backend.requests) == 2
+
+    judgment_message = next(
+        message
+        for message in backend.requests[-1].messages
+        if message.name == "local_judgment"
+    )
+    payload = json.loads(judgment_message.content)
+    local_judgment = payload["local_judgment"]
+    information_gain = local_judgment["information_gain"]
+    decision_basis = local_judgment["decision_basis"]
+
+    assert (
+        "ke_owner_validated_signal_consumed"
+        in information_gain["reason_codes"]
+    )
+    assert (
+        "ke_verify_stop_candidate_prioritized"
+        in information_gain["reason_codes"]
+    )
+    assert (
+        decision_basis["selected_information_need_id"]
+        == information_gain["selected_need_id"]
+    )
+
+
+def test_ke_runtime_contradiction_mutates_only_through_decision_state_owner(
+    tmp_path: Path,
+) -> None:
+    provider = _KnowledgeEvolutionHandoffTestProvider()
+    backend = _ke_runtime_two_turn_backend()
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        knowledge_evolution_handoff_provider=provider,
+    )
+    policy = _policy(
+        allowed_tools=("filesystem.read_text",)
+    )
+
+    initial_request = _ke_runtime_owner_request(
+        _request(
+            tmp_path,
+            allowed_tools=("filesystem.read_text",),
+        )
+    )
+    initial = runtime.run(
+        request=initial_request,
+        tool_policy=policy,
+    )
+    assert initial.state.decision_state is not None
+
+    assumption_id = _ke_runtime_owner_assumption_id(
+        initial.state
+    )
+    previous_decision_revision = (
+        initial.state.decision_state.revision
+    )
+
+    provider.configure(
+        assumption_id=assumption_id,
+        mode="CONTRADICT",
+    )
+    provider.calls.clear()
+
+    resume_request = _ke_runtime_resume_request(
+        root=tmp_path,
+        initial_request=initial_request,
+    )
+    resumed = runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert len(provider.calls) == 1
+    assert resumed.state.decision_state is not None
+    assert (
+        resumed.state.decision_state.revision
+        > previous_decision_revision
+    )
+
+    target = next(
+        item
+        for item in resumed.state.decision_state.assumptions
+        if item.assumption_id == assumption_id
+    )
+    assert target.status.value == "CONTRADICTED"
+
+
+def test_ke_runtime_stale_owner_handoff_fails_closed_before_model_call(
+    tmp_path: Path,
+) -> None:
+    provider = _KnowledgeEvolutionHandoffTestProvider()
+    backend = _ke_runtime_two_turn_backend()
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        knowledge_evolution_handoff_provider=provider,
+    )
+    policy = _policy(
+        allowed_tools=("filesystem.read_text",)
+    )
+
+    initial_request = _ke_runtime_owner_request(
+        _request(
+            tmp_path,
+            allowed_tools=("filesystem.read_text",),
+        )
+    )
+    initial = runtime.run(
+        request=initial_request,
+        tool_policy=policy,
+    )
+
+    provider.configure(
+        assumption_id=_ke_runtime_owner_assumption_id(
+            initial.state
+        ),
+        mode="VERIFY",
+        revision_delta=1,
+    )
+    provider.calls.clear()
+    prior_model_requests = len(backend.requests)
+
+    resume_request = _ke_runtime_resume_request(
+        root=tmp_path,
+        initial_request=initial_request,
+    )
+    resumed = runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert (
+        resumed.stop_reason
+        is RuntimeStopReason.INTEGRITY_FAILURE
+    )
+    assert len(provider.calls) == 1
+    assert len(backend.requests) == prior_model_requests
+    assert (
+        "knowledge_evolution_handoff_integrity_failure"
+        in resumed.reasons
+    )
+
+
+# KE_RUNTIME_HANDOFF_TESTS_END

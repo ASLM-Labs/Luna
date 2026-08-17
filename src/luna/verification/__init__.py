@@ -13,6 +13,11 @@ from luna.verification.evidence_store import (
     VerifiedEvidenceRegistry,
 )
 from luna.verification.gate import CompletionGate, CompletionGateError
+from luna.verification.knowledge_evolution import (
+    KnowledgeVerificationClaimBinding,
+    KnowledgeVerificationClaimRole,
+    VerificationKnowledgeEvolutionAdapter,
+)
 from luna.verification.models import (
     ClaimKind,
     ClaimStatus,
@@ -53,9 +58,12 @@ __all__ = [
     "EvidenceStoreError",
     "EvidenceStrength",
     "EvidenceStrengthAssessment",
+    "KnowledgeVerificationClaimBinding",
+    "KnowledgeVerificationClaimRole",
     "SQLiteEvidenceStore",
     "VerificationClaim",
     "VerificationDepth",
+    "VerificationKnowledgeEvolutionAdapter",
     "VerificationPolicy",
     "VerificationReport",
     "VerificationStrategy",

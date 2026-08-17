@@ -4,6 +4,7 @@ from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from luna.actions import InformationAwareToolAdvisor
 from luna.contracts import RiskLevel, TaskContract, TaskScope
@@ -22,6 +23,7 @@ from luna.planning import (
     DecisionCompression,
     DecisionControlAction,
     DecisionControlAdvisor,
+    DecisionRouteTradeoffSignal,
     InformationNeedKind,
     LocalJudgmentBuilder,
 )
@@ -900,3 +902,491 @@ def test_supported_current_basis_continues_without_granting_authority() -> None:
     assert control.runtime_authority is False
     assert control.execution_authority is False
     assert control.completion_authority is False
+
+
+
+def _f3_c2_f5_decision_ref(
+    decision: DecisionRecord,
+) -> str:
+    return (
+        f"decision:{decision.decision_id}:"
+        f"{decision.status.value}"
+    )
+
+
+def _f3_c2_f5_fixture(
+    *,
+    alternate_status: DecisionStatus = DecisionStatus.PENDING,
+    include_alternate: bool = True,
+):
+    task_id = uuid4()
+
+    current = DecisionRecord(
+        task_id=task_id,
+        action_key="current-route",
+        description="Use the current route.",
+        status=DecisionStatus.ACTIVE,
+    )
+
+    alternate = DecisionRecord(
+        task_id=task_id,
+        action_key="alternate-route",
+        description="Use the alternate route.",
+        status=alternate_status,
+    )
+
+    decisions = (
+        (current, alternate)
+        if include_alternate
+        else (current,)
+    )
+
+    snapshot = DecisionStateSnapshot(
+        task_id=task_id,
+        decisions=decisions,
+    )
+
+    state = _state(
+        decision_state=snapshot
+    )
+
+    _, _, judgment = _judgment(
+        state
+    )
+
+    advisor = DecisionControlAdvisor()
+
+    compression = advisor.compress(
+        state=state,
+        information_gain=judgment.information_gain,
+        decision_basis=judgment.decision_basis,
+    )
+
+    return (
+        state,
+        current,
+        alternate,
+        judgment,
+        advisor,
+        compression,
+    )
+
+
+def _f3_c2_f5_signal(
+    *,
+    state: TaskState,
+    compression: DecisionCompression,
+    decision: DecisionRecord,
+    expected_information_gain: int,
+    risk_cost: int,
+    violated_hard_constraint_refs: tuple[str, ...] = (),
+) -> DecisionRouteTradeoffSignal:
+    return DecisionRouteTradeoffSignal(
+        task_id=state.task_id,
+        step_id=compression.step_id,
+        decision_basis_fingerprint=(
+            compression.decision_basis_fingerprint
+        ),
+        decision_ref=_f3_c2_f5_decision_ref(
+            decision
+        ),
+        expected_information_gain=(
+            expected_information_gain
+        ),
+        risk_cost=risk_cost,
+        violated_hard_constraint_refs=(
+            violated_hard_constraint_refs
+        ),
+        evidence_refs=(
+            f"evidence://tradeoff/"
+            f"{decision.action_key}",
+        ),
+        provenance_refs=(
+            "owner://external-route-assessment",
+        ),
+    )
+
+
+def test_f3_compression_projects_hard_constraints_without_rereading_basis() -> None:
+    (
+        _,
+        _,
+        _,
+        judgment,
+        _,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    assert compression.hard_constraint_refs == (
+        judgment.decision_basis.hard_constraints
+    )
+    assert compression.hard_constraint_refs
+    assert compression.raw_evidence_preserved is True
+
+
+def test_c2_tradeoff_ranks_same_status_routes_by_gain_then_risk() -> None:
+    (
+        state,
+        current,
+        alternate,
+        _,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture(
+        alternate_status=DecisionStatus.ACTIVE
+    )
+
+    current_signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=30,
+        risk_cost=10,
+    )
+
+    alternate_signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=alternate,
+        expected_information_gain=80,
+        risk_cost=20,
+    )
+
+    alternatives = advisor.alternatives(
+        state=state,
+        compression=compression,
+        tradeoff_signals=(
+            current_signal,
+            alternate_signal,
+        ),
+    )
+
+    assert alternatives.ranked_alternative_refs[0] == (
+        _f3_c2_f5_decision_ref(
+            alternate
+        )
+    )
+
+    by_ref = {
+        item.decision_ref: item
+        for item in alternatives.alternatives
+    }
+
+    ranked = by_ref[
+        alternatives.ranked_alternative_refs[0]
+    ]
+
+    assert ranked.expected_information_gain == 80
+    assert ranked.risk_cost == 20
+    assert ranked.admissible is True
+
+
+def test_soft_tradeoff_does_not_force_switch_from_supported_current_basis() -> None:
+    (
+        state,
+        current,
+        alternate,
+        judgment,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture(
+        alternate_status=DecisionStatus.ACTIVE
+    )
+
+    signals = (
+        _f3_c2_f5_signal(
+            state=state,
+            compression=compression,
+            decision=current,
+            expected_information_gain=20,
+            risk_cost=10,
+        ),
+        _f3_c2_f5_signal(
+            state=state,
+            compression=compression,
+            decision=alternate,
+            expected_information_gain=90,
+            risk_cost=20,
+        ),
+    )
+
+    alternatives = advisor.alternatives(
+        state=state,
+        compression=compression,
+        tradeoff_signals=signals,
+    )
+
+    control = advisor.assess(
+        state=state,
+        information_gain=judgment.information_gain,
+        compression=compression,
+        alternatives=alternatives,
+    )
+
+    assert (
+        control.action
+        is DecisionControlAction.CONTINUE
+    )
+    assert control.verification_required is False
+
+
+def test_evidence_bound_hard_constraint_violation_switches_to_admissible_route() -> None:
+    (
+        state,
+        current,
+        alternate,
+        judgment,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    violated = (
+        compression.hard_constraint_refs[0],
+    )
+
+    signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=20,
+        risk_cost=90,
+        violated_hard_constraint_refs=violated,
+    )
+
+    alternatives = advisor.alternatives(
+        state=state,
+        compression=compression,
+        tradeoff_signals=(signal,),
+    )
+
+    current_alt = next(
+        item
+        for item in alternatives.alternatives
+        if item.decision_ref
+        == _f3_c2_f5_decision_ref(current)
+    )
+
+    assert current_alt.admissible is False
+    assert (
+        current_alt.hard_constraint_violation_refs
+        == violated
+    )
+    assert alternatives.selected_alternative_ref == (
+        _f3_c2_f5_decision_ref(
+            alternate
+        )
+    )
+
+    control = advisor.assess(
+        state=state,
+        information_gain=judgment.information_gain,
+        compression=compression,
+        alternatives=alternatives,
+    )
+
+    assert (
+        control.action
+        is DecisionControlAction.SWITCH
+    )
+    assert control.selected_alternative_ref == (
+        _f3_c2_f5_decision_ref(
+            alternate
+        )
+    )
+    assert violated[0] in control.changed_basis_refs
+    assert (
+        "evidence_bound_constraint_change"
+        in control.reason_codes
+    )
+
+
+def test_hard_constraint_violation_without_alternate_stops_for_verification() -> None:
+    (
+        state,
+        current,
+        _,
+        judgment,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture(
+        include_alternate=False
+    )
+
+    violated = (
+        compression.hard_constraint_refs[0],
+    )
+
+    signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=10,
+        risk_cost=90,
+        violated_hard_constraint_refs=violated,
+    )
+
+    alternatives = advisor.alternatives(
+        state=state,
+        compression=compression,
+        tradeoff_signals=(signal,),
+    )
+
+    assert alternatives.selected_alternative_ref is None
+
+    control = advisor.assess(
+        state=state,
+        information_gain=judgment.information_gain,
+        compression=compression,
+        alternatives=alternatives,
+    )
+
+    assert (
+        control.action
+        is DecisionControlAction.STOP_VERIFY
+    )
+    assert control.verification_required is True
+    assert (
+        "hard_constraint_violation_lacks_admissible_alternative"
+        in control.reason_codes
+    )
+
+
+def test_tradeoff_signal_rejects_stale_compression_basis() -> None:
+    (
+        state,
+        current,
+        _,
+        _,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=50,
+        risk_cost=20,
+    ).model_copy(
+        update={
+            "decision_basis_fingerprint": (
+                "0" * 64
+            )
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="stale decision route trade-off basis",
+    ):
+        advisor.alternatives(
+            state=state,
+            compression=compression,
+            tradeoff_signals=(signal,),
+        )
+
+
+def test_tradeoff_signal_rejects_unknown_hard_constraint() -> None:
+    (
+        state,
+        current,
+        _,
+        _,
+        advisor,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=50,
+        risk_cost=20,
+        violated_hard_constraint_refs=(
+            "constraint://not-in-current-basis",
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="unknown hard constraint",
+    ):
+        advisor.alternatives(
+            state=state,
+            compression=compression,
+            tradeoff_signals=(signal,),
+        )
+
+
+def test_material_tradeoff_signal_requires_external_evidence() -> None:
+    (
+        state,
+        current,
+        _,
+        _,
+        _,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    with pytest.raises(
+        ValidationError,
+        match="requires external evidence",
+    ):
+        DecisionRouteTradeoffSignal(
+            task_id=state.task_id,
+            step_id=compression.step_id,
+            decision_basis_fingerprint=(
+                compression.decision_basis_fingerprint
+            ),
+            decision_ref=_f3_c2_f5_decision_ref(
+                current
+            ),
+            expected_information_gain=50,
+            risk_cost=20,
+            evidence_refs=(),
+            provenance_refs=(
+                "owner://external-route-assessment",
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "truth_authority",
+        "verification_authority",
+        "decision_control_authority",
+        "ranking_authority",
+        "execution_authority",
+        "runtime_authority",
+    ),
+)
+def test_route_tradeoff_signal_cannot_escalate_authority(
+    field: str,
+) -> None:
+    (
+        state,
+        current,
+        _,
+        _,
+        _,
+        compression,
+    ) = _f3_c2_f5_fixture()
+
+    signal = _f3_c2_f5_signal(
+        state=state,
+        compression=compression,
+        decision=current,
+        expected_information_gain=50,
+        risk_cost=20,
+    )
+
+    payload = signal.model_dump(
+        mode="python"
+    )
+    payload[field] = True
+
+    with pytest.raises(ValidationError):
+        DecisionRouteTradeoffSignal.model_validate(
+            payload
+        )

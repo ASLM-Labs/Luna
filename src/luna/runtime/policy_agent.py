@@ -37,6 +37,7 @@ from luna.contracts.observation import Observation
 from luna.contracts.plan import PlanStep
 from luna.contracts.specification import ConstraintKind
 from luna.contracts.state import TaskState
+from luna.decision_state import KnowledgeDecisionStateIntegrationResult
 from luna.intent.judgment import IntentConstraintJudge
 from luna.intent.resolver import DeterministicIntentResolver
 from luna.modeling import (
@@ -57,6 +58,7 @@ from luna.planning import (
     GeneralCapabilitySelector,
     InformationGainPlan,
     InformationNeedKind,
+    KnowledgeInformationGainRefresher,
     LocalJudgmentBuilder,
 )
 from luna.retrieval import (
@@ -182,6 +184,7 @@ class ModelPolicyAgent:
         self._backend = backend
         self._selector = selector
         self._judgment_builder = LocalJudgmentBuilder()
+        self._knowledge_information_gain = KnowledgeInformationGainRefresher()
         self._intent_constraint_judge = IntentConstraintJudge()
         self._decision_control = DecisionControlAdvisor()
         self._capability_selector = GeneralCapabilitySelector()
@@ -365,6 +368,9 @@ class ModelPolicyAgent:
         tool_visibility: ToolVisibilityProjection | None,
         max_output_tokens: int,
         max_input_estimated_tokens: int = 16000,
+        knowledge_evolution_integration: (
+            KnowledgeDecisionStateIntegrationResult | None
+        ) = None,
     ) -> tuple[ModelRequest, InformationRetrievalStrategy, CapabilitySelectionPlan]:
         allowed = set(policy.allowed_tools)
         if tool_visibility is not None:
@@ -417,6 +423,31 @@ class ModelPolicyAgent:
             step=step,
             verification_depth=verification.depth.value,
         )
+        if knowledge_evolution_integration is not None:
+            refresh = self._knowledge_information_gain.refresh(
+                state=judgment_state,
+                plan=judgment.information_gain,
+                integration=knowledge_evolution_integration,
+            )
+            refreshed_plan = refresh.refreshed_plan
+            refreshed_basis = (
+                self._judgment_builder.decision_basis(
+                    state=judgment_state,
+                    step=step,
+                    acceptance=judgment.acceptance,
+                    information_gain=refreshed_plan,
+                    verification_depth=verification.depth.value,
+                )
+                if refresh.plan_changed
+                else judgment.decision_basis
+            )
+            judgment = type(judgment).model_validate(
+                {
+                    "acceptance": judgment.acceptance,
+                    "information_gain": refreshed_plan,
+                    "decision_basis": refreshed_basis,
+                }
+            )
         compression = self._decision_control.compress(
             state=judgment_state,
             information_gain=judgment.information_gain,
@@ -727,6 +758,9 @@ class ModelPolicyAgent:
         max_output_tokens: int,
         tool_visibility: ToolVisibilityProjection | None = None,
         max_input_estimated_tokens: int = 16000,
+        knowledge_evolution_integration: (
+            KnowledgeDecisionStateIntegrationResult | None
+        ) = None,
     ) -> PolicyTurn:
         request, retrieval_strategy, capability_selection = self._request(
             task_id=task_id,
@@ -739,6 +773,7 @@ class ModelPolicyAgent:
             tool_visibility=tool_visibility,
             max_output_tokens=max_output_tokens,
             max_input_estimated_tokens=max_input_estimated_tokens,
+            knowledge_evolution_integration=knowledge_evolution_integration,
         )
         try:
             response = self._backend.generate(request)

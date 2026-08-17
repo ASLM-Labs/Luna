@@ -1201,8 +1201,12 @@
       "size_bytes": 13041
     },
     "src/luna/decision_state/__init__.py": {
-      "sha256": "9e1b8057fcb336622c0d6b4192bd6d6d4378604d7c27b56ab0b172848a97571a",
-      "size_bytes": 161
+      "sha256": "a7a79e134d19c2fcee56f44dbd0350f29576a546fb181afe3cf42c05f278afb5",
+      "size_bytes": 580
+    },
+    "src/luna/decision_state/knowledge_evolution.py": {
+      "sha256": "b4f29d374365879e03df28876044435ef43f2cd0708b3de8b35c57fbd0d5c41b",
+      "size_bytes": 17217
     },
     "src/luna/decision_state/service.py": {
       "sha256": "e8ac4f30574f9d108b7b63b038bec2601545f082726bc937ef9a761a303aaa08",
@@ -1504,6 +1508,14 @@
       "sha256": "bfbd409dec0e0ea0709c0c43c4b4fd2a28de698cd75cc213026aa49b3dc41deb",
       "size_bytes": 6699
     },
+    "src/luna/knowledge_evolution/__init__.py": {
+      "sha256": "d354fce27353cea989062997ed995a0b355c909a121d24187d5d6ac17fafd207",
+      "size_bytes": 925
+    },
+    "src/luna/knowledge_evolution/models.py": {
+      "sha256": "75fc14242aff86142c6877dc87d8247a8e140067f71af1877bb0894adc6736bc",
+      "size_bytes": 18222
+    },
     "src/luna/learning/__init__.py": {
       "sha256": "a5b640eadb9a4a1a9fb5d282f2b1178f392511fc9b074c606c25cfcb0bbb3485",
       "size_bytes": 384
@@ -1633,16 +1645,16 @@
       "size_bytes": 35180
     },
     "src/luna/planning/__init__.py": {
-      "sha256": "cdc5833d27887e0f7daab1b9915199e89976ad37e46ca4fe92eb69fc79648810",
-      "size_bytes": 2882
+      "sha256": "3d5db19bf3d875f0b2f8f388491b372c593e02e4d538a38b3b731e9c83ce6440",
+      "size_bytes": 3371
     },
     "src/luna/planning/capability_selection.py": {
       "sha256": "e1f28ea30a62fa0a1b5adb521ba05dae4d6f7c051516248378445c420547b73e",
       "size_bytes": 12920
     },
     "src/luna/planning/control.py": {
-      "sha256": "10441d7ff21cec56d03461ca87e5cdecf8a2ddd7e59b866fb1fc29e45047d73f",
-      "size_bytes": 32740
+      "sha256": "3a55a1beb281c7783a84aecfeb40f135222286b3237973bb34afed22b2007614",
+      "size_bytes": 43723
     },
     "src/luna/planning/coordination.py": {
       "sha256": "b68fedf9141e85d92c0c1a8a6da9417bb4a17966636c6fea9ad80d90f4490260",
@@ -1659,6 +1671,14 @@
     "src/luna/planning/judgment.py": {
       "sha256": "5b8a56fbb28a2dbfd265df90f4bbf90399b765ee4728cca9b38db582ea7ff521",
       "size_bytes": 20364
+    },
+    "src/luna/planning/knowledge_evolution.py": {
+      "sha256": "93b8c240cb62f0fb7f9246be7bac96cc068a3aab21918b9cac0ef3f90f823b77",
+      "size_bytes": 11364
+    },
+    "src/luna/planning/knowledge_option_space.py": {
+      "sha256": "f51db54feef3ad88dcfc4a31a9baad8e37f73c6638c1f99222da2f8d151a914d",
+      "size_bytes": 10659
     },
     "src/luna/planning/lifecycle.py": {
       "sha256": "1cf6a1bf0b2fa19650defa16c88cabd6df751c013a8c0a3e789eee21deb956d8",
@@ -1785,8 +1805,8 @@
       "size_bytes": 16513
     },
     "src/luna/runtime/dependencies.py": {
-      "sha256": "b3270a6abe238fb02a45974641903386411324b973e9ece6d13ad9f115aec8c8",
-      "size_bytes": 5974
+      "sha256": "3fa8a22fcf7f63c7e7bd3105cd6c7833dfd87a4c0a111fb85f7fe1282911ba9f",
+      "size_bytes": 6257
     },
     "src/luna/runtime/environment.py": {
       "sha256": "8111596aa6a2a76d372167fc16efae223dd7dd7cb7666aabb43ae882c2125f19",
@@ -1808,17 +1828,21 @@
       "sha256": "816336eee0be714f2eee4a31de9a3fd449c7a1cc5d95490db6ff6c036ec81a43",
       "size_bytes": 31151
     },
+    "src/luna/runtime/knowledge_evolution.py": {
+      "sha256": "157900d1f60cefb47f559c1a52c3b061343afb5dc11c652335931fb56bc3e47d",
+      "size_bytes": 2453
+    },
     "src/luna/runtime/loop.py": {
-      "sha256": "cb6ab30e89446b112197bc4b5eef46be780a8d931ceaec9f58d6250fb7997c04",
-      "size_bytes": 117328
+      "sha256": "9515449413d89634b11a62f50da2290be84f9e610c5c349f3f434b320bfee8c0",
+      "size_bytes": 123213
     },
     "src/luna/runtime/models.py": {
       "sha256": "d9f690fa315e0ecaec009db2382ded78d3bd1f1e9437eddda27107613667b201",
       "size_bytes": 13474
     },
     "src/luna/runtime/policy_agent.py": {
-      "sha256": "c2cb7a899249e62e0d72a3d3e0d164eaba80af5ad9df7bdbe9397c19742291c7",
-      "size_bytes": 38065
+      "sha256": "f7089f4bf10906500914df5e843af5898226ae9d27b90a3c16e800cc3a6f2a49",
+      "size_bytes": 39622
     },
     "src/luna/sessions/__init__.py": {
       "sha256": "95fe8f278b08c67973ac6fd48a743f875d22bd9a3e8b75e228eee309737874ea",
@@ -1945,8 +1969,8 @@
       "size_bytes": 3039
     },
     "src/luna/verification/__init__.py": {
-      "sha256": "cc802489038e557450ac2f6ead10ecadefc73cfa033fa2bf4ded6fef989f63db",
-      "size_bytes": 1822
+      "sha256": "d10ef40f744ba0315733170ec54252dde3559eb7288d888c0b58dce132f3651b",
+      "size_bytes": 2118
     },
     "src/luna/verification/claims.py": {
       "sha256": "2d1e1ff3db806872011eb099881ae9bff550f0dbdce97ed61d91aba9c592b2f7",
@@ -1975,6 +1999,10 @@
     "src/luna/verification/gate.py": {
       "sha256": "a8172c308e9047a4efea49b03ccca71cb187ff3980a3e5e5b498392fbbf9e29b",
       "size_bytes": 3334
+    },
+    "src/luna/verification/knowledge_evolution.py": {
+      "sha256": "1fce1d506b99d11bd13b90844e18bfd356069266ec9b3bad690e2456426b4d0e",
+      "size_bytes": 11425
     },
     "src/luna/verification/models.py": {
       "sha256": "85b29f87adb4917a93825176e3dfc7103c3912b44a7fef7ed7a3fb9ac7b73c35",
@@ -2081,8 +2109,8 @@
       "size_bytes": 13494
     },
     "tests/test_c2_information_gain_decision_control.py": {
-      "sha256": "e0f74dcfb5c70d6400f94b3eb06a2d8810ee1a0aac025ec11f2e37fdb66b6493",
-      "size_bytes": 32770
+      "sha256": "337c38a2be1b555e63d5e3508758c8d32071a7ebfe2caac2d4c640c052180247",
+      "size_bytes": 43861
     },
     "tests/test_c3_targeted_cross_layer_invalidation.py": {
       "sha256": "781efb0c1ecb38c1f0d49f51db423722ad13b46a721149fab46bee0d50b194f7",
@@ -2248,6 +2276,26 @@
       "sha256": "fdbdea8a4b9541032df6276d8930a821dd4b3c6c63e3b1cd8edda57e06c5fb52",
       "size_bytes": 1692
     },
+    "tests/test_knowledge_evolution_decision_state_integration.py": {
+      "sha256": "18d87e4d7226ab880463d3ee380cc78a716efdcad83a3c34ca5c33ee11c04727",
+      "size_bytes": 16369
+    },
+    "tests/test_knowledge_evolution_foundation.py": {
+      "sha256": "52a67161eccce2ec8917790831566eae78d291ce8fdc044e37c82f36a5873589",
+      "size_bytes": 25456
+    },
+    "tests/test_knowledge_evolution_information_gain_refresh.py": {
+      "sha256": "2ccfe3a01c46025e5e663b2e9d94e0cf1a81b377bca1437760d44198fb8ad600",
+      "size_bytes": 13052
+    },
+    "tests/test_knowledge_evolution_option_space_projection.py": {
+      "sha256": "30cce8d2738f0b04b8c443f68b750fcfaeec1b1f8a004fbf077afa4e8bdb8d22",
+      "size_bytes": 20563
+    },
+    "tests/test_knowledge_evolution_verification_adapter.py": {
+      "sha256": "29bfdd361a173bb60fac7e055be082086acea10d72c4bf2fdd55e4b05f5b8eb7",
+      "size_bytes": 14361
+    },
     "tests/test_model_backend.py": {
       "sha256": "cba0c6c98cb8dea99f42daddee9d16fd9444fb87cfb3f60b255aac94806e89df",
       "size_bytes": 5296
@@ -2305,8 +2353,8 @@
       "size_bytes": 13094
     },
     "tests/test_phase12e_single_policy_loop.py": {
-      "sha256": "e1d04b127532ec1a1f8260817af013719a02946ae9c09cc1e8c7fb26a9ecca69",
-      "size_bytes": 61674
+      "sha256": "9afea8f072c5b64856e812745edbefe2b9700dbcfe271420d10d05e2bce3089a",
+      "size_bytes": 73856
     },
     "tests/test_phase12f_verification_learning.py": {
       "sha256": "bfcc8c12beea2eb603b79e07d13259f7acd2a9df9f590c23c0964301d426db7a",

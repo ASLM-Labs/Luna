@@ -53,6 +53,11 @@ from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
 from luna.contracts.evidence import Evidence
 from luna.contracts.plan import ExpectedObservation
+from luna.decision_state import (
+    DecisionStateKnowledgeEvolutionAdapter,
+    KnowledgeDecisionStateIntegrationResult,
+)
+from luna.knowledge_evolution import project_knowledge_reevaluation_advisory
 from luna.modeling import ProviderRetryCoordinator, ProviderRetryEvidence
 from luna.planning import (
     AttemptBasis,
@@ -73,6 +78,7 @@ from luna.runtime.journal import (
     SideEffectReceipt,
     SideEffectStage,
 )
+from luna.runtime.knowledge_evolution import KnowledgeEvolutionRuntimeHandoff
 from luna.runtime.models import (
     RuntimeMode,
     RuntimeOutcome,
@@ -170,6 +176,105 @@ class LunaRuntime:
         self._expectations = ExpectationEvaluator()
         self._invalidation = TargetedInvalidationCoordinator()
         self._verification_strategy = VerificationStrategySelector()
+        self._knowledge_evolution = DecisionStateKnowledgeEvolutionAdapter(
+            decision_state=dependencies.decision_state_service
+        )
+
+    def _integrate_knowledge_evolution_for_turn(
+        self,
+        *,
+        state: TaskState,
+        step: PlanStep,
+    ) -> tuple[
+        TaskState,
+        KnowledgeDecisionStateIntegrationResult | None,
+    ]:
+        provider = self._deps.knowledge_evolution_handoff_provider
+        if provider is None:
+            return state, None
+
+        snapshot = self._deps.decision_state_service.ensure(
+            state.task_id,
+            state.decision_state,
+        )
+
+        try:
+            handoff = provider.handoff_for_turn(
+                task_id=state.task_id,
+                step_id=step.step_id,
+                decision_state_revision=snapshot.revision,
+            )
+        except Exception as exc:
+            raise ValueError(
+                "knowledge-evolution handoff provider failed"
+            ) from exc
+
+        if handoff is None:
+            return state, None
+
+        if not isinstance(handoff, KnowledgeEvolutionRuntimeHandoff):
+            raise ValueError(
+                "knowledge-evolution provider returned an invalid handoff type"
+            )
+
+        validated = KnowledgeEvolutionRuntimeHandoff.model_validate(
+            handoff.model_dump(mode="python")
+        )
+
+        if validated.task_id != state.task_id:
+            raise ValueError(
+                "knowledge-evolution handoff task does not match current task"
+            )
+
+        if validated.step_id != step.step_id:
+            raise ValueError(
+                "knowledge-evolution handoff step does not match current step"
+            )
+
+        if validated.source_decision_state_revision != snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution handoff decision-state revision is stale"
+            )
+
+        advisory = project_knowledge_reevaluation_advisory(
+            validity=validated.validity,
+            applicability=validated.applicability,
+            option_space_change=validated.option_space_change,
+        )
+
+        if advisory is None:
+            return state, None
+
+        integration, revised_snapshot = self._knowledge_evolution.integrate(
+            snapshot=snapshot,
+            advisory=advisory,
+            binding=validated.binding,
+        )
+
+        if integration.input_revision != snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution integration input revision mismatch"
+            )
+
+        if integration.output_revision != revised_snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution integration output revision mismatch"
+            )
+
+        if integration.mutation_applied:
+            if revised_snapshot.revision <= snapshot.revision:
+                raise ValueError(
+                    "knowledge-evolution mutation must advance DecisionState"
+                )
+            state = state.revise(
+                decision_state=revised_snapshot
+            )
+        elif revised_snapshot != snapshot:
+            raise ValueError(
+                "non-mutating knowledge-evolution integration changed DecisionState"
+            )
+
+        return state, integration
 
     def suspend(
         self,
@@ -914,6 +1019,61 @@ class LunaRuntime:
                 1,
                 request.runtime_budget.max_model_output_tokens - usage.model_output_tokens,
             )
+
+            try:
+                state, knowledge_evolution_integration = (
+                    self._integrate_knowledge_evolution_for_turn(
+                        state=state,
+                        step=active_step,
+                    )
+                )
+            except ValueError:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                    reasons=(
+                        "knowledge_evolution_handoff_integrity_failure",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step=(
+                        "repair owner-projected knowledge handoff "
+                        "before the next model turn"
+                    ),
+                    started_at=started_at,
+                )
+
+            if (
+                knowledge_evolution_integration is not None
+                and knowledge_evolution_integration.mutation_applied
+            ):
+                context = self._compose_context(
+                    request=request,
+                    state=state,
+                )
+                if not context.ready:
+                    state = self._deactivate_step(
+                        state,
+                        reason=None,
+                    )
+                    state = state.transition_to(
+                        TaskPhase.OBSERVING
+                    )
+                    return self._checkpoint_outcome(
+                        request=request,
+                        state=state,
+                        usage=usage,
+                        stop_reason=RuntimeStopReason.CONTEXT_INCOMPLETE,
+                        reasons=tuple(
+                            f"missing_context:{item}"
+                            for item in context.missing_sources
+                        ),
+                        resume_phase=TaskPhase.PLANNED,
+                        next_step="refresh required context",
+                        started_at=started_at,
+                    )
+
             provider_history: tuple[AttemptRecord, ...] = ()
             provider_basis: AttemptBasis | None = None
             provider_retry_terminal_reason: str | None = None
@@ -946,6 +1106,9 @@ class LunaRuntime:
                         tool_visibility=tool_visibility,
                         max_input_estimated_tokens=(
                             request.runtime_budget.max_model_request_estimated_tokens
+                        ),
+                        knowledge_evolution_integration=(
+                            knowledge_evolution_integration
                         ),
                     )
                 except ModelRequestWindowBlocked as exc:
