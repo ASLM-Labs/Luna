@@ -41,9 +41,11 @@ from luna.runtime import RuntimeStopReason  # noqa: E402
 
 REQUIRED_FILES = (
     "src/luna/modeling/errors.py",
+    "src/luna/modeling/retry.py",
     "src/luna/modeling/compatibility.py",
     "src/luna/modeling/rollout.py",
     "tests/test_phase13_model_compatibility_rollout.py",
+    "tests/test_provider_retry.py",
     "scripts/verify_phase13.py",
     "docs/rfcs/RFC-013_REAL_MODEL_COMPATIBILITY_CONTROLLED_ROLLOUT.md",
     "docs/PHASE_13_REPORT.md",
@@ -277,12 +279,13 @@ def main() -> int:
             request=runtime_request,
             tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
         )
-        checks["retryable_backend_failure_suspends_no_retry"] = (
+        checks["retryable_backend_failure_exhausts_bounded_retries"] = (
             outcome.stop_reason is RuntimeStopReason.RESOURCE_SUSPENDED
-            and outcome.usage.model_calls == 1
+            and outcome.usage.model_calls == 3
             and outcome.usage.tool_calls == 0
-            and failing.calls == 1
-            and any("never blindly retried" in reason for reason in outcome.reasons)
+            and len(outcome.usage.provider_retry_evidence) == 2
+            and failing.calls == 3
+            and any("retry attempts exhausted" in reason for reason in outcome.reasons)
         )
 
     non_loopback_blocked = False

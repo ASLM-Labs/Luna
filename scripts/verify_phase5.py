@@ -13,6 +13,7 @@ from luna.contracts import RiskLevel, TaskContract, TaskScope
 from luna.shell import SafeProcessError, validate_safe_argv
 from luna.tools import (
     AutonomyLevel,
+    ExactCallApproval,
     ProcessApproval,
     ToolDispatcher,
     ToolPolicy,
@@ -91,21 +92,32 @@ def main() -> int:
 
         rollback_ok = False
         if snapshot_id is not None:
+            rollback_request = ToolRequest(
+                task_id=task.task_id,
+                trace_id=uuid4(),
+                tool_name="workspace.rollback",
+                arguments={"snapshot_id": str(snapshot_id)},
+                expectation_id=uuid4(),
+            )
+            rollback_basis = sha256(b"phase5-rollback-basis").hexdigest()
             rollback = dispatcher.dispatch(
-                request=ToolRequest(
-                    task_id=task.task_id,
-                    trace_id=uuid4(),
-                    tool_name="workspace.rollback",
-                    arguments={"snapshot_id": str(snapshot_id)},
-                    expectation_id=uuid4(),
-                ),
+                request=rollback_request,
                 task_contract=task,
                 policy=ToolPolicy(
                     allowed_tools=("workspace.rollback",),
                     owner_approved_tools=("workspace.rollback",),
+                    exact_call_approvals=(
+                        ExactCallApproval.bind(
+                            rollback_request,
+                            basis_fingerprint=rollback_basis,
+                            approved_by="owner:phase5-verifier",
+                            evidence_ref="phase5:verifier:rollback-approval",
+                        ),
+                    ),
                     autonomy_level=AutonomyLevel.OWNER_APPROVED,
                     max_risk=RiskLevel.HIGH,
                 ),
+                approval_basis_fingerprint=rollback_basis,
             )
             rollback_ok = (
                 rollback.result.status is ToolResultStatus.SUCCESS
@@ -141,24 +153,35 @@ def main() -> int:
         )
 
         argv = (sys.executable, "--version")
+        process_request = ToolRequest(
+            task_id=task.task_id,
+            trace_id=uuid4(),
+            tool_name="process.run_argv",
+            arguments={"argv": list(argv)},
+            working_directory=".",
+            expectation_id=uuid4(),
+        )
+        process_basis = sha256(b"phase5-process-basis").hexdigest()
         process_policy = ToolPolicy(
             allowed_tools=("process.run_argv",),
             owner_approved_tools=("process.run_argv",),
             process_approvals=(ProcessApproval(argv=argv),),
+            exact_call_approvals=(
+                ExactCallApproval.bind(
+                    process_request,
+                    basis_fingerprint=process_basis,
+                    approved_by="owner:phase5-verifier",
+                    evidence_ref="phase5:verifier:process-approval",
+                ),
+            ),
             autonomy_level=AutonomyLevel.OWNER_APPROVED,
             max_risk=RiskLevel.HIGH,
         )
         process = dispatcher.dispatch(
-            request=ToolRequest(
-                task_id=task.task_id,
-                trace_id=uuid4(),
-                tool_name="process.run_argv",
-                arguments={"argv": list(argv)},
-                working_directory=".",
-                expectation_id=uuid4(),
-            ),
+            request=process_request,
             task_contract=task,
             policy=process_policy,
+            approval_basis_fingerprint=process_basis,
         )
         exact_process_ok = (
             process.result.status is ToolResultStatus.SUCCESS
@@ -175,6 +198,7 @@ def main() -> int:
             ),
             task_contract=task,
             policy=process_policy,
+            approval_basis_fingerprint=process_basis,
         )
         exact_approval_ok = mismatch.result.status is ToolResultStatus.BLOCKED
 

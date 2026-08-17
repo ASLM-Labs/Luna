@@ -9,12 +9,13 @@ authoritative loop.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
+from threading import RLock
 from time import monotonic
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from luna.actions import ActionProposal, ActionResolutionStatus
 from luna.context import (
@@ -27,11 +28,23 @@ from luna.context import (
     ReadinessDecision,
 )
 from luna.continuity import ResumePolicy, ResumeStatus
+from luna.continuity.policy_reconciliation import (
+    reconcile_cognitive_rehydration_requirements,
+)
+from luna.continuity.store import (
+    CheckpointNotFoundError,
+    CognitivePolicyNotFoundError,
+    ContinuityError,
+)
 from luna.contracts import (
     CompletionStatus,
+    ConstraintKind,
+    IntentConstraintJudgment,
+    InvalidationControlAction,
     ObservationStatus,
     PlanStep,
     PlanStepStatus,
+    SpecificationControlAction,
     TaskContract,
     TaskState,
 )
@@ -40,7 +53,19 @@ from luna.contracts.base import utc_now
 from luna.contracts.enums import TaskPhase
 from luna.contracts.evidence import Evidence
 from luna.contracts.plan import ExpectedObservation
-from luna.planning import AttemptBasis, AttemptRecord, ExpectationEvaluator
+from luna.decision_state import (
+    DecisionStateKnowledgeEvolutionAdapter,
+    KnowledgeDecisionStateIntegrationResult,
+)
+from luna.knowledge_evolution import project_knowledge_reevaluation_advisory
+from luna.modeling import ProviderRetryCoordinator, ProviderRetryEvidence
+from luna.planning import (
+    AttemptBasis,
+    AttemptRecord,
+    ExpectationEvaluator,
+    LocalJudgmentBuilder,
+    TargetedInvalidationCoordinator,
+)
 from luna.recovery import ChangeEstimate, IsolationMode, RecoveryAction
 from luna.runtime.budgets import RuntimeBudget
 from luna.runtime.change_inspector import ChangeInspection, ChangeInspectionError
@@ -53,6 +78,7 @@ from luna.runtime.journal import (
     SideEffectReceipt,
     SideEffectStage,
 )
+from luna.runtime.knowledge_evolution import KnowledgeEvolutionRuntimeHandoff
 from luna.runtime.models import (
     RuntimeMode,
     RuntimeOutcome,
@@ -60,8 +86,22 @@ from luna.runtime.models import (
     RuntimeStopReason,
     RuntimeUsage,
 )
-from luna.runtime.policy_agent import ModelPolicyAgent, PolicyTurnStatus
-from luna.tools import ToolCapability, ToolPolicy, ToolRequest, ToolResultStatus
+from luna.runtime.policy_agent import (
+    ModelPolicyAgent,
+    ModelRequestWindowBlocked,
+    PolicyTurn,
+    PolicyTurnStatus,
+)
+from luna.tools import (
+    ToolCapability,
+    ToolDisclosureDecision,
+    ToolDisclosureProjector,
+    ToolDisclosureState,
+    ToolPolicy,
+    ToolRequest,
+    ToolResultStatus,
+    ToolVisibilityProjection,
+)
 from luna.verification import VerificationPolicy, VerificationStrategySelector
 
 _SIDE_EFFECT_CAPABILITIES = {
@@ -98,6 +138,7 @@ class _UsageCounter:
     deleted_lines: int = 0
     questions: int = 0
     network_requests: int = 0
+    provider_retry_evidence: list[ProviderRetryEvidence] = field(default_factory=list)
 
     def snapshot(self) -> RuntimeUsage:
         return RuntimeUsage(
@@ -114,6 +155,7 @@ class _UsageCounter:
             deleted_lines=self.deleted_lines,
             questions=self.questions,
             network_requests=self.network_requests,
+            provider_retry_evidence=tuple(self.provider_retry_evidence),
         )
 
 
@@ -126,8 +168,113 @@ class LunaRuntime:
             backend=dependencies.core.model_backend,
             selector=dependencies.action_resolver.selector,
         )
+        self._provider_retry = ProviderRetryCoordinator()
+        self._tool_selector = dependencies.action_resolver.selector
+        self._tool_disclosure_projector = ToolDisclosureProjector()
+        self._tool_disclosure_states: dict[UUID, ToolDisclosureState] = {}
+        self._tool_disclosure_lock = RLock()
         self._expectations = ExpectationEvaluator()
+        self._invalidation = TargetedInvalidationCoordinator()
         self._verification_strategy = VerificationStrategySelector()
+        self._knowledge_evolution = DecisionStateKnowledgeEvolutionAdapter(
+            decision_state=dependencies.decision_state_service
+        )
+
+    def _integrate_knowledge_evolution_for_turn(
+        self,
+        *,
+        state: TaskState,
+        step: PlanStep,
+    ) -> tuple[
+        TaskState,
+        KnowledgeDecisionStateIntegrationResult | None,
+    ]:
+        provider = self._deps.knowledge_evolution_handoff_provider
+        if provider is None:
+            return state, None
+
+        snapshot = self._deps.decision_state_service.ensure(
+            state.task_id,
+            state.decision_state,
+        )
+
+        try:
+            handoff = provider.handoff_for_turn(
+                task_id=state.task_id,
+                step_id=step.step_id,
+                decision_state_revision=snapshot.revision,
+            )
+        except Exception as exc:
+            raise ValueError(
+                "knowledge-evolution handoff provider failed"
+            ) from exc
+
+        if handoff is None:
+            return state, None
+
+        if not isinstance(handoff, KnowledgeEvolutionRuntimeHandoff):
+            raise ValueError(
+                "knowledge-evolution provider returned an invalid handoff type"
+            )
+
+        validated = KnowledgeEvolutionRuntimeHandoff.model_validate(
+            handoff.model_dump(mode="python")
+        )
+
+        if validated.task_id != state.task_id:
+            raise ValueError(
+                "knowledge-evolution handoff task does not match current task"
+            )
+
+        if validated.step_id != step.step_id:
+            raise ValueError(
+                "knowledge-evolution handoff step does not match current step"
+            )
+
+        if validated.source_decision_state_revision != snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution handoff decision-state revision is stale"
+            )
+
+        advisory = project_knowledge_reevaluation_advisory(
+            validity=validated.validity,
+            applicability=validated.applicability,
+            option_space_change=validated.option_space_change,
+        )
+
+        if advisory is None:
+            return state, None
+
+        integration, revised_snapshot = self._knowledge_evolution.integrate(
+            snapshot=snapshot,
+            advisory=advisory,
+            binding=validated.binding,
+        )
+
+        if integration.input_revision != snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution integration input revision mismatch"
+            )
+
+        if integration.output_revision != revised_snapshot.revision:
+            raise ValueError(
+                "knowledge-evolution integration output revision mismatch"
+            )
+
+        if integration.mutation_applied:
+            if revised_snapshot.revision <= snapshot.revision:
+                raise ValueError(
+                    "knowledge-evolution mutation must advance DecisionState"
+                )
+            state = state.revise(
+                decision_state=revised_snapshot
+            )
+        elif revised_snapshot != snapshot:
+            raise ValueError(
+                "non-mutating knowledge-evolution integration changed DecisionState"
+            )
+
+        return state, integration
 
     def suspend(
         self,
@@ -155,6 +302,86 @@ class LunaRuntime:
             reason=reason,
         )
 
+    def configure_tool_disclosure(
+        self,
+        *,
+        task_id: UUID,
+        deferred_tools: tuple[str, ...],
+    ) -> ToolDisclosureState:
+        """Configure task-scoped deferred schemas without changing tool authority."""
+        registered = tuple(spec.name for spec in self._tool_selector.specs())
+        state = self._tool_disclosure_projector.configure(
+            task_id=task_id,
+            deferred_tools=deferred_tools,
+            registered_tools=registered,
+        )
+        with self._tool_disclosure_lock:
+            self._tool_disclosure_states[task_id] = state.model_copy(deep=True)
+        return state
+
+    def request_tool_disclosure(
+        self,
+        *,
+        task_id: UUID,
+        tool_names: tuple[str, ...],
+    ) -> ToolDisclosureDecision:
+        """Stage deferred schemas for the next model-request boundary."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                raise ValueError("tool disclosure is not configured for this task")
+            registered = tuple(spec.name for spec in self._tool_selector.specs())
+            decision = self._tool_disclosure_projector.request(
+                state,
+                tool_names=tool_names,
+                registered_tools=registered,
+            )
+            self._tool_disclosure_states[task_id] = decision.state.model_copy(deep=True)
+            return decision
+
+    def reset_tool_disclosure(self, *, task_id: UUID) -> ToolDisclosureState:
+        """Remove disclosed and pending schemas while preserving registration."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                raise ValueError("tool disclosure is not configured for this task")
+            reset = self._tool_disclosure_projector.reset(state)
+            self._tool_disclosure_states[task_id] = reset.model_copy(deep=True)
+            return reset
+
+    def tool_disclosure_state(self, *, task_id: UUID) -> ToolDisclosureState | None:
+        """Return an isolated snapshot of current model-visibility state."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            return state.model_copy(deep=True) if state is not None else None
+
+    def _tool_visibility_projection(
+        self,
+        *,
+        task_id: UUID,
+        basis_fingerprint: str,
+        policy: ToolPolicy,
+    ) -> ToolVisibilityProjection | None:
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                return None
+            registered = tuple(spec.name for spec in self._tool_selector.specs())
+            updated, projection = self._tool_disclosure_projector.project(
+                state,
+                basis_fingerprint=basis_fingerprint,
+                registered_tools=registered,
+                policy_allowed_tools=policy.allowed_tools,
+            )
+            self._tool_disclosure_states[task_id] = updated
+            return projection
+
+    def _pending_cancellation_reason(self, task_id: UUID) -> str | None:
+        control = self._deps.runtime_journal.pending_control(task_id)
+        if control is None or control.command is not RuntimeControlCommand.CANCEL:
+            return None
+        return control.reason
+
     def record_evidence(
         self,
         *,
@@ -169,6 +396,20 @@ class LunaRuntime:
             evidence=evidence,
             trace_id=trace_id,
             observation_id=observation_id,
+        )
+
+    @staticmethod
+    def _c4_project_policy_basis(
+        specification: IntentConstraintJudgment | None,
+    ) -> tuple[str, ...]:
+        if specification is None:
+            return ()
+        return tuple(
+            sorted(
+                item.statement
+                for item in specification.constraints
+                if item.kind is ConstraintKind.PROJECT_POLICY
+            )
         )
 
     def run(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
@@ -187,6 +428,7 @@ class LunaRuntime:
             required_conditions=request.required_conditions,
             forbidden_outcomes=request.forbidden_outcomes,
             evidence_required=request.evidence_required,
+            soft_preferences=request.soft_preferences,
             risk_level=request.risk_level,
             owner=request.actor.actor_id,
             task_id=request.task_id,
@@ -200,21 +442,37 @@ class LunaRuntime:
         state = TaskState(
             task_id=request.task_id,
             contract=preparation.contract,
+            specification_judgment=preparation.specification_judgment,
             decision_state=self._deps.decision_state_service.ensure(request.task_id, None),
         )
         state = state.transition_to(TaskPhase.CONTRACTED)
 
         context = self._compose_context(request=request, state=state)
+        pre_context_state = state
         readiness, state = self._deps.context_integrity_gate.evaluate(
             state=state,
             bundle=context,
             claims=request.context_claims,
             requirements=request.context_requirements,
         )
+        _, state = self._invalidation.reconcile(
+            previous_state=pre_context_state,
+            current_state=state,
+            evidence_refs=tuple(
+                ref for claim in request.context_claims for ref in claim.evidence_refs
+            ),
+            provenance_refs=(
+                *(claim.source_ref for claim in request.context_claims),
+                f"context-integrity:{readiness.decision.value}",
+            ),
+        )
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
                 RuntimeStopReason.CONFLICTING_EVIDENCE
-                if readiness.conflicting_critical_keys
+                if (
+                    readiness.conflicting_critical_keys
+                    or readiness.contradicted_assumption_ids
+                )
                 else RuntimeStopReason.CONTEXT_INCOMPLETE
             )
             return self._checkpoint_outcome(
@@ -233,6 +491,14 @@ class LunaRuntime:
                         f"conflicting_context:{item}"
                         for item in readiness.conflicting_critical_keys
                     ),
+                    *(
+                        f"blocking_assumption:{item}"
+                        for item in readiness.blocking_assumption_ids
+                    ),
+                    *(
+                        f"invalidated_decision:{item}"
+                        for item in readiness.invalidated_decision_ids
+                    ),
                 ),
                 resume_phase=TaskPhase.CONTEXT_READY,
                 next_step="reconcile required context",
@@ -240,8 +506,44 @@ class LunaRuntime:
             )
 
         state = state.transition_to(TaskPhase.CONTEXT_READY)
-        task_plan = self._deps.core.planner.plan(preparation)
-        state = state.revise(plan=task_plan.steps)
+        specification = self._deps.core.task_preparer.refine_specification(
+            base=preparation.specification_judgment,
+            state=state,
+        )
+        if specification.action is SpecificationControlAction.STOP_VERIFY:
+            state = state.revise(specification_judgment=specification)
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    *specification.reason_codes,
+                    *specification.blocker_refs,
+                ),
+                resume_phase=TaskPhase.CONTEXT_READY,
+                next_step="resolve C4 specification blockers before planning",
+                started_at=started_at,
+            )
+        acceptance = LocalJudgmentBuilder().acceptance_from_basis(
+            contract=preparation.contract,
+            specification=specification,
+        )
+        task_plan = self._deps.core.planner.plan(
+            preparation,
+            specification_judgment=specification,
+        )
+        acceptance_target_ids = tuple(item.target_id for item in acceptance.targets)
+        if task_plan.acceptance_target_ids != acceptance_target_ids:
+            raise ValueError("planner acceptance targets must match the current C5 backchain")
+        if acceptance.acceptance_basis_fingerprint is None:
+            raise ValueError("C5 planning requires an acceptance basis fingerprint")
+        state = state.revise(
+            plan=task_plan.steps,
+            specification_judgment=specification,
+            acceptance_target_ids=acceptance_target_ids,
+            acceptance_basis_fingerprint=acceptance.acceptance_basis_fingerprint,
+        )
         state = state.transition_to(TaskPhase.PLANNED)
         return self._drive(
             request=request,
@@ -258,6 +560,65 @@ class LunaRuntime:
         self._validate_policy_boundary(request=request, policy=tool_policy)
         started_at = utc_now()
         usage = _UsageCounter(request.runtime_budget, monotonic())
+
+        # C2B-G1: a RuntimeRequest carries the complete current readiness-policy
+        # snapshot. On RESUME, reconcile that snapshot against the exact policy
+        # bound to the latest durable checkpoint before any path may checkpoint
+        # again (including side-effect reconciliation).
+        try:
+            policy_source = self._deps.core.continuity_service.store.load_latest(
+                request.task_id
+            )
+        except CheckpointNotFoundError:
+            # A recoverable side-effect receipt can exist before the task has ever
+            # produced a continuity checkpoint. With no historical checkpoint,
+            # there is no historical cognitive policy to reconcile.
+            effective_requirements = request.context_requirements
+        else:
+            try:
+                historical_policy = (
+                    self._deps.core.continuity_service.store.load_checkpoint_cognitive_policy(
+                        policy_source.envelope.checkpoint.checkpoint_id
+                    ).policy
+                )
+            except CognitivePolicyNotFoundError:
+                # Legacy/non-integrated checkpoints intentionally carry no policy
+                # sidecar. Their current request requirements become the new basis.
+                effective_requirements = request.context_requirements
+            except ContinuityError as exc:
+                return self._outcome(
+                    request=request,
+                    state=policy_source.envelope.state,
+                    usage=usage.snapshot(),
+                    stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                    reasons=(f"cognitive rehydration policy integrity failure: {exc}",),
+                    started_at=started_at,
+                )
+            else:
+                try:
+                    reconciliation = reconcile_cognitive_rehydration_requirements(
+                        historical_policy=historical_policy,
+                        current_requirements=request.context_requirements,
+                        decision_state=policy_source.envelope.state.decision_state,
+                    )
+                except ValueError as exc:
+                    return self._outcome(
+                        request=request,
+                        state=policy_source.envelope.state,
+                        usage=usage.snapshot(),
+                        stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                        reasons=(
+                            f"cognitive rehydration policy reconciliation failed: {exc}",
+                        ),
+                        started_at=started_at,
+                    )
+                effective_requirements = reconciliation.effective_requirements
+
+        if effective_requirements != request.context_requirements:
+            # Derive an invocation-local request; never mutate the caller's object.
+            request = request.model_copy(
+                update={"context_requirements": effective_requirements}
+            )
 
         recoverable = self._deps.runtime_journal.latest_recoverable(request.task_id)
         if recoverable is not None:
@@ -321,16 +682,51 @@ class LunaRuntime:
 
         state = decision.resumed_state
         context = self._compose_context(request=request, state=state)
+        pre_context_state = state
         readiness, state = self._deps.context_integrity_gate.evaluate(
             state=state,
             bundle=context,
             claims=request.context_claims,
             requirements=request.context_requirements,
         )
+        prior_project_policy_basis = self._c4_project_policy_basis(
+            pre_context_state.specification_judgment
+        )
+        refined_specification = self._deps.core.task_preparer.specification_for_state(
+            raw_request=request.raw_request,
+            state=state,
+            soft_preferences=request.soft_preferences,
+        )
+        if (
+            state.specification_judgment is None
+            or refined_specification.specification_basis_fingerprint
+            != state.specification_judgment.specification_basis_fingerprint
+        ):
+            state = state.revise(specification_judgment=refined_specification)
+        current_project_policy_basis = self._c4_project_policy_basis(
+            state.specification_judgment
+        )
+        project_policy_basis_changed = (
+            prior_project_policy_basis != current_project_policy_basis
+        )
+        invalidation, state = self._invalidation.reconcile(
+            previous_state=pre_context_state,
+            current_state=state,
+            evidence_refs=tuple(
+                ref for claim in request.context_claims for ref in claim.evidence_refs
+            ),
+            provenance_refs=(
+                *(claim.source_ref for claim in request.context_claims),
+                f"context-integrity:{readiness.decision.value}",
+            ),
+        )
         if readiness.decision is not ReadinessDecision.READY:
             stop_reason = (
                 RuntimeStopReason.CONFLICTING_EVIDENCE
-                if readiness.conflicting_critical_keys
+                if (
+                    readiness.conflicting_critical_keys
+                    or readiness.contradicted_assumption_ids
+                )
                 else RuntimeStopReason.CONTEXT_INCOMPLETE
             )
             return self._checkpoint_outcome(
@@ -349,9 +745,72 @@ class LunaRuntime:
                         f"conflicting_context:{item}"
                         for item in readiness.conflicting_critical_keys
                     ),
+                    *(
+                        f"blocking_assumption:{item}"
+                        for item in readiness.blocking_assumption_ids
+                    ),
+                    *(
+                        f"invalidated_decision:{item}"
+                        for item in readiness.invalidated_decision_ids
+                    ),
                 ),
                 resume_phase=state.phase,
                 next_step="reconcile required context before resume",
+                started_at=started_at,
+            )
+
+        specification = state.specification_judgment
+        if (
+            specification is not None
+            and specification.action is SpecificationControlAction.STOP_VERIFY
+        ):
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    *specification.reason_codes,
+                    *specification.blocker_refs,
+                ),
+                resume_phase=state.phase,
+                next_step="resolve C4 specification blockers before resume",
+                started_at=started_at,
+            )
+
+        if invalidation.control_action is not InvalidationControlAction.NONE:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=(
+                    RuntimeStopReason.CONFLICTING_EVIDENCE
+                    if invalidation.control_action is InvalidationControlAction.STOP_VERIFY
+                    else RuntimeStopReason.BLOCKED
+                ),
+                reasons=(
+                    *invalidation.reason_codes,
+                    *(f"invalidated_basis:{item.target_ref}" for item in invalidation.impacts),
+                ),
+                resume_phase=(
+                    TaskPhase.PLANNED if state.plan else TaskPhase.CONTEXT_READY
+                ),
+                next_step="changed-basis replan from targeted invalidation",
+                started_at=started_at,
+            )
+
+        if project_policy_basis_changed and state.plan:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.BLOCKED,
+                reasons=(
+                    "c4_verified_project_policy_basis_changed",
+                    "changed_basis_replan_required",
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="replan under the current verified project policy",
                 started_at=started_at,
             )
 
@@ -520,6 +979,17 @@ class LunaRuntime:
                     next_step="owner budget decision required",
                     started_at=started_at,
                 )
+            if request.runtime_budget.max_model_request_estimated_tokens == 0:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.BLOCKED,
+                    reasons=("runtime budget disables estimated model request tokens",),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step="owner budget decision required",
+                    started_at=started_at,
+                )
             if request.runtime_budget.max_model_output_tokens == 0:
                 return self._checkpoint_outcome(
                     request=request,
@@ -549,20 +1019,211 @@ class LunaRuntime:
                 1,
                 request.runtime_budget.max_model_output_tokens - usage.model_output_tokens,
             )
-            turn = self._policy_agent.decide(
-                task_id=request.task_id,
-                trace_id=request.trace_id,
-                raw_request=request.raw_request,
-                state=state,
-                step=active_step,
-                context=context,
-                policy=tool_policy,
-                max_output_tokens=min(32768, remaining_output),
+
+            try:
+                state, knowledge_evolution_integration = (
+                    self._integrate_knowledge_evolution_for_turn(
+                        state=state,
+                        step=active_step,
+                    )
+                )
+            except ValueError:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                    reasons=(
+                        "knowledge_evolution_handoff_integrity_failure",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step=(
+                        "repair owner-projected knowledge handoff "
+                        "before the next model turn"
+                    ),
+                    started_at=started_at,
+                )
+
+            if (
+                knowledge_evolution_integration is not None
+                and knowledge_evolution_integration.mutation_applied
+            ):
+                context = self._compose_context(
+                    request=request,
+                    state=state,
+                )
+                if not context.ready:
+                    state = self._deactivate_step(
+                        state,
+                        reason=None,
+                    )
+                    state = state.transition_to(
+                        TaskPhase.OBSERVING
+                    )
+                    return self._checkpoint_outcome(
+                        request=request,
+                        state=state,
+                        usage=usage,
+                        stop_reason=RuntimeStopReason.CONTEXT_INCOMPLETE,
+                        reasons=tuple(
+                            f"missing_context:{item}"
+                            for item in context.missing_sources
+                        ),
+                        resume_phase=TaskPhase.PLANNED,
+                        next_step="refresh required context",
+                        started_at=started_at,
+                    )
+
+            provider_history: tuple[AttemptRecord, ...] = ()
+            provider_basis: AttemptBasis | None = None
+            provider_retry_terminal_reason: str | None = None
+            cancelled_during_backoff = False
+            provider_attempt = 0
+            scope_payload = json.dumps(
+                state.contract.scope.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
             )
-            usage.model_calls += 1
-            usage.steps += 1
-            usage.model_input_tokens += turn.usage.input_tokens
-            usage.model_output_tokens += turn.usage.output_tokens
+            provider_scope_fingerprint = sha256(scope_payload.encode("utf-8")).hexdigest()
+            while True:
+                provider_attempt += 1
+                tool_visibility = self._tool_visibility_projection(
+                    task_id=request.task_id,
+                    basis_fingerprint=context.fingerprint(),
+                    policy=tool_policy,
+                )
+                try:
+                    turn = self._policy_agent.decide(
+                        task_id=request.task_id,
+                        trace_id=request.trace_id,
+                        raw_request=request.raw_request,
+                        state=state,
+                        step=active_step,
+                        context=context,
+                        policy=tool_policy,
+                        max_output_tokens=min(32768, remaining_output),
+                        tool_visibility=tool_visibility,
+                        max_input_estimated_tokens=(
+                            request.runtime_budget.max_model_request_estimated_tokens
+                        ),
+                        knowledge_evolution_integration=(
+                            knowledge_evolution_integration
+                        ),
+                    )
+                except ModelRequestWindowBlocked as exc:
+                    projection = exc.projection
+                    reason = (
+                        projection.block_reason.value
+                        if projection.block_reason is not None
+                        else "UNKNOWN"
+                    )
+                    return self._checkpoint_outcome(
+                        request=request,
+                        state=self._safe_checkpoint_state(state),
+                        usage=usage,
+                        stop_reason=RuntimeStopReason.BLOCKED,
+                        reasons=(
+                            "model request cannot fit within per-request estimated window: "
+                            f"{reason}; limit={projection.max_estimated_tokens}",
+                        ),
+                        resume_phase=TaskPhase.PLANNED,
+                        next_step="increase model request window or reduce model-visible input",
+                        started_at=started_at,
+                    )
+                usage.model_calls += 1
+                usage.steps += 1
+                usage.model_input_tokens += turn.usage.input_tokens
+                usage.model_output_tokens += turn.usage.output_tokens
+
+                if turn.status is not PolicyTurnStatus.BACKEND_FAILURE:
+                    break
+                assert turn.backend_error_code is not None
+                assert turn.backend_error_backend_id is not None
+                if not self._provider_retry.is_retryable(
+                    code=turn.backend_error_code,
+                    classified_retryable=turn.backend_retryable,
+                ):
+                    provider_retry_terminal_reason = (
+                        "provider retry denied by semantic failure classification"
+                    )
+                    break
+                if provider_attempt >= self._provider_retry.policy.max_attempts:
+                    provider_retry_terminal_reason = (
+                        "provider retry attempts exhausted: "
+                        f"{provider_attempt}/{self._provider_retry.policy.max_attempts}"
+                    )
+                    break
+                budget_stop = self._budget_stop(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    started_at=started_at,
+                )
+                if budget_stop is not None:
+                    return budget_stop
+                if provider_basis is None:
+                    provider_basis = self._provider_retry.initial_basis(
+                        backend_id=turn.backend_error_backend_id,
+                        request_fingerprint=turn.model_request_fingerprint,
+                        scope_fingerprint=provider_scope_fingerprint,
+                        assumption_revision=(
+                            state.decision_state.revision
+                            if state.decision_state is not None
+                            else 0
+                        ),
+                    )
+                retry_plan = self._provider_retry.plan(
+                    task_id=request.task_id,
+                    step_id=active_step.step_id,
+                    attempt_number=provider_attempt,
+                    code=turn.backend_error_code,
+                    backend_id=turn.backend_error_backend_id,
+                    request_fingerprint=turn.model_request_fingerprint,
+                    retry_after_seconds=turn.backend_retry_after_seconds,
+                    failure_ref=uuid4(),
+                    current_basis=provider_basis,
+                    history=provider_history,
+                )
+                provider_history = (*provider_history, retry_plan.failed_attempt)
+                if retry_plan.evidence is None:
+                    provider_retry_terminal_reason = (
+                        "provider retry blocked by unchanged basis: "
+                        f"{retry_plan.decision.reason.value}"
+                    )
+                    break
+                remaining_elapsed_seconds = max(
+                    0.0,
+                    request.runtime_budget.max_elapsed_seconds
+                    - (monotonic() - usage.started),
+                )
+                if retry_plan.evidence.delay_seconds >= remaining_elapsed_seconds:
+                    provider_retry_terminal_reason = (
+                        "provider retry delay exceeds remaining runtime elapsed budget"
+                    )
+                    break
+                usage.provider_retry_evidence.append(retry_plan.evidence)
+                cancellation = self._provider_retry.wait(
+                    retry_plan.evidence.delay_seconds,
+                    cancellation_probe=lambda: self._pending_cancellation_reason(
+                        request.task_id
+                    ),
+                )
+                if cancellation is not None:
+                    cancelled_during_backoff = True
+                    break
+                budget_stop = self._budget_stop(
+                    request=request,
+                    state=state,
+                    usage=usage,
+                    started_at=started_at,
+                )
+                if budget_stop is not None:
+                    return budget_stop
+                provider_basis = retry_plan.candidate_basis
+
+            if cancelled_during_backoff:
+                continue
 
             token_overruns = tuple(
                 reason
@@ -589,14 +1250,18 @@ class LunaRuntime:
                 reason = turn.invalid_reason or "model backend failure"
                 state = self._deactivate_step(state, reason=None)
                 state = state.transition_to(TaskPhase.OBSERVING)
+                semantic_retryable = self._provider_retry.is_retryable(
+                    code=turn.backend_error_code,
+                    classified_retryable=turn.backend_retryable,
+                )
                 stop_reason = (
                     RuntimeStopReason.RESOURCE_SUSPENDED
-                    if turn.backend_retryable
+                    if semantic_retryable
                     else RuntimeStopReason.BLOCKED
                 )
                 next_step = (
                     "resume only after model backend health or availability changes"
-                    if turn.backend_retryable
+                    if semantic_retryable
                     else "owner model rollout or adapter decision required"
                 )
                 return self._checkpoint_outcome(
@@ -607,7 +1272,8 @@ class LunaRuntime:
                     reasons=(
                         f"model_backend:{turn.backend_error_code.value}",
                         reason,
-                        "model backend failures are never blindly retried",
+                        provider_retry_terminal_reason
+                        or "provider retry ended without changed-basis authority",
                     ),
                     resume_phase=TaskPhase.PLANNED,
                     next_step=next_step,
@@ -655,7 +1321,11 @@ class LunaRuntime:
 
             if turn.status is PolicyTurnStatus.INVALID or turn.proposal is None:
                 reason = turn.invalid_reason or "invalid policy-agent turn"
-                state = self._fail_active_step(state, reason=reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=reason,
+                    provenance_ref="policy:invalid-action",
+                )
                 state = state.transition_to(TaskPhase.OBSERVING)
                 return self._checkpoint_outcome(
                     request=request,
@@ -680,7 +1350,12 @@ class LunaRuntime:
                 state = self._observe(state, resolution.observation.observation_id)
                 failure = self._deps.failure_classifier.from_action_denial(resolution.denial)
                 recovery = self._deps.recovery_policy.decide(failure=failure)
-                state = self._fail_active_step(state, reason=recovery.reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=recovery.reason,
+                    evidence_refs=(f"observation:{resolution.observation.observation_id}",),
+                    provenance_ref="action-resolver:denial",
+                )
                 if state.phase is TaskPhase.ACTING:
                     state = state.transition_to(TaskPhase.OBSERVING)
                 stop = (
@@ -703,6 +1378,7 @@ class LunaRuntime:
             return_or_state = self._execute_one(
                 request=request,
                 tool_policy=tool_policy,
+                turn=turn,
                 proposal=proposal,
                 tool_request=tool_request,
                 context_fingerprint=context.fingerprint(),
@@ -719,6 +1395,7 @@ class LunaRuntime:
         *,
         request: RuntimeRequest,
         tool_policy: ToolPolicy,
+        turn: PolicyTurn,
         proposal: ActionProposal,
         tool_request: ToolRequest,
         context_fingerprint: str,
@@ -777,6 +1454,36 @@ class LunaRuntime:
             fallback_root=state.contract.scope.workspace_root,
         )
         execution_contract = self._contract_for_workspace(state.contract, effective_root)
+        approval_workspace_root = effective_root
+        approval_contract = execution_contract
+        approval_basis_fingerprint = self._approval_basis_fingerprint(
+            state=state,
+            task_contract=approval_contract,
+            workspace_root=approval_workspace_root,
+        )
+        authorization = self._deps.core.tool_dispatcher.authorize(
+            request=tool_request,
+            task_contract=execution_contract,
+            policy=tool_policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        if not authorization.allowed:
+            return self._checkpoint_outcome(
+                request=request,
+                state=self._safe_checkpoint_state(state),
+                usage=usage,
+                stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                reasons=(
+                    authorization.reason,
+                    (
+                        "execution authority is rechecked at dispatch against "
+                        "the same exact-call basis"
+                    ),
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="owner exact-call approval or revised action required",
+                started_at=started_at,
+            )
         inspection: ChangeInspection | None = None
         lease = IsolationLease(
             mode=IsolationMode.NONE,
@@ -923,6 +1630,34 @@ class LunaRuntime:
                                 started_at=started_at,
                             )
 
+        # Recompute immediately before execution preparation so state changes that happened
+        # after the early permission preflight invalidate stale exact-call approval.
+        approval_basis_fingerprint = self._approval_basis_fingerprint(
+            state=state,
+            task_contract=approval_contract,
+            workspace_root=approval_workspace_root,
+        )
+        authorization = self._deps.core.tool_dispatcher.authorize(
+            request=tool_request,
+            task_contract=execution_contract,
+            policy=tool_policy,
+            approval_basis_fingerprint=approval_basis_fingerprint,
+        )
+        if not authorization.allowed:
+            return self._checkpoint_outcome(
+                request=request,
+                state=self._safe_checkpoint_state(state),
+                usage=usage,
+                stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                reasons=(
+                    authorization.reason,
+                    "exact-call authority changed before execution preparation",
+                ),
+                resume_phase=TaskPhase.PLANNED,
+                next_step="owner exact-call reapproval or revised action required",
+                started_at=started_at,
+            )
+
         side_effect = bool(set(proposal.required_capabilities) & _SIDE_EFFECT_CAPABILITIES)
         basis = self._attempt_basis(
             request=request,
@@ -972,6 +1707,8 @@ class LunaRuntime:
                 proposal_id=proposal.proposal_id,
                 request=tool_request,
                 attempt_basis=basis,
+                approval_basis_fingerprint=approval_basis_fingerprint,
+                approval_workspace_root=effective_root,
                 pre_action_state=state,
                 execution_workspace_root=lease.workspace_root,
                 isolation_mode=lease.mode.value,
@@ -1015,6 +1752,8 @@ class LunaRuntime:
             request=tool_request,
             task_contract=execution_contract,
             policy=tool_policy,
+            cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
+            approval_basis_fingerprint=approval_basis_fingerprint,
         )
         usage.tool_calls += 1
         if ToolCapability.NETWORK in proposal.required_capabilities:
@@ -1027,6 +1766,11 @@ class LunaRuntime:
         self._deps.runtime_journal.record_outcome(outcome)
 
         state = self._observe(state, outcome.observation.observation_id)
+        if outcome.result.status is ToolResultStatus.SUCCESS:
+            self._policy_agent.record_retrieval_observation(
+                turn=turn,
+                observation=outcome.observation,
+            )
         if receipt is not None:
             self._deps.runtime_journal.mark_observed(
                 idempotency_key=receipt.idempotency_key,
@@ -1068,6 +1812,65 @@ class LunaRuntime:
 
         active = self._active_step(state)
         expectation = active.expectation
+        lifecycle_error = outcome.result.error_class
+        if lifecycle_error in {
+            "ToolExecutionCancelled",
+            "ToolExecutionCancellationAmbiguous",
+            "ToolExecutionDeadlineExceeded",
+            "ToolExecutionDeadlineAmbiguous",
+        }:
+            ambiguous = lifecycle_error in {
+                "ToolExecutionCancellationAmbiguous",
+                "ToolExecutionDeadlineAmbiguous",
+            }
+            cancelled = lifecycle_error in {
+                "ToolExecutionCancelled",
+                "ToolExecutionCancellationAmbiguous",
+            }
+            reason = (
+                "tool execution cancellation was observed after a side effect may have started; "
+                "automatic replay is forbidden"
+                if ambiguous and cancelled
+                else "tool execution deadline expired after a side effect may have started; "
+                "automatic replay is forbidden"
+                if ambiguous
+                else "tool execution was cooperatively cancelled"
+                if cancelled
+                else "tool execution deadline expired"
+            )
+            state = self._fail_active_step(
+                state,
+                reason=reason,
+                evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                provenance_ref="tool-dispatch:lifecycle",
+            )
+            if state.phase is TaskPhase.ACTING:
+                state = state.transition_to(TaskPhase.OBSERVING)
+            if cancelled:
+                control = self._deps.runtime_journal.pending_control(request.task_id)
+                if control is not None and control.command is RuntimeControlCommand.CANCEL:
+                    self._deps.runtime_journal.acknowledge_control(control.control_id)
+            return self._checkpoint_and_fence(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=(
+                    RuntimeStopReason.INTERRUPTED
+                    if ambiguous
+                    else RuntimeStopReason.CANCELLED
+                    if cancelled
+                    else RuntimeStopReason.BLOCKED
+                ),
+                reasons=(reason,),
+                resume_phase=TaskPhase.PLANNED,
+                next_step=(
+                    "reconcile the prior side effect before any retry"
+                    if ambiguous
+                    else "resume only after a fresh runtime decision"
+                ),
+                started_at=started_at,
+                receipt=receipt,
+            )
         if outcome.result.status is not ToolResultStatus.SUCCESS:
             failure = self._deps.failure_classifier.from_tool_result(
                 task_id=request.task_id,
@@ -1078,7 +1881,12 @@ class LunaRuntime:
                 failure=failure,
                 mutation_active=bool(outcome.observation.changed_files),
             )
-            state = self._fail_active_step(state, reason=recovery.reason)
+            state = self._fail_active_step(
+                state,
+                reason=recovery.reason,
+                evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                provenance_ref="tool-dispatch:failure",
+            )
             if state.phase is TaskPhase.ACTING:
                 state = state.transition_to(TaskPhase.OBSERVING)
             stop_reason = (
@@ -1119,7 +1927,12 @@ class LunaRuntime:
                     failure=failure,
                     mutation_active=bool(outcome.observation.changed_files),
                 )
-                state = self._fail_active_step(state, reason=recovery.reason)
+                state = self._fail_active_step(
+                    state,
+                    reason=recovery.reason,
+                    evidence_refs=(f"observation:{outcome.observation.observation_id}",),
+                    provenance_ref="expectation:mismatch",
+                )
                 if state.phase is TaskPhase.ACTING:
                     state = state.transition_to(TaskPhase.OBSERVING)
                 return self._checkpoint_and_fence(
@@ -1295,11 +2108,46 @@ class LunaRuntime:
                     )
                 }
             )
+            approval_workspace_root = (
+                receipt.approval_workspace_root
+                or receipt.pre_action_state.contract.scope.workspace_root
+            )
+            approval_contract = self._contract_for_workspace(
+                receipt.pre_action_state.contract,
+                approval_workspace_root,
+            )
+            current_approval_basis = self._approval_basis_fingerprint(
+                state=receipt.pre_action_state,
+                task_contract=approval_contract,
+                workspace_root=approval_workspace_root,
+            )
+            authorization = self._deps.core.tool_dispatcher.authorize(
+                request=receipt.request,
+                task_contract=execution_contract,
+                policy=policy,
+                approval_basis_fingerprint=current_approval_basis,
+            )
+            if not authorization.allowed:
+                return self._checkpoint_outcome(
+                    request=request,
+                    state=self._safe_checkpoint_state(receipt.pre_action_state),
+                    usage=usage,
+                    stop_reason=RuntimeStopReason.PERMISSION_DENIED,
+                    reasons=(
+                        authorization.reason,
+                        "prepared side effect remains fenced until exact-call reapproval",
+                    ),
+                    resume_phase=TaskPhase.PLANNED,
+                    next_step="owner exact-call reapproval or revised action required",
+                    started_at=started_at,
+                )
             self._deps.runtime_journal.mark_started(receipt.idempotency_key)
             outcome = self._deps.core.tool_dispatcher.dispatch(
                 request=receipt.request,
                 task_contract=execution_contract,
                 policy=policy,
+                cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
+                approval_basis_fingerprint=current_approval_basis,
             )
             usage.tool_calls += 1
             self._deps.runtime_journal.mark_completed(
@@ -1385,7 +2233,15 @@ class LunaRuntime:
                     kind=ContextSourceKind.PROJECT_STATE,
                     locator="runtime://task-state",
                     text=json.dumps(
-                        state.model_dump(mode="json"),
+                        state.model_dump(
+                            mode="json",
+                            exclude={
+                                "acceptance_basis_fingerprint",
+                                "acceptance_target_ids",
+                                "invalidation_state",
+                                "specification_judgment",
+                            },
+                        ),
                         ensure_ascii=False,
                         sort_keys=True,
                     ),
@@ -1489,12 +2345,26 @@ class LunaRuntime:
             target.model_copy(update={"status": PlanStepStatus.COMPLETE, "status_reason": None}),
         )
 
-    def _fail_active_step(self, state: TaskState, *, reason: str) -> TaskState:
+    def _fail_active_step(
+        self,
+        state: TaskState,
+        *,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+        provenance_ref: str = "runtime:plan-step-failure",
+    ) -> TaskState:
         target = self._active_step(state)
-        return self._replace_step(
+        failed = self._replace_step(
             state,
             target.model_copy(update={"status": PlanStepStatus.FAILED, "status_reason": reason}),
         )
+        _, revised = self._invalidation.reconcile(
+            previous_state=state,
+            current_state=failed,
+            evidence_refs=evidence_refs,
+            provenance_refs=(provenance_ref,),
+        )
+        return revised
 
     def _safe_checkpoint_state(self, state: TaskState) -> TaskState:
         if any(item.status is PlanStepStatus.ACTIVE for item in state.plan):
@@ -1562,6 +2432,49 @@ class LunaRuntime:
     @staticmethod
     def _idempotency_key(*, task_id: UUID, step_id: UUID, semantic_fingerprint: str) -> str:
         return sha256(f"{task_id}:{step_id}:{semantic_fingerprint}".encode()).hexdigest()
+
+    def _approval_basis_fingerprint(
+        self,
+        *,
+        state: TaskState,
+        task_contract: TaskContract,
+        workspace_root: str,
+    ) -> str:
+        """Bind approval to fresh runtime-owned state without model-window churn."""
+        scope_payload = json.dumps(
+            task_contract.scope.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        payload = {
+            "assumption_revision": (
+                state.decision_state.revision
+                if state.decision_state is not None
+                else 0
+            ),
+            "environment_fingerprint": (
+                self._deps.fingerprint_provider.environment_fingerprint()
+            ),
+            "runtime_revision": self._deps.fingerprint_provider.runtime_revision,
+            "scope_fingerprint": sha256(scope_payload.encode("utf-8")).hexdigest(),
+            "workspace_fingerprint": (
+                self._deps.fingerprint_provider.workspace_fingerprint(
+                    task_contract=task_contract,
+                    workspace_root=workspace_root,
+                )
+            ),
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return sha256(
+            b"luna-exact-call-approval-basis-v1\0"
+            + serialized.encode("utf-8")
+        ).hexdigest()
 
     def _attempt_basis(
         self,
@@ -1798,6 +2711,7 @@ class LunaRuntime:
             attempts=attempts,
             resume_phase=resume_phase,
             trace_id=request.trace_id,
+            cognitive_requirements=request.context_requirements,
         )
         return stored.envelope.state, stored.envelope.checkpoint.checkpoint_id
 

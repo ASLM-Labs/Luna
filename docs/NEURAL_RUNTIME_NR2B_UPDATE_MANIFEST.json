@@ -2,13 +2,17 @@
   "authority": "NR-2B Slice 1 direct-native inference only; no primary-path promotion, tool authority, memory authority, training authority, promotion authority, persistent residency, production GPU-budget guarantee, or identity-test claim.",
   "developer": "Novopic Intelligence",
   "files": {
+    "docs/NEURAL_RUNTIME_NR2B_REAL_PROOF_RECEIPT.json": {
+      "sha256": "4045df6c6f2decdcb393ea22b6b7ed63375b47bcb11a585a10048db64c85035a",
+      "size_bytes": 1390
+    },
     "docs/NEURAL_RUNTIME_NR2B_REPORT.md": {
       "sha256": "d5fc446600cbb2fbb158e72effdaebbb8b714343d38d216c8afae1317557b9e4",
       "size_bytes": 5515
     },
-    "docs/NEURAL_RUNTIME_NR2B_REAL_PROOF_RECEIPT.json": {
-      "sha256": "4045df6c6f2decdcb393ea22b6b7ed63375b47bcb11a585a10048db64c85035a",
-      "size_bytes": 1390
+    "scripts/check.bat": {
+      "sha256": "5ec61534a367ea6681ca700807bb36560f5ef620ca45df2916eb5ae80b747890",
+      "size_bytes": 7517
     },
     "scripts/verify_neural_native_transport.py": {
       "sha256": "db32193a4c6bd2990e73ddff5b1fec200373fa4c4c608f559bf3fa1be6521fdb",
@@ -25,10 +29,6 @@
     "tests/test_neural_native_transport.py": {
       "sha256": "b0d646fef19f3daad274071737a2982d7977b29e93fb88feeaf97158f3c8de01",
       "size_bytes": 4338
-    },
-    "scripts/check.bat": {
-      "sha256": "04e8ca1876f826835d3cd6c5040d36d6e9b5ef655aba6eceda7f5f82891d1333",
-      "size_bytes": 8638
     }
   },
   "frozen_head": "639bb5ddead055eec9b04d868370364218496cba",

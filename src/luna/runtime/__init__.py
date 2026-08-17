@@ -2,6 +2,14 @@
 
 from luna.runtime.budgets import RuntimeBudget
 from luna.runtime.change_inspector import ChangeInspectionError, WorkspaceChangeInspector
+from luna.runtime.coordination import (
+    CoordinationExecutionReport,
+    CoordinationExecutionStatus,
+    CoordinationRuntime,
+    CoordinationRuntimeError,
+    CoordinationWorker,
+    CoordinationWorkerFactory,
+)
 from luna.runtime.dependencies import (
     Phase12FServices,
     RuntimeDependencies,
@@ -54,6 +62,12 @@ __all__ = [
     "ActorRole",
     "ActorVerificationSource",
     "ChangeInspectionError",
+    "CoordinationExecutionReport",
+    "CoordinationExecutionStatus",
+    "CoordinationRuntime",
+    "CoordinationRuntimeError",
+    "CoordinationWorker",
+    "CoordinationWorkerFactory",
     "DeterministicFingerprintProvider",
     "GitWorktreeIsolationManager",
     "IsolationLease",

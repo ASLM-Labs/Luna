@@ -7,6 +7,7 @@ from uuid import UUID
 
 from luna.contracts.enums import ObservationStatus, RiskLevel
 from luna.contracts.plan import ExpectedObservation, PlanStep
+from luna.contracts.specification import IntentConstraintJudgment
 from luna.intent.models import IntentKind, RequestedAction
 from luna.planning.judgment import LocalJudgmentBuilder
 from luna.planning.models import TaskComplexity, TaskPlan
@@ -74,13 +75,27 @@ class AdaptivePlanner:
             high_impact=True,
         )
 
-    def plan(self, preparation: TaskPreparation) -> TaskPlan:
+    def plan(
+        self,
+        preparation: TaskPreparation,
+        *,
+        specification_judgment: IntentConstraintJudgment | None = None,
+    ) -> TaskPlan:
         contract = preparation.contract
         if preparation.status is not PreparationStatus.READY_FOR_PLANNING or contract is None:
             raise ValueError("planning requires READY_FOR_PLANNING preparation")
 
+        specification = specification_judgment or preparation.specification_judgment
+        if specification.task_id != contract.task_id:
+            raise ValueError("planning specification must match task contract")
+        if specification.literal_objective != contract.objective:
+            raise ValueError("planning specification must preserve contract objective")
+
         complexity = self.classify(preparation)
-        acceptance = LocalJudgmentBuilder().acceptance_from_contract(contract)
+        acceptance = LocalJudgmentBuilder().acceptance_from_basis(
+            contract=contract,
+            specification=specification,
+        )
         actions = set(preparation.intent.actions)
         write_actions = {
             RequestedAction.MODIFY,
@@ -142,7 +157,7 @@ class AdaptivePlanner:
         )
         return TaskPlan(
             task_id=contract.task_id,
-            objective=contract.objective,
+            objective=specification.reconstructed_objective,
             complexity=complexity,
             steps=final_steps,
             significant_step_ids=significant_ids,

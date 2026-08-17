@@ -56,6 +56,12 @@ class AdaptiveKnowledgeRouter:
                     KnowledgeSource.PROJECT_RAG,
                     RetrievalReason.DOCUMENT_SPECIFIC,
                 )
+            if profile.workspace_read_available:
+                return self._retrieve(
+                    profile,
+                    KnowledgeSource.WORKSPACE_TOOL,
+                    RetrievalReason.DOCUMENT_SPECIFIC,
+                )
             return self._stop(
                 profile,
                 RetrievalReason.DOCUMENT_SPECIFIC,
@@ -67,6 +73,12 @@ class AdaptiveKnowledgeRouter:
                 return self._retrieve(
                     profile,
                     KnowledgeSource.PROJECT_RAG,
+                    RetrievalReason.PROJECT_SPECIFIC,
+                )
+            if profile.workspace_read_available:
+                return self._retrieve(
+                    profile,
+                    KnowledgeSource.WORKSPACE_TOOL,
                     RetrievalReason.PROJECT_SPECIFIC,
                 )
             if profile.verified_memory_available and not profile.currentness_required:
@@ -181,6 +193,7 @@ class AdaptiveKnowledgeRouter:
             decision=RetrievalDecision.RETRIEVE,
             primary_source=source,
             reasons=(reason,),
+            requires_freshness=source is KnowledgeSource.WORKSPACE_TOOL,
             memory_review_required=source is KnowledgeSource.PROJECT_RAG,
         )
 

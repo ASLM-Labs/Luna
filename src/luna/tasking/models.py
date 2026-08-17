@@ -27,6 +27,7 @@ class TaskContractDraft(LunaContractModel):
     required_conditions: tuple[str, ...] = ()
     forbidden_outcomes: tuple[str, ...] = ()
     evidence_required: tuple[str, ...] = ()
+    soft_preferences: tuple[str, ...] = ()
     scope: TaskScope
     risk_level: RiskLevel
     unresolved_unknowns: tuple[str, ...] = ()
@@ -39,6 +40,7 @@ class TaskContractDraft(LunaContractModel):
         "required_conditions",
         "forbidden_outcomes",
         "evidence_required",
+        "soft_preferences",
         "unresolved_unknowns",
         "blocking_unknowns",
         "conflicts",

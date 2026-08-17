@@ -27,11 +27,45 @@ class DecisionStateService:
         return snapshot
 
     @staticmethod
-    def latest_assumption(snapshot: DecisionStateSnapshot, key: str) -> AssumptionRecord | None:
-        candidates = [item for item in snapshot.assumptions if item.key == key]
-        if not candidates:
-            return None
-        return max(candidates, key=lambda item: (item.updated_at, str(item.assumption_id)))
+    def latest_assumption(
+        snapshot: DecisionStateSnapshot,
+        key: str,
+        claim_type: str | None = None,
+    ) -> AssumptionRecord | None:
+        return next(
+            (
+                item
+                for item in reversed(snapshot.assumptions)
+                if item.key == key and (claim_type is None or item.claim_type == claim_type)
+            ),
+            None,
+        )
+
+    @classmethod
+    def current_assumptions(
+        cls,
+        snapshot: DecisionStateSnapshot,
+    ) -> tuple[AssumptionRecord, ...]:
+        """Return the latest assumption for each logical key/type identity."""
+        identities = sorted({(item.key, item.claim_type) for item in snapshot.assumptions})
+        current: list[AssumptionRecord] = []
+        for key, claim_type in identities:
+            latest = cls.latest_assumption(snapshot, key, claim_type)
+            if latest is not None:
+                current.append(latest)
+        return tuple(current)
+
+    @classmethod
+    def blocking_assumptions(
+        cls,
+        snapshot: DecisionStateSnapshot,
+    ) -> tuple[AssumptionRecord, ...]:
+        """Return current critical assumptions that cannot safely support action."""
+        return tuple(
+            item
+            for item in cls.current_assumptions(snapshot)
+            if item.critical and item.status is not AssumptionStatus.SUPPORTED
+        )
 
     @staticmethod
     def _replace(
@@ -142,7 +176,7 @@ class DecisionStateService:
             AssumptionStatus.CONTRADICTED,
             AssumptionStatus.INVALIDATED,
             AssumptionStatus.SUPERSEDED,
-        }
+        } or (target.critical and status is not AssumptionStatus.SUPPORTED)
         updated_decisions: list[DecisionRecord] = []
         for decision in snapshot.decisions:
             if not invalidating or assumption_id not in decision.assumption_ids:

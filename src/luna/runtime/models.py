@@ -19,6 +19,7 @@ from luna.context import (
 from luna.contracts import CompletionStatus, RiskLevel, TaskScope, TaskState
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 from luna.contracts.enums import TaskPhase
+from luna.modeling import ProviderRetryEvidence
 from luna.runtime.budgets import RuntimeBudget
 from luna.runtime.identity_context import RequestSource, RuntimeActor
 
@@ -81,6 +82,7 @@ class RuntimeRequest(LunaContractModel):
     required_conditions: tuple[str, ...] = ()
     forbidden_outcomes: tuple[str, ...] = ()
     evidence_required: tuple[str, ...] = ()
+    soft_preferences: tuple[str, ...] = ()
     risk_level: RiskLevel = RiskLevel.LOW
     priority: RuntimePriority = RuntimePriority.NORMAL
     mode: RuntimeMode = RuntimeMode.DRY_RUN
@@ -96,6 +98,7 @@ class RuntimeRequest(LunaContractModel):
         "required_conditions",
         "forbidden_outcomes",
         "evidence_required",
+        "soft_preferences",
     )
     @classmethod
     def validate_unique_text(cls, values: tuple[str, ...]) -> tuple[str, ...]:
@@ -178,6 +181,7 @@ class RuntimeUsage(LunaContractModel):
     deleted_lines: int = Field(default=0, ge=0)
     questions: int = Field(default=0, ge=0)
     network_requests: int = Field(default=0, ge=0)
+    provider_retry_evidence: tuple[ProviderRetryEvidence, ...] = ()
 
     def exhausted_reasons(self) -> tuple[str, ...]:
         """Return deterministic budget names that are exhausted or exceeded."""

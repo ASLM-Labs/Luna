@@ -6,8 +6,10 @@ not raw or hidden chain-of-thought and grant no execution or completion authorit
 
 from __future__ import annotations
 
+import json
 from enum import StrEnum
 from hashlib import sha256
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
@@ -15,6 +17,7 @@ from pydantic import Field, field_validator, model_validator
 from luna.contracts.base import LunaContractModel
 from luna.contracts.decision import AssumptionStatus, DecisionStatus
 from luna.contracts.plan import PlanStep
+from luna.contracts.specification import IntentConstraintJudgment, SpecificationControlAction
 from luna.contracts.state import TaskState
 from luna.contracts.task import TaskContract
 
@@ -42,23 +45,34 @@ class AcceptanceTarget(LunaContractModel):
     kind: AcceptanceTargetKind
     text: str = Field(min_length=1, max_length=4000)
     evidence_requirements: tuple[str, ...] = Field(min_length=1)
+    source_refs: tuple[str, ...] = ()
 
-    @field_validator("evidence_requirements")
+    @field_validator("evidence_requirements", "source_refs")
     @classmethod
     def validate_requirements(cls, values: tuple[str, ...]) -> tuple[str, ...]:
         cleaned = tuple(value.strip() for value in values)
         if any(not value for value in cleaned):
-            raise ValueError("acceptance evidence requirements cannot be blank")
+            raise ValueError("acceptance evidence/provenance entries cannot be blank")
         if len(cleaned) != len(set(cleaned)):
-            raise ValueError("acceptance evidence requirements must be unique")
+            raise ValueError("acceptance evidence/provenance entries must be unique")
         return cleaned
 
 
 class AcceptanceBackchain(LunaContractModel):
-    """Acceptance-first reverse-planning view of the task contract."""
+    """Acceptance-first reverse-planning view with an explicit C4 derivation basis."""
 
     task_id: UUID
     targets: tuple[AcceptanceTarget, ...] = Field(min_length=1)
+    specification_basis_fingerprint: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
+    acceptance_basis_fingerprint: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
+    provenance_refs: tuple[str, ...] = ()
+    runtime_authority: Literal[False] = False
+    execution_authority: Literal[False] = False
+    completion_authority: Literal[False] = False
 
     @field_validator("targets")
     @classmethod
@@ -69,6 +83,29 @@ class AcceptanceBackchain(LunaContractModel):
         if len(target_ids) != len(set(target_ids)):
             raise ValueError("acceptance target IDs must be unique")
         return values
+
+    @field_validator("provenance_refs")
+    @classmethod
+    def validate_provenance_refs(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(value.strip() for value in values)
+        if any(not value for value in cleaned):
+            raise ValueError("acceptance provenance refs cannot be blank")
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("acceptance provenance refs must be unique")
+        return cleaned
+
+    @model_validator(mode="after")
+    def validate_basis_binding(self) -> AcceptanceBackchain:
+        specification_bound = self.specification_basis_fingerprint is not None
+        acceptance_bound = self.acceptance_basis_fingerprint is not None
+        if specification_bound != acceptance_bound:
+            raise ValueError("C5 specification and acceptance basis fingerprints must pair")
+        if acceptance_bound:
+            if not self.provenance_refs:
+                raise ValueError("C5 basis-bound backchain requires provenance refs")
+            if any(not item.source_refs for item in self.targets):
+                raise ValueError("C5 basis-bound acceptance targets require source refs")
+        return self
 
 
 class InformationNeed(LunaContractModel):
@@ -163,48 +200,134 @@ class LocalJudgmentBuilder:
         digest = sha256(f"{kind}\0{text}".encode()).hexdigest()
         return f"{prefix}:sha256:{digest}"
 
-    def acceptance_from_contract(self, contract: TaskContract) -> AcceptanceBackchain:
+    @staticmethod
+    def _source_ref(kind: AcceptanceTargetKind, text: str) -> str:
+        digest = sha256(f"{kind.value}\0{text}".encode()).hexdigest()
+        return f"task_contract:{kind.value.lower()}:sha256:{digest}"
+
+    def _targets_from_contract(self, contract: TaskContract) -> tuple[AcceptanceTarget, ...]:
         common_evidence = contract.evidence_required
         targets: list[AcceptanceTarget] = []
 
         for condition in contract.required_conditions:
+            kind = AcceptanceTargetKind.REQUIRED_CONDITION
             targets.append(
                 AcceptanceTarget(
-                    target_id=self._stable_id(
-                        "acceptance", AcceptanceTargetKind.REQUIRED_CONDITION.value, condition
-                    ),
-                    kind=AcceptanceTargetKind.REQUIRED_CONDITION,
+                    target_id=self._stable_id("acceptance", kind.value, condition),
+                    kind=kind,
                     text=condition,
                     evidence_requirements=common_evidence,
+                    source_refs=(self._source_ref(kind, condition),),
                 )
             )
         for outcome in contract.forbidden_outcomes:
+            kind = AcceptanceTargetKind.FORBIDDEN_OUTCOME_ABSENT
             targets.append(
                 AcceptanceTarget(
-                    target_id=self._stable_id(
-                        "acceptance", AcceptanceTargetKind.FORBIDDEN_OUTCOME_ABSENT.value, outcome
-                    ),
-                    kind=AcceptanceTargetKind.FORBIDDEN_OUTCOME_ABSENT,
+                    target_id=self._stable_id("acceptance", kind.value, outcome),
+                    kind=kind,
                     text=outcome,
                     evidence_requirements=common_evidence,
+                    source_refs=(self._source_ref(kind, outcome),),
                 )
             )
         for requirement in contract.evidence_required:
+            kind = AcceptanceTargetKind.EVIDENCE_REQUIREMENT
             targets.append(
                 AcceptanceTarget(
-                    target_id=self._stable_id(
-                        "acceptance", AcceptanceTargetKind.EVIDENCE_REQUIREMENT.value, requirement
-                    ),
-                    kind=AcceptanceTargetKind.EVIDENCE_REQUIREMENT,
+                    target_id=self._stable_id("acceptance", kind.value, requirement),
+                    kind=kind,
                     text=requirement,
                     evidence_requirements=(requirement,),
+                    source_refs=(self._source_ref(kind, requirement),),
                 )
             )
+        return tuple(targets)
 
-        return AcceptanceBackchain(task_id=contract.task_id, targets=tuple(targets))
+    @staticmethod
+    def _basis_fingerprint(
+        *,
+        task_id: UUID,
+        targets: tuple[AcceptanceTarget, ...],
+        specification_basis_fingerprint: str,
+    ) -> str:
+        payload = {
+            "specification_basis_fingerprint": specification_basis_fingerprint,
+            "targets": tuple(
+                {
+                    "evidence_requirements": item.evidence_requirements,
+                    "kind": item.kind.value,
+                    "source_refs": item.source_refs,
+                    "target_id": item.target_id,
+                    "text": item.text,
+                }
+                for item in targets
+            ),
+            "task_id": str(task_id),
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return sha256(serialized.encode("utf-8")).hexdigest()
+
+    def acceptance_from_contract(self, contract: TaskContract) -> AcceptanceBackchain:
+        """Return the legacy contract-only view without claiming a C4 basis binding."""
+        targets = self._targets_from_contract(contract)
+        return AcceptanceBackchain(
+            task_id=contract.task_id,
+            targets=targets,
+            provenance_refs=tuple(
+                ref for item in targets for ref in item.source_refs
+            ),
+        )
+
+    def acceptance_from_basis(
+        self,
+        *,
+        contract: TaskContract,
+        specification: IntentConstraintJudgment,
+    ) -> AcceptanceBackchain:
+        """Bind stable contract targets to the current observable C4 specification basis."""
+        if specification.task_id != contract.task_id:
+            raise ValueError("C5 specification must match the authoritative task contract")
+        if specification.literal_objective != contract.objective:
+            raise ValueError("C5 specification must preserve the TaskContract objective")
+
+        targets = self._targets_from_contract(contract)
+        specification_ref = (
+            "c4:specification_basis:" + specification.specification_basis_fingerprint
+        )
+        provenance_refs = tuple(
+            dict.fromkeys(
+                (
+                    *(ref for item in targets for ref in item.source_refs),
+                    specification_ref,
+                )
+            )
+        )
+        acceptance_basis = self._basis_fingerprint(
+            task_id=contract.task_id,
+            targets=targets,
+            specification_basis_fingerprint=specification.specification_basis_fingerprint,
+        )
+        return AcceptanceBackchain(
+            task_id=contract.task_id,
+            targets=targets,
+            specification_basis_fingerprint=specification.specification_basis_fingerprint,
+            acceptance_basis_fingerprint=acceptance_basis,
+            provenance_refs=provenance_refs,
+        )
 
     def acceptance_backchain(self, state: TaskState) -> AcceptanceBackchain:
-        return self.acceptance_from_contract(state.contract)
+        if state.specification_judgment is None:
+            return self.acceptance_from_contract(state.contract)
+        return self.acceptance_from_basis(
+            contract=state.contract,
+            specification=state.specification_judgment,
+        )
 
     def information_gain(
         self,
@@ -226,7 +349,12 @@ class LocalJudgmentBuilder:
                 item.critical and item.status is not AssumptionStatus.SUPPORTED
                 for item in decision_state.assumptions
             )
-        if state.contract.unknowns or critical_gap:
+        specification_blocked = bool(
+            state.specification_judgment is not None
+            and state.specification_judgment.action
+            is SpecificationControlAction.STOP_VERIFY
+        )
+        if state.contract.unknowns or critical_gap or specification_blocked:
             description = "Resolve task-critical unknowns or unsupported critical assumptions."
             needs.append(
                 InformationNeed(
@@ -240,6 +368,8 @@ class LocalJudgmentBuilder:
                 )
             )
             reasons.append("critical_uncertainty_present")
+            if specification_blocked:
+                reasons.append("c4_specification_blocker_present")
 
         is_last_step = step.sequence == max(item.sequence for item in state.plan)
         if is_last_step:
@@ -305,21 +435,37 @@ class LocalJudgmentBuilder:
                 if decision.status in {DecisionStatus.BLOCKED, DecisionStatus.INVALIDATED}:
                     blocker_refs.append(f"decision:{decision.decision_id}:{decision.status.value}")
 
+        specification = state.specification_judgment
         scope = state.contract.scope
-        hard_constraints = (
+        base_hard_constraints = (
             f"risk_level:{state.contract.risk_level.value}",
             f"write_allowed:{str(scope.write_allowed).lower()}",
             f"network_allowed:{str(scope.network_allowed).lower()}",
             f"process_allowed:{str(scope.process_allowed).lower()}",
-            *(f"forbidden_outcome:{item}" for item in state.contract.forbidden_outcomes),
+            *(
+                f"forbidden_outcome:{item}"
+                for item in state.contract.forbidden_outcomes
+            ),
         )
+        if specification is not None:
+            blocker_refs.extend(specification.blocker_refs)
+            hard_constraints = base_hard_constraints
+            objective = specification.reconstructed_objective
+            if (
+                specification.action is not SpecificationControlAction.ACCEPT_LITERAL
+                or specification.context_basis_refs
+            ):
+                reasons.append("c4_specification_bound")
+        else:
+            hard_constraints = base_hard_constraints
+            objective = state.contract.objective
         if blocker_refs:
             reasons.append("blockers_present")
 
         return DecisionBasis(
             task_id=state.task_id,
             step_id=step.step_id,
-            objective=state.contract.objective,
+            objective=objective,
             selected_information_need_id=information_gain.selected_need_id,
             acceptance_target_ids=tuple(item.target_id for item in acceptance.targets),
             evidence_refs=tuple(dict.fromkeys(evidence_refs)),

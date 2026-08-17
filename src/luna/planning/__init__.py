@@ -1,6 +1,30 @@
 """Adaptive planning, expectation evaluation, retry guard, and replanning."""
 
+from luna.planning.capability_selection import (
+    CapabilityDisposition,
+    CapabilityKind,
+    CapabilitySelectionEntry,
+    CapabilitySelectionPlan,
+    GeneralCapabilitySelector,
+)
+from luna.planning.control import (
+    DecisionAlternative,
+    DecisionAlternativeSet,
+    DecisionCompression,
+    DecisionControlAction,
+    DecisionControlAdvisor,
+    DecisionControlAssessment,
+    DecisionRouteTradeoffSignal,
+)
+from luna.planning.coordination import (
+    CoordinationMode,
+    CoordinationPlan,
+    GeneralCoordinationPlanner,
+    WorkerAssignment,
+    WorkerRole,
+)
 from luna.planning.expectation import ExpectationEvaluator
+from luna.planning.invalidation import TargetedInvalidationCoordinator
 from luna.planning.judgment import (
     AcceptanceBackchain,
     AcceptanceTarget,
@@ -11,6 +35,14 @@ from luna.planning.judgment import (
     InformationNeedKind,
     LocalJudgmentBuilder,
     LocalJudgmentContext,
+)
+from luna.planning.knowledge_evolution import (
+    KnowledgeInformationGainRefresh,
+    KnowledgeInformationGainRefresher,
+)
+from luna.planning.knowledge_option_space import (
+    KnowledgeOptionSpaceAttributionBinding,
+    KnowledgeOptionSpaceProjector,
 )
 from luna.planning.lifecycle import PlanLifecycle
 from luna.planning.models import (
@@ -27,6 +59,14 @@ from luna.planning.models import (
     TaskPlan,
 )
 from luna.planning.planner import AdaptivePlanner
+from luna.planning.reconciliation import (
+    CoordinationClaim,
+    CoordinationReconciler,
+    ReconciliationReport,
+    ReconciliationVerdict,
+    WorkerResult,
+    WorkerResultStatus,
+)
 from luna.planning.replanner import AdaptiveReplanner
 from luna.planning.retry import RetryGuard
 
@@ -38,22 +78,50 @@ __all__ = [
     "AdaptiveReplanner",
     "AttemptBasis",
     "AttemptRecord",
+    "CapabilityDisposition",
+    "CapabilityKind",
+    "CapabilitySelectionEntry",
+    "CapabilitySelectionPlan",
+    "CoordinationClaim",
+    "CoordinationMode",
+    "CoordinationPlan",
+    "CoordinationReconciler",
+    "DecisionAlternative",
+    "DecisionAlternativeSet",
     "DecisionBasis",
+    "DecisionCompression",
+    "DecisionControlAction",
+    "DecisionControlAdvisor",
+    "DecisionControlAssessment",
+    "DecisionRouteTradeoffSignal",
     "ExpectationAssessment",
     "ExpectationEvaluator",
     "FailedAssumption",
+    "GeneralCapabilitySelector",
+    "GeneralCoordinationPlanner",
     "InformationGainPlan",
     "InformationNeed",
     "InformationNeedKind",
+    "KnowledgeInformationGainRefresh",
+    "KnowledgeInformationGainRefresher",
+    "KnowledgeOptionSpaceAttributionBinding",
+    "KnowledgeOptionSpaceProjector",
     "LocalJudgmentBuilder",
     "LocalJudgmentContext",
     "PlanLifecycle",
     "PlanStatus",
+    "ReconciliationReport",
+    "ReconciliationVerdict",
     "ReplanAction",
     "ReplanOutcome",
     "RetryDecision",
     "RetryGuard",
     "RetryReason",
+    "TargetedInvalidationCoordinator",
     "TaskComplexity",
     "TaskPlan",
+    "WorkerAssignment",
+    "WorkerResult",
+    "WorkerResultStatus",
+    "WorkerRole",
 ]

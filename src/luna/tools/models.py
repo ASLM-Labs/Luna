@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import StrEnum
+from hashlib import sha256
 from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
@@ -165,6 +167,89 @@ class ToolRequest(LunaContractModel):
     def validate_requested_at(cls, value: datetime) -> datetime:
         return require_utc(value)
 
+    def exact_call_fingerprint(self) -> str:
+        """Return the canonical identity of the proposed execution envelope."""
+        working_directory = (
+            self.working_directory.replace("\\", "/").strip()
+            if self.working_directory is not None
+            else None
+        )
+        payload = {
+            "arguments": self.arguments,
+            "max_output_chars": self.max_output_chars,
+            "task_id": str(self.task_id),
+            "timeout_ms": self.timeout_ms,
+            "tool_name": self.tool_name,
+            "working_directory": working_directory,
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        return sha256(
+            b"luna-exact-call-v1\0" + serialized.encode("utf-8")
+        ).hexdigest()
+
+
+class ExactCallApproval(LunaContractModel):
+    """Owner evidence bound to one exact call under one runtime-owned basis."""
+
+    approval_id: UUID = Field(default_factory=uuid4)
+    task_id: UUID
+    tool_name: str = Field(
+        pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+        max_length=120,
+    )
+    call_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    basis_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    approved_by: str = Field(min_length=1, max_length=300)
+    evidence_ref: str = Field(min_length=1, max_length=1000)
+    approved_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("approved_by", "evidence_ref")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("exact-call approval text cannot be blank")
+        return cleaned
+
+    @field_validator("approved_at")
+    @classmethod
+    def validate_approved_at(cls, value: datetime) -> datetime:
+        return require_utc(value)
+
+    @classmethod
+    def bind(
+        cls,
+        request: ToolRequest,
+        *,
+        basis_fingerprint: str,
+        approved_by: str,
+        evidence_ref: str,
+    ) -> ExactCallApproval:
+        """Create approval evidence without widening tool permission."""
+        return cls(
+            task_id=request.task_id,
+            tool_name=request.tool_name,
+            call_fingerprint=request.exact_call_fingerprint(),
+            basis_fingerprint=basis_fingerprint,
+            approved_by=approved_by,
+            evidence_ref=evidence_ref,
+        )
+
+    def matches(self, request: ToolRequest, *, basis_fingerprint: str) -> bool:
+        """Match task, tool, exact execution envelope, and current basis."""
+        return (
+            self.task_id == request.task_id
+            and self.tool_name == request.tool_name
+            and self.call_fingerprint == request.exact_call_fingerprint()
+            and self.basis_fingerprint == basis_fingerprint
+        )
+
 
 class ToolResult(LunaContractModel):
     """Bounded result; large raw output is represented by hashes and excerpts."""
@@ -253,13 +338,14 @@ class ProcessApproval(LunaContractModel):
 
 
 class ToolPolicy(LunaContractModel):
-    """Explicit permissions and budgets; an empty allowlist denies all tools."""
+    """Explicit permissions and budgets; broad tool approval never authorizes a call."""
 
     allowed_tools: tuple[str, ...] = ()
     autonomy_level: AutonomyLevel = AutonomyLevel.LEVEL_1_READ_ONLY
     autonomy_grant_source: AutonomyGrantSource = AutonomyGrantSource.RUNTIME_POLICY
     max_risk: RiskLevel = RiskLevel.LOW
     owner_approved_tools: tuple[str, ...] = ()
+    exact_call_approvals: tuple[ExactCallApproval, ...] = ()
     process_approvals: tuple[ProcessApproval, ...] = ()
     free_research_contract: FreeResearchContract | None = None
     free_research_requests_used: int = Field(default=0, ge=0)
@@ -288,6 +374,27 @@ class ToolPolicy(LunaContractModel):
     def validate_owner_approvals(self) -> ToolPolicy:
         if not set(self.owner_approved_tools).issubset(self.allowed_tools):
             raise ValueError("owner-approved tools must also be explicitly allowed")
+        exact_approval_ids = tuple(
+            approval.approval_id for approval in self.exact_call_approvals
+        )
+        if len(exact_approval_ids) != len(set(exact_approval_ids)):
+            raise ValueError("exact-call approval IDs must be unique")
+        exact_approval_keys = tuple(
+            (
+                approval.task_id,
+                approval.tool_name,
+                approval.call_fingerprint,
+                approval.basis_fingerprint,
+            )
+            for approval in self.exact_call_approvals
+        )
+        if len(exact_approval_keys) != len(set(exact_approval_keys)):
+            raise ValueError("exact-call approvals must be unique")
+        if any(
+            approval.tool_name not in self.allowed_tools
+            for approval in self.exact_call_approvals
+        ):
+            raise ValueError("exact-call approvals require an explicitly allowed tool")
         approval_keys = tuple(
             (approval.argv, approval.working_directory)
             for approval in self.process_approvals

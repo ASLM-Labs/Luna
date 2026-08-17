@@ -241,6 +241,38 @@ class SQLiteSessionStore:
             raise SessionNotFoundError(f"working session not found: {session_id}")
         return self._session_from_row(row)
 
+    def load_session_state(
+        self,
+        session_id: UUID,
+    ) -> tuple[WorkingSession, tuple[SessionEntry, ...]]:
+        """Read one complete session owner state from one SQLite snapshot."""
+        with self._read_connection() as connection:
+            connection.execute("BEGIN")
+            try:
+                session_row = connection.execute(
+                    "SELECT * FROM working_sessions WHERE session_id = ?",
+                    (str(session_id),),
+                ).fetchone()
+                if session_row is None:
+                    raise SessionNotFoundError(
+                        f"working session not found: {session_id}"
+                    )
+                session = self._session_from_row(session_row)
+                entry_rows = connection.execute(
+                    "SELECT * FROM session_entries "
+                    "WHERE session_id = ? ORDER BY sequence ASC",
+                    (str(session_id),),
+                ).fetchall()
+                entries = tuple(self._entry_from_row(row) for row in entry_rows)
+                sequences = tuple(entry.sequence for entry in entries)
+                if sequences != tuple(range(1, len(entries) + 1)):
+                    raise SessionIntegrityError(
+                        "session entry sequence contains a gap"
+                    )
+                return session, entries
+            finally:
+                connection.rollback()
+
     def append_entry(
         self,
         *,
@@ -304,17 +336,7 @@ class SQLiteSessionStore:
         return entry
 
     def list_entries(self, session_id: UUID) -> tuple[SessionEntry, ...]:
-        self.load_session(session_id)
-        with self._read_connection() as connection:
-            rows = connection.execute(
-                "SELECT * FROM session_entries WHERE session_id = ? ORDER BY sequence ASC",
-                (str(session_id),),
-            ).fetchall()
-        entries = tuple(self._entry_from_row(row) for row in rows)
-        sequences = tuple(entry.sequence for entry in entries)
-        if sequences != tuple(range(1, len(entries) + 1)):
-            raise SessionIntegrityError("session entry sequence contains a gap")
-        return entries
+        return self.load_session_state(session_id)[1]
 
     def close_session(self, *, session_id: UUID, owner_ref: str) -> WorkingSession:
         with self._transaction() as connection:

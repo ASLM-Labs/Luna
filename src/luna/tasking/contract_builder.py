@@ -26,6 +26,7 @@ class TaskContractBuilder:
         required_conditions: Iterable[str] = (),
         forbidden_outcomes: Iterable[str] = (),
         evidence_required: Iterable[str] = (),
+        soft_preferences: Iterable[str] = (),
         risk_level: RiskLevel = RiskLevel.LOW,
         owner: str = "user",
         task_id: UUID | None = None,
@@ -33,6 +34,7 @@ class TaskContractBuilder:
         required = _clean(required_conditions)
         forbidden = _clean(forbidden_outcomes)
         evidence = _clean(evidence_required)
+        preferences = _clean(soft_preferences)
 
         unresolved = list(intent.unknowns)
         blocking: list[str] = []
@@ -71,6 +73,7 @@ class TaskContractBuilder:
             required_conditions=required,
             forbidden_outcomes=forbidden,
             evidence_required=evidence,
+            soft_preferences=preferences,
             scope=scope,
             risk_level=risk_level,
             unresolved_unknowns=_clean(unresolved),

@@ -16,6 +16,7 @@ class RuntimeBudget(LunaContractModel):
     max_replans: int = Field(default=3, ge=0, le=64)
     max_elapsed_seconds: int = Field(default=1800, ge=1, le=86400)
     max_model_input_tokens: int = Field(default=16000, ge=0, le=2000000)
+    max_model_request_estimated_tokens: int = Field(default=32768, ge=0, le=2000000)
     max_model_output_tokens: int = Field(default=8000, ge=0, le=1000000)
     max_changed_files: int = Field(default=0, ge=0, le=10000)
     max_added_lines: int = Field(default=0, ge=0, le=1000000)

@@ -10,14 +10,22 @@ from luna.retrieval.models import (
     RetrievalReason,
 )
 from luna.retrieval.router import AdaptiveKnowledgeRouter
+from luna.retrieval.strategy import (
+    InformationRetrievalStrategist,
+    InformationRetrievalStrategy,
+    ObservedRetrievalStrategyLedger,
+)
 
 __all__ = [
     "AdaptiveKnowledgeRouter",
+    "InformationRetrievalStrategist",
+    "InformationRetrievalStrategy",
     "KnowledgeRequestProfile",
     "KnowledgeRetrievalPlan",
     "KnowledgeSource",
     "KnowledgeUncertainty",
     "KnowledgeVolatility",
+    "ObservedRetrievalStrategyLedger",
     "RetrievalDecision",
     "RetrievalReason",
 ]

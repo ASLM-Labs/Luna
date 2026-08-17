@@ -29,7 +29,12 @@ from luna.tools import (
     ToolSpec,
     build_phase5_registry,
 )
-from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
+from luna.tools.registry import (
+    RegisteredTool,
+    ToolExecutionContext,
+    ToolExecutionOutput,
+    ToolRegistry,
+)
 
 
 def _task(
@@ -364,6 +369,59 @@ class CountingTool:
         del arguments, context
         self.calls += 1
         return ToolExecutionOutput(stdout="executed")
+
+
+class RemovingSnapshotRegistry(ToolRegistry):
+    """Deterministically remove one tool after selection captures its snapshot."""
+
+    def __init__(self, tool_name: str) -> None:
+        super().__init__()
+        self._tool_name = tool_name
+        self._remove_on_snapshot = False
+
+    def arm_removal(self) -> None:
+        self._remove_on_snapshot = True
+
+    def snapshot(self) -> tuple[RegisteredTool, ...]:
+        registrations = super().snapshot()
+        if self._remove_on_snapshot:
+            self._remove_on_snapshot = False
+            self.unregister(self._tool_name)
+        return registrations
+
+
+def test_tool_removal_during_selection_returns_structured_denial() -> None:
+    task = _task()
+    registry = RemovingSnapshotRegistry("core.count")
+    registry.register(
+        ToolSpec(name="core.count", description="Count explicit executions."),
+        CountingTool(),
+    )
+    selector = ToolSelector(
+        registry,
+        (
+            ToolRoute(
+                tool_name="core.count",
+                family=ToolFamily.CORE,
+                action_kinds=(ActionKind.UTILITY,),
+                target_kinds=(ActionTargetKind.NONE,),
+            ),
+        ),
+    )
+    proposal = ActionProposal(
+        task_id=task.task_id,
+        trace_id=uuid4(),
+        kind=ActionKind.UTILITY,
+        summary="Select a tool that becomes unavailable.",
+    )
+    registry.arm_removal()
+
+    selected = selector.select_tool(proposal, selector.select_family(proposal))
+
+    assert selected.code is ActionDenialCode.NO_MATCHING_TOOL  # type: ignore[union-attr]
+    assert selected.stage is ActionDenialStage.TOOL_SELECTION  # type: ignore[union-attr]
+    assert "selected_tool_available:FAIL" in selected.checks  # type: ignore[union-attr]
+    assert registry.get("core.count") is None
 
 
 def test_resolver_never_executes_handler_dispatcher_is_separate_authority() -> None:

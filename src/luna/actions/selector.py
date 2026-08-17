@@ -52,7 +52,8 @@ class ToolSelector:
         route_names = tuple(route.tool_name for route in routes)
         if len(route_names) != len(set(route_names)):
             raise ValueError("tool routes must reference unique tool names")
-        missing = tuple(name for name in route_names if registry.get(name) is None)
+        registered_names = {item.spec.name for item in registry.snapshot()}
+        missing = tuple(name for name in route_names if name not in registered_names)
         if missing:
             raise ValueError("tool routes reference unregistered tools: " + ", ".join(missing))
 
@@ -108,11 +109,14 @@ class ToolSelector:
         checks.append("route_match:PASS")
 
         required = set(proposal.required_capabilities)
+        registered_snapshot = {
+            item.spec.name: item for item in self._registry.snapshot()
+        }
         compatible = tuple(
             route
             for route in routes
             if (
-                (registered := self._registry.get(route.tool_name)) is not None
+                (registered := registered_snapshot.get(route.tool_name)) is not None
                 and required.issubset(set(registered.spec.capabilities))
             )
         )
@@ -127,7 +131,7 @@ class ToolSelector:
         checks.append("capability_match:PASS")
 
         if proposal.preferred_tool_name is not None:
-            registered = self._registry.get(proposal.preferred_tool_name)
+            registered = registered_snapshot.get(proposal.preferred_tool_name)
             if registered is None:
                 return self._denial(
                     proposal=proposal,
@@ -150,6 +154,15 @@ class ToolSelector:
                     checks=(*checks, "preferred_tool_route:FAIL"),
                     tool_name=proposal.preferred_tool_name,
                 )
+            if self._registry.get(proposal.preferred_tool_name) is not registered:
+                return self._denial(
+                    proposal=proposal,
+                    family=family,
+                    code=ActionDenialCode.UNKNOWN_PREFERRED_TOOL,
+                    reason="preferred tool became unavailable during selection",
+                    checks=(*checks, "preferred_tool_available:FAIL"),
+                    tool_name=proposal.preferred_tool_name,
+                )
             checks.append("preferred_tool_route:PASS")
             return ConcreteToolSelection(
                 family=family,
@@ -169,9 +182,17 @@ class ToolSelector:
                 checks=(*checks, "single_candidate:FAIL"),
             )
 
-        registered = self._registry.get(compatible[0].tool_name)
-        if registered is None:
-            raise AssertionError("validated route disappeared from immutable registry")
+        selected_route = compatible[0]
+        registered = registered_snapshot[selected_route.tool_name]
+        if self._registry.get(selected_route.tool_name) is not registered:
+            return self._denial(
+                proposal=proposal,
+                family=family,
+                code=ActionDenialCode.NO_MATCHING_TOOL,
+                reason="selected tool became unavailable during selection",
+                checks=(*checks, "selected_tool_available:FAIL"),
+                tool_name=selected_route.tool_name,
+            )
         checks.append("single_candidate:PASS")
         return ConcreteToolSelection(
             family=family,

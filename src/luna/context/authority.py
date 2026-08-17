@@ -137,12 +137,25 @@ class ContextAuthorityResolver:
                 reasons=("all matching context claims are stale",),
             )
 
+        eligible = (
+            tuple(claim for claim in fresh if claim.verified)
+            if requirement.require_verified
+            else fresh
+        )
+        if not eligible:
+            return ContextResolution(
+                requirement=requirement,
+                status=ContextResolutionStatus.UNRESOLVED,
+                considered_claim_ids=considered,
+                reasons=("no verified matching context claim",),
+            )
+
         order = _AUTHORITY_ORDER[requirement.claim_type]
         rank = {role: index for index, role in enumerate(order)}
-        best_role_rank = min(rank.get(claim.authority_role, len(order)) for claim in fresh)
+        best_role_rank = min(rank.get(claim.authority_role, len(order)) for claim in eligible)
         role_peers = tuple(
             claim
-            for claim in fresh
+            for claim in eligible
             if rank.get(claim.authority_role, len(order)) == best_role_rank
         )
 
@@ -167,6 +180,15 @@ class ContextAuthorityResolver:
         superseded = tuple(
             claim.claim_id for claim in candidates if claim.claim_id != selected.claim_id
         )
+        reasons = [
+            (
+                f"selected {selected.authority_role.value} authority for "
+                f"{requirement.claim_type.value}"
+            )
+        ]
+        if requirement.require_verified:
+            reasons.append("requirement accepts verified claims only")
+        reasons.append("non-selected claims are superseded by the resolved claim")
         return ContextResolution(
             requirement=requirement,
             status=ContextResolutionStatus.RESOLVED,
@@ -174,11 +196,5 @@ class ContextAuthorityResolver:
             selected_value=selected.value,
             considered_claim_ids=considered,
             superseded_claim_ids=superseded,
-            reasons=(
-                (
-                    f"selected {selected.authority_role.value} authority for "
-                    f"{requirement.claim_type.value}"
-                ),
-                "newer/equally authoritative contradictory claims supersede weaker or older claims",
-            ),
+            reasons=tuple(reasons),
         )

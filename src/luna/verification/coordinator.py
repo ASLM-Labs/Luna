@@ -12,16 +12,21 @@ from luna.contracts.state import TaskState
 from luna.identity import IdentityProfile
 from luna.learning import LearningCandidateBatch, LearningCandidateBuilder
 from luna.reporting import FinalReport, FinalReportComposer, ReportRisk
+from luna.verification.episode import (
+    VerificationEpisodeManifest,
+    build_verification_episode,
+)
 from luna.verification.gate import CompletionGate
 from luna.verification.models import CompletionGateResult, VerificationPolicy
 
 
 @dataclass(frozen=True, slots=True)
 class VerificationFinalization:
-    """Authoritative artifacts produced at the VERIFYING -> REPORTING boundary."""
+    """Artifacts produced at the VERIFYING -> REPORTING boundary."""
 
     reporting_state: TaskState
     gate_result: CompletionGateResult
+    verification_episode: VerificationEpisodeManifest
     final_report: FinalReport
     learning_candidates: LearningCandidateBatch
 
@@ -56,10 +61,20 @@ class VerificationCoordinator:
         if state.phase is not TaskPhase.VERIFYING:
             raise ValueError("Phase 12F finalization requires VERIFYING TaskState")
 
+        evidence_records = tuple(evidence)
+
         gate_result = self._completion_gate.evaluate(
             contract=state.contract,
-            evidence=evidence,
+            evidence=evidence_records,
             policy=policy,
+            trace_id=trace_id,
+        )
+        verification_episode = build_verification_episode(
+            contract=state.contract,
+            source_task_revision=state.revision,
+            evidence=evidence_records,
+            policy=policy,
+            gate_result=gate_result,
             trace_id=trace_id,
         )
         evidence_state = state.revise(
@@ -86,6 +101,7 @@ class VerificationCoordinator:
         return VerificationFinalization(
             reporting_state=reporting_state,
             gate_result=gate_result,
+            verification_episode=verification_episode,
             final_report=final_report,
             learning_candidates=learning_candidates,
         )

@@ -31,8 +31,8 @@
       "size_bytes": 10041
     },
     "scripts/check.bat": {
-      "sha256": "04e8ca1876f826835d3cd6c5040d36d6e9b5ef655aba6eceda7f5f82891d1333",
-      "size_bytes": 8638
+      "sha256": "5ec61534a367ea6681ca700807bb36560f5ef620ca45df2916eb5ae80b747890",
+      "size_bytes": 7517
     },
     "scripts/verify_neural_native_bridge.py": {
       "sha256": "3a0b5ef32e047bde97beb275ae9d0ddacde6154be1f410790d914918ae1593fd",

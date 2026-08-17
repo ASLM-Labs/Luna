@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Protocol
 from uuid import UUID
 
 from luna.audit import AuditEventKind, AuditSession
@@ -20,8 +21,16 @@ from luna.memory.policy import MemoryPolicyEvaluator
 from luna.memory.store import MemoryConflictError, MemoryNotFoundError, SQLiteMemoryStore
 
 
+class CurrentMemoryProvider(Protocol):
+    """Read one exact current durable memory record by canonical identity."""
+
+    def current_memory(self, memory_id: UUID) -> MemoryRecord:
+        """Return the exact owner record or propagate its native read failure."""
+        ...
+
+
 class VerifiedMemoryService:
-    """Apply policy before any durable memory write or retrieval."""
+    """Apply policy before durable writes/retrieval and expose exact owner reads."""
 
     def __init__(
         self,
@@ -33,6 +42,10 @@ class VerifiedMemoryService:
         self.store = store
         self.audit = audit
         self._evaluator = MemoryPolicyEvaluator(explicit_secrets)
+
+    def current_memory(self, memory_id: UUID) -> MemoryRecord:
+        """Return one exact durable record without retrieval or lifecycle mutation."""
+        return self.store.load(memory_id)
 
     def commit_candidate(
         self,

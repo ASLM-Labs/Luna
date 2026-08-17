@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from uuid import uuid4
 
@@ -138,10 +139,17 @@ def main() -> int:
 
     policy_source = (PROJECT_ROOT / "src/luna/runtime/policy_agent.py").read_text(encoding="utf-8")
     loop_source = (PROJECT_ROOT / "src/luna/runtime/loop.py").read_text(encoding="utf-8")
+    policy_tree = ast.parse(policy_source)
+    policy_strings = tuple(
+        node.value
+        for node in ast.walk(policy_tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    )
+    semantic_policy_text = "\n".join(policy_strings)
     checks["policy_model_receives_structured_advisory_context"] = (
         'name="local_judgment"' in policy_source
-        and "advisory context" in policy_source
-        and "Prefer direct observation over inference" in policy_source
+        and "advisory context" in semantic_policy_text
+        and "Prefer direct observation over inference" in semantic_policy_text
     )
     checks["completion_policy_only_strengthened"] = (
         "minimum_strength=strategy.minimum_strength_floor" in loop_source

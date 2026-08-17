@@ -1,6 +1,6 @@
 """Phase 12C action proposals, deterministic tool selection, and structured denial."""
 
-from luna.actions.advisory import InformationAwareToolAdvisor, ToolAdvice
+from luna.actions.advisory import InformationAwareToolAdvisor, ToolAdvice, ToolAlternative
 from luna.actions.models import (
     ActionDenial,
     ActionDenialCode,
@@ -37,6 +37,7 @@ __all__ = [
     "FamilySelection",
     "InformationAwareToolAdvisor",
     "ToolAdvice",
+    "ToolAlternative",
     "ToolFamily",
     "ToolRoute",
     "ToolSelector",

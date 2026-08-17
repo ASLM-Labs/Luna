@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Protocol, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -61,6 +63,28 @@ class UrllibJsonTransport:
         if not isinstance(decoded, dict):
             raise ValueError("local model response must be a JSON object")
         return cast(dict[str, object], decoded)
+
+
+def parse_retry_after(value: str | None, *, now: datetime | None = None) -> float | None:
+    """Parse RFC delay-seconds or HTTP-date Retry-After without retaining raw headers."""
+
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if normalized.isdecimal():
+        return float(int(normalized))
+    try:
+        retry_at = parsedate_to_datetime(normalized)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=UTC)
+    reference = now or datetime.now(UTC)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=UTC)
+    return max(0.0, (retry_at - reference).total_seconds())
 
 
 def _validate_loopback_endpoint(endpoint: str) -> str:
@@ -281,11 +305,17 @@ class LocalOpenAICompatibleBackend:
             ) from exc
         except HTTPError as exc:
             code, retryable = http_error_code(exc.code)
+            retry_after = (
+                parse_retry_after(exc.headers.get("Retry-After"))
+                if exc.headers is not None
+                else None
+            )
             raise ModelBackendError(
                 code=code,
                 backend_id=self.backend_id,
                 safe_reason=f"local model HTTP request failed with status {exc.code}",
                 retryable=retryable,
+                retry_after_seconds=retry_after,
             ) from exc
         except URLError as exc:
             raise ModelBackendError(

@@ -14,6 +14,7 @@ from luna.continuity import (
     ResumeStatus,
     SQLiteContinuityStore,
 )
+from luna.continuity.store import SCHEMA_VERSION as CONTINUITY_SCHEMA_VERSION
 from luna.contracts import RiskLevel, TaskContract, TaskScope, TaskState
 from luna.contracts.enums import PlanStepStatus, TaskPhase
 from luna.contracts.plan import PlanStep
@@ -113,7 +114,9 @@ def main() -> int:
     checks = {
         "required_files_present": not missing,
         "sqlite_wal_enabled": journal_mode == "wal",
-        "schema_version_one": database_schema_version == 1,
+        "schema_version_current": (
+            database_schema_version == CONTINUITY_SCHEMA_VERSION
+        ),
         "checkpoint_digest_present": len(stored.payload_sha256) == 64,
         "mismatch_blocks_resume": blocked.status is ResumeStatus.BLOCKED,
         "matching_restart_resumes": ready.status is ResumeStatus.READY,

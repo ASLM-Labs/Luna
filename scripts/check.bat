@@ -4,6 +4,7 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 
 set "PYTHON=.venv\Scripts\python.exe"
+set "PYTEST_BASETEMP=.pytest_gate_tmp"
 set "PYTHONDONTWRITEBYTECODE=1"
 if not exist "%PYTHON%" (
   echo [ERROR] .venv bulunamadi. Once scripts\bootstrap.bat calistir.
@@ -15,10 +16,10 @@ echo [1/47] Package import ve syntax kontrolu...
 if errorlevel 1 exit /b 10
 
 echo [2/47] Pytest...
-if exist ".pytest_tmp" rmdir /s /q ".pytest_tmp"
-"%PYTHON%" -m pytest -q -p no:cacheprovider --basetemp=".pytest_tmp"
+if exist "%PYTEST_BASETEMP%" rmdir /s /q "%PYTEST_BASETEMP%"
+"%PYTHON%" -m pytest -q -p no:cacheprovider --basetemp="%PYTEST_BASETEMP%"
 set "PYTEST_EXIT=%ERRORLEVEL%"
-if exist ".pytest_tmp" rmdir /s /q ".pytest_tmp"
+if exist "%PYTEST_BASETEMP%" rmdir /s /q "%PYTEST_BASETEMP%"
 if not "%PYTEST_EXIT%"=="0" exit /b 11
 
 echo [3/47] Ruff...
@@ -200,74 +201,34 @@ if errorlevel 1 exit /b 73
 echo [47/47] CLI smoke...
 "%PYTHON%" -m luna --version
 if errorlevel 1 exit /b 31
-"%PYTHON%" -m luna status
+"%PYTHON%" -m luna status >nul
 if errorlevel 1 exit /b 32
 "%PYTHON%" -m luna list-tools >nul
 if errorlevel 1 exit /b 33
-"%PYTHON%" -m luna tool-smoke "phase11" >nul
+"%PYTHON%" -m luna smoke list >nul
 if errorlevel 1 exit /b 34
-"%PYTHON%" -m luna workspace-smoke >nul
+"%PYTHON%" -m luna smoke c001 >nul
 if errorlevel 1 exit /b 35
-"%PYTHON%" -m luna process-smoke >nul
+"%PYTHON%" -m luna smoke phase12f >nul
 if errorlevel 1 exit /b 36
-"%PYTHON%" -m luna audit-smoke >nul
+"%PYTHON%" -m luna tool-smoke "phase11" >nul
 if errorlevel 1 exit /b 37
-"%PYTHON%" -m luna verify-smoke >nul
-if errorlevel 1 exit /b 38
-"%PYTHON%" -m luna checkpoint-smoke >nul
-if errorlevel 1 exit /b 39
-"%PYTHON%" -m luna memory-smoke >nul
-if errorlevel 1 exit /b 40
-"%PYTHON%" -m luna phase10-smoke >nul
-if errorlevel 1 exit /b 41
-"%PYTHON%" -m luna phase11-smoke >nul
-if errorlevel 1 exit /b 42
-"%PYTHON%" -m luna phase12a-smoke >nul
-if errorlevel 1 exit /b 43
-"%PYTHON%" -m luna phase12b-smoke >nul
-if errorlevel 1 exit /b 44
-"%PYTHON%" -m luna phase12c-smoke >nul
-if errorlevel 1 exit /b 45
-"%PYTHON%" -m luna phase12d-smoke >nul
-if errorlevel 1 exit /b 46
-"%PYTHON%" -m luna phase12e-smoke >nul
-if errorlevel 1 exit /b 47
-"%PYTHON%" -m luna phase12f-smoke >nul
-if errorlevel 1 exit /b 48
-"%PYTHON%" -m luna phase12g-smoke >nul
-if errorlevel 1 exit /b 49
-"%PYTHON%" -m luna phase13-smoke >nul
-if errorlevel 1 exit /b 50
-"%PYTHON%" -m luna phase14-smoke >nul
-if errorlevel 1 exit /b 51
-"%PYTHON%" -m luna phase15-smoke >nul
-if errorlevel 1 exit /b 52
-"%PYTHON%" -m luna phase16-smoke >nul
-if errorlevel 1 exit /b 53
-"%PYTHON%" -m luna phase17-smoke >nul
-if errorlevel 1 exit /b 54
-"%PYTHON%" -m luna phase18-smoke >nul
-if errorlevel 1 exit /b 55
-"%PYTHON%" -m luna phase19-smoke >nul
-if errorlevel 1 exit /b 56
-"%PYTHON%" -m luna phase19b-smoke >nul
-if errorlevel 1 exit /b 57
-"%PYTHON%" -m luna phase19c-smoke >nul
-if errorlevel 1 exit /b 58
-"%PYTHON%" -m luna phase19d-smoke >nul
-if errorlevel 1 exit /b 59
-"%PYTHON%" -m luna phase19e-smoke >nul
-if errorlevel 1 exit /b 60
-"%PYTHON%" -m luna phase19f-smoke >nul
-if errorlevel 1 exit /b 61
-"%PYTHON%" -m luna capability-lineage C-002 >nul
-if errorlevel 1 exit /b 62
-"%PYTHON%" -m luna c001-smoke >nul
-if errorlevel 1 exit /b 63
-"%PYTHON%" -m luna c003-smoke >nul
-if errorlevel 1 exit /b 64
 "%PYTHON%" -m luna c007-smoke >nul
-if errorlevel 1 exit /b 65
+if errorlevel 1 exit /b 38
+"%PYTHON%" -m luna capability-lineage C-002 >nul
+if errorlevel 1 exit /b 39
+"%PYTHON%" -m luna unknown-command >nul 2>nul
+set "CLI_FAILURE_EXIT=%ERRORLEVEL%"
+if not "%CLI_FAILURE_EXIT%"=="2" exit /b 40
+set "SMOKE_ALL_OUTPUT=%TEMP%\luna_smoke_all_%RANDOM%_%RANDOM%.tmp"
+"%PYTHON%" -m luna smoke all >"%SMOKE_ALL_OUTPUT%" 2>&1
+set "SMOKE_ALL_EXIT=%ERRORLEVEL%"
+if not "%SMOKE_ALL_EXIT%"=="0" (
+  if exist "%SMOKE_ALL_OUTPUT%" type "%SMOKE_ALL_OUTPUT%"
+  if exist "%SMOKE_ALL_OUTPUT%" del /q "%SMOKE_ALL_OUTPUT%"
+  exit /b 41
+)
+if exist "%SMOKE_ALL_OUTPUT%" del /q "%SMOKE_ALL_OUTPUT%"
 
 echo.
 echo [PASS] Luna 0.1 Phase 19F + C-002/C-001/C-003/C-007 + Wave 1 A2/A1 + Wave 2 + R7-B/R7-C + Neural Runtime Foundation + NR-2A transport + NR-2B direct-native worker + Native Bridge build governance gate passed.

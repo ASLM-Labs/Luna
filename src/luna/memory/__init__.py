@@ -18,7 +18,7 @@ from luna.memory.models import (
     MemoryType,
 )
 from luna.memory.policy import MemoryPolicyEvaluator
-from luna.memory.service import VerifiedMemoryService
+from luna.memory.service import CurrentMemoryProvider, VerifiedMemoryService
 from luna.memory.store import (
     MemoryConflictError,
     MemoryIntegrityError,
@@ -28,6 +28,7 @@ from luna.memory.store import (
 )
 
 __all__ = [
+    "CurrentMemoryProvider",
     "MemoryCandidate",
     "MemoryCommitDecision",
     "MemoryConflictError",

@@ -18,8 +18,15 @@ from luna.modeling.contracts import (
     ModelUsage,
 )
 from luna.modeling.errors import ModelBackendError, ModelBackendErrorCode
-from luna.modeling.local_openai import LocalOpenAICompatibleBackend
+from luna.modeling.local_openai import LocalOpenAICompatibleBackend, parse_retry_after
 from luna.modeling.native import NativeModelBackend
+from luna.modeling.retry import (
+    ProviderRetryBasisKind,
+    ProviderRetryCoordinator,
+    ProviderRetryEvidence,
+    ProviderRetryPlan,
+    ProviderRetryPolicy,
+)
 from luna.modeling.rollout import (
     ControlledModelBackend,
     ModelRolloutDecision,
@@ -54,7 +61,13 @@ __all__ = [
     "ModelToolCall",
     "ModelUsage",
     "NativeModelBackend",
+    "ProviderRetryBasisKind",
+    "ProviderRetryCoordinator",
+    "ProviderRetryEvidence",
+    "ProviderRetryPlan",
+    "ProviderRetryPolicy",
     "ScriptedModelOutput",
     "ScriptedTestBackend",
     "ScriptedTurn",
+    "parse_retry_after",
 ]

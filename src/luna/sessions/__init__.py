@@ -7,7 +7,7 @@ from luna.sessions.models import (
     SessionStatus,
     WorkingSession,
 )
-from luna.sessions.service import WorkingSessionService
+from luna.sessions.service import CurrentSessionProvider, WorkingSessionService
 from luna.sessions.store import (
     SessionClosedError,
     SessionIntegrityError,
@@ -18,6 +18,7 @@ from luna.sessions.store import (
 )
 
 __all__ = [
+    "CurrentSessionProvider",
     "SQLiteSessionStore",
     "SessionClosedError",
     "SessionEntry",
