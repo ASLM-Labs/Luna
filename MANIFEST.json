@@ -1077,12 +1077,16 @@
       "size_bytes": 16845
     },
     "src/luna/continuity/__init__.py": {
-      "sha256": "4ee6920f86245be6cd9c5b40be101fdb79d2e23510e9aaeeaff6be527f1d8ea4",
-      "size_bytes": 3042
+      "sha256": "846a83266fa5a8b77291381fa53d21823fde5d48d6dce7519c7536514c096e20",
+      "size_bytes": 3157
     },
     "src/luna/continuity/cognitive.py": {
       "sha256": "786ee884ab534d8c3cf26cb10fa3738874cf358a6a87264009b078d1e1330348",
       "size_bytes": 28163
+    },
+    "src/luna/continuity/current_owner.py": {
+      "sha256": "416b5111956aef061044bc9d156674f9a63779687a573cc9a0c31ba7bd3f0aab",
+      "size_bytes": 8688
     },
     "src/luna/continuity/identity_adapter.py": {
       "sha256": "a9a8de3d55ba647f7e51c3d40b06567bc2f81acb56186dd6c3dc6ff6c5750824",
@@ -2127,6 +2131,10 @@
     "tests/test_cognitive_continuity_store.py": {
       "sha256": "4edee37258e4691d20aadab00c329ed63090ce34ed7ba182758ea72de0638761",
       "size_bytes": 6566
+    },
+    "tests/test_cognitive_current_owner_coordinator.py": {
+      "sha256": "97cf1de266cbc8970ac2dbcf4f9f3649efbd6d11495db90caf6e06d48fb61d31",
+      "size_bytes": 12599
     },
     "tests/test_cognitive_identity_owner_adapter.py": {
       "sha256": "f79a2db733a1f251aa9c7c9a46d1e15ae32de28b160bfe07b2e3798fdb3500cb",

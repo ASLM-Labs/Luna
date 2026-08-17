@@ -15,6 +15,7 @@ from luna.continuity.cognitive import (
     compute_cognitive_continuity_projection_id,
     compute_cognitive_rehydration_manifest_id,
 )
+from luna.continuity.current_owner import CognitiveCurrentOwnerCoordinator
 from luna.continuity.identity_adapter import (
     build_identity_owner_binding,
     resolve_identity_owner_binding,
@@ -59,6 +60,7 @@ __all__ = [
     "CheckpointEnvelope",
     "CheckpointNotFoundError",
     "CognitiveContinuityProjection",
+    "CognitiveCurrentOwnerCoordinator",
     "CognitiveManifestNotFoundError",
     "CognitiveOwnerBinding",
     "CognitiveOwnerKind",
