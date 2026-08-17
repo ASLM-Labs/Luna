@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "luna-local-agent"
 version = "0.1.0"
-description = "Luna 0.1 local single-agent runtime by Westline Labs"
+description = "Luna 0.1 local single-agent runtime by ASLM"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 license = { text = "Apache-2.0" }
 authors = [
-  { name = "Westline Labs" }
+  { name = "ASLM" }
 ]
 keywords = ["local-agent", "runtime", "evidence", "checkpoint", "eval", "acceptance"]
 classifiers = [

@@ -2,7 +2,7 @@
   "capability": "C-007",
   "capability_status": "IMPLEMENTED_UNVERIFIED",
   "created_utc": "2026-08-09T14:44:19+00:00",
-  "developer": "Westline Labs",
+  "developer": "ASLM",
   "files": {
     ".editorconfig": {
       "sha256": "4a9391ac09efa25f9ec5acc8ffe8cbb26f0cade3d24c17d99b8164a1cfdadd4d",
@@ -33,16 +33,16 @@
       "size_bytes": 11358
     },
     "LUNA_HANDOFF.md": {
-      "sha256": "e72b80eb74a1191e24c0dbef55cfccd5a95cc8c02998a2f0cb9aa8ea44180229",
-      "size_bytes": 21057
+      "sha256": "db3be26cbc562526c1f5351c84436e12aa521a488819519e50f7ed8a257f9892",
+      "size_bytes": 21037
     },
     "NOTICE": {
-      "sha256": "91d14c05fd95fe5ad09064e7f4e43581a2bbd636fec1bf192d5b59805dbf5a3a",
-      "size_bytes": 215
+      "sha256": "1f6ea3ccb9b7c0766c0628699de8027a1359e138ac5774887ac80f4d226b2c5b",
+      "size_bytes": 206
     },
     "README.md": {
-      "sha256": "e77ac27c10b7929a82831c48cdfa502638e5767d2e64d75b1f1b39a666678151",
-      "size_bytes": 31050
+      "sha256": "f83bfa2b64640c6d7d6776c110b447a098dfb4709859185cb002c37fac8ccdf9",
+      "size_bytes": 31041
     },
     "UYGULAMA.txt": {
       "sha256": "6ae6d945cb8b0d7751a8cb618f59e7eef5818a03473d45448e891aeb257b1906",
@@ -657,8 +657,8 @@
       "size_bytes": 834
     },
     "pyproject.toml": {
-      "sha256": "417e1e6074bb9ebd1867997bdd83e6c67221e3738a224fae019a22af51a510c2",
-      "size_bytes": 1748
+      "sha256": "8f64ec0be2c320fb9939644d165804851e8650f16f7a573b3663994987d5adcb",
+      "size_bytes": 1730
     },
     "scripts/bootstrap.bat": {
       "sha256": "31c6e7a2ac982af5ce6c339d334884118d367fb966b4a8eaed3d28fb1bc842d3",
@@ -1465,8 +1465,8 @@
       "size_bytes": 785
     },
     "src/luna/identity/models.py": {
-      "sha256": "dcc26414c2f026cd7cb406d8ea5c379400845eb1631fd206d7b7ab3bc1654867",
-      "size_bytes": 3831
+      "sha256": "dedbabb35bad7b43e273434e2f7193e3dee468ed251b907e10904f0374e1fe44",
+      "size_bytes": 3822
     },
     "src/luna/identity/service.py": {
       "sha256": "ae1f4adb0c0164a9c88248e6adb97364736c5c4e58b23c90cc642f917f0b5257",
@@ -2321,8 +2321,8 @@
       "size_bytes": 9286
     },
     "tests/test_phase10_identity.py": {
-      "sha256": "741281e0ac28cc72003d14f85855cce25ad83c06079c40553ffca9b38a11b41e",
-      "size_bytes": 1568
+      "sha256": "082e45c2e5297da2e25d50ede8024e36da50e2e440e5bd9e78b8e1bb04a080ee",
+      "size_bytes": 1559
     },
     "tests/test_phase10_reporting.py": {
       "sha256": "e09dc889b8e3f1d1d0b336e1a2e61f77b39ff633344ff5906640f0fb2b3081e6",
@@ -2453,8 +2453,8 @@
       "size_bytes": 775
     },
     "tests/test_project_metadata.py": {
-      "sha256": "16023064fd67579b935f9d04f92c00f3cf14fa7ef6ddb596ce68c9053facdc6c",
-      "size_bytes": 17388
+      "sha256": "851f0eb3b694c39fc1a0ba0061de673fb33647a8274d0ebc14b77c6057bc0850",
+      "size_bytes": 17379
     },
     "tests/test_provider_retry.py": {
       "sha256": "94a51be2598cacf071dc105fdab7f9a19bc7d2fab2aba9244d21ce6c5504f164",

@@ -12,7 +12,7 @@ def test_pyproject_declares_expected_python_version_and_developer() -> None:
 
     assert project["version"] == "0.1.0"
     assert project["requires-python"] == ">=3.12,<3.14"
-    assert project["authors"] == [{"name": "Westline Labs"}]
+    assert project["authors"] == [{"name": "ASLM"}]
 
 
 def test_governance_constitution_is_present() -> None:

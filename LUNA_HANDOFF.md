@@ -11,13 +11,13 @@ Project root:
 C:\Users\istem\Projects\Luna
 
 Canonical remote:
-Novopic-Intelligence/Luna
+ASLM-Labs/Luna
 
 Model name:
 Luna
 
 Company/organization naming:
-Westline Labs
+ASLM
 
 ## Verified Git Checkpoint
 

@@ -12,7 +12,7 @@ def test_identity_profile_is_versioned_and_has_no_hard_coded_user() -> None:
     assert profile.identity_name == "Luna"
     assert profile.identity_version == "0.1.0"
     assert profile.profile_revision == 1
-    assert profile.developer == "Westline Labs"
+    assert profile.developer == "ASLM"
     assert profile.user_profile is None
     assert profile.preferred_address() == "Kullanıcı"
     assert profile.single_active_identity is True

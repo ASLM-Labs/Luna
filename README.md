@@ -1,6 +1,6 @@
 # Luna 0.1
 
-**Geliştirici:** Westline Labs
+**Geliştirici:** ASLM
 
 Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
 runtime çekirdeğidir.

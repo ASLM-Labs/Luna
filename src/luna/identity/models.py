@@ -68,7 +68,7 @@ class IdentityProfile(LunaContractModel):
     identity_name: str = Field(default="Luna", pattern=r"^Luna$", max_length=50)
     identity_version: str = Field(default="0.1.0", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     profile_revision: int = Field(default=1, ge=1)
-    developer: str = Field(default="Westline Labs", min_length=1, max_length=200)
+    developer: str = Field(default="ASLM", min_length=1, max_length=200)
     single_active_identity: bool = True
     principles: CommunicationPrinciples = Field(default_factory=CommunicationPrinciples)
     user_profile: UserProfile | None = None
