@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Protocol
 from uuid import UUID
 
 from luna.audit.redaction import SecretRedactor
@@ -22,6 +23,17 @@ from luna.sessions.models import (
 from luna.sessions.store import SessionOwnershipError, SQLiteSessionStore
 
 
+class CurrentSessionProvider(Protocol):
+    """Read one exact current durable working-session owner state."""
+
+    def current_session(
+        self,
+        session_id: UUID,
+    ) -> tuple[WorkingSession, tuple[SessionEntry, ...]]:
+        """Return the exact session plus its complete ordered entry chain."""
+        ...
+
+
 class WorkingSessionService:
     """Own durable visible conversation history without owning runtime authority."""
 
@@ -33,6 +45,13 @@ class WorkingSessionService:
     ) -> None:
         self.store = store
         self._redactor = SecretRedactor(explicit_secrets)
+
+    def current_session(
+        self,
+        session_id: UUID,
+    ) -> tuple[WorkingSession, tuple[SessionEntry, ...]]:
+        """Return one complete current durable session state without projection."""
+        return self.store.load_session_state(session_id)
 
     def open_session(self, *, owner_ref: str, label: str | None = None) -> WorkingSession:
         """Create one explicit durable session identity."""

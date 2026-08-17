@@ -1817,20 +1817,20 @@
       "size_bytes": 38065
     },
     "src/luna/sessions/__init__.py": {
-      "sha256": "482ba143b3e89cf6caf251b7357fec04e07dc2190ab91cff8086fdce087c4e00",
-      "size_bytes": 773
+      "sha256": "95fe8f278b08c67973ac6fd48a743f875d22bd9a3e8b75e228eee309737874ea",
+      "size_bytes": 827
     },
     "src/luna/sessions/models.py": {
       "sha256": "ce3edd5d9920aeeb6b58e15b93a4328b653af64e59ed3c4e85a25a235332660e",
       "size_bytes": 5023
     },
     "src/luna/sessions/service.py": {
-      "sha256": "526415160bfc37a66912c75f319c9c0d82229f6c01eb35e5c71b7ad54b96e944",
-      "size_bytes": 4896
+      "sha256": "fdb1533798ae9e7ca2b7d0df31b80d66b094a5965222f9ebc7f678d27df4c385",
+      "size_bytes": 5515
     },
     "src/luna/sessions/store.py": {
-      "sha256": "f22df6d35ea71f5d59ad55029abc25faf0264cb73f0c6e51ccc01f66f86cdb9a",
-      "size_bytes": 14543
+      "sha256": "d2fa75e2e1703a73c29d3d9304b66e952dd91c746345a4918a930367d8d56314",
+      "size_bytes": 15459
     },
     "src/luna/sft/__init__.py": {
       "sha256": "5fac5b12f820325c39b1fae4973e6f73186aeb9136ec1ee59a9291e7c0eede96",
@@ -2191,6 +2191,10 @@
     "tests/test_current_memory_provider.py": {
       "sha256": "1a51268016a07915a7cafadd8087c5bca68e7a2644a6a1ead5c17dc066ffc3cf",
       "size_bytes": 4443
+    },
+    "tests/test_current_session_provider.py": {
+      "sha256": "a13df4eb575ecae60a0e859c9b76eed4f101a06ba6aa01f59cfa8377d459127c",
+      "size_bytes": 5875
     },
     "tests/test_desktop_brand_assets.py": {
       "sha256": "e75e4ab977eac8bd9e70865944e7aabc942331c4eb9b1615a96e524fa63ccf2e",
