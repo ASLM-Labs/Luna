@@ -21,11 +21,13 @@ from luna.continuity import (  # noqa: E402
     ResumeStatus,
     SQLiteContinuityStore,
 )
+from luna.continuity.store import SCHEMA_VERSION as CONTINUITY_SCHEMA_VERSION  # noqa: E402
 from luna.contracts import RiskLevel, TaskContract, TaskScope, TaskState  # noqa: E402
 from luna.contracts.base import SCHEMA_VERSION as CONTRACT_SCHEMA_VERSION  # noqa: E402
 from luna.contracts.enums import PlanStepStatus, TaskPhase  # noqa: E402
 from luna.contracts.plan import PlanStep  # noqa: E402
 from luna.runtime import DeterministicFingerprintProvider, SQLiteRuntimeJournal  # noqa: E402
+from luna.runtime.journal import JOURNAL_SCHEMA_VERSION  # noqa: E402
 
 _REQUIRED_FILES = (
     ROOT / "src" / "luna" / "continuity" / "models.py",
@@ -65,8 +67,8 @@ def _state(root: Path) -> TaskState:
 
 def _vector(
     *,
-    continuity: int = 1,
-    journal: int = 2,
+    continuity: int = CONTINUITY_SCHEMA_VERSION,
+    journal: int = JOURNAL_SCHEMA_VERSION,
     contracts: str = CONTRACT_SCHEMA_VERSION,
 ) -> ResumeCompatibilityVector:
     return ResumeCompatibilityVector(
@@ -113,9 +115,9 @@ def main() -> int:
             task_id=state.task_id,
             policy=_policy(
                 _vector(
-                    continuity=2,
-                    journal=3,
-                    contracts="2.0",
+                    continuity=CONTINUITY_SCHEMA_VERSION + 1,
+                    journal=JOURNAL_SCHEMA_VERSION + 1,
+                    contracts=f"{CONTRACT_SCHEMA_VERSION}-mismatch",
                 )
             ),
         )
@@ -183,8 +185,10 @@ def main() -> int:
         },
         "component_owned_versions_bound": (
             provider_policy.compatibility_vector is not None
-            and provider_policy.compatibility_vector.continuity_schema_version == 1
-            and provider_policy.compatibility_vector.runtime_journal_schema_version == 2
+            and provider_policy.compatibility_vector.continuity_schema_version
+            == CONTINUITY_SCHEMA_VERSION
+            and provider_policy.compatibility_vector.runtime_journal_schema_version
+            == JOURNAL_SCHEMA_VERSION
             and provider_policy.compatibility_vector.contract_schema_version
             == CONTRACT_SCHEMA_VERSION
         ),
@@ -216,8 +220,12 @@ def main() -> int:
         "budget_semantics_not_in_vector": "runtime_budget" not in model_source,
         "session_not_in_vector": "session_id" not in model_source,
         "provider_continuation_not_in_vector": "provider" not in model_source.casefold(),
-        "journal_schema_version_observable": observed_journal_schema == 2,
-        "continuity_schema_version_observable": observed_continuity_schema == 1,
+        "journal_schema_version_observable": (
+            observed_journal_schema == JOURNAL_SCHEMA_VERSION
+        ),
+        "continuity_schema_version_observable": (
+            observed_continuity_schema == CONTINUITY_SCHEMA_VERSION
+        ),
     }
     status = "PASS" if all(checks.values()) else "BLOCKED"
     print(
