@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from hashlib import sha256
 from pathlib import Path
+from typing import Protocol
 from uuid import UUID
 
 from luna.audit.evidence import EvidenceLedger
@@ -191,6 +192,14 @@ class SQLiteEvidenceStore:
         return True
 
 
+class CurrentVerificationEvidenceProvider(Protocol):
+    """Read the exact durable verification-evidence set for one task."""
+
+    def current_evidence(self, task_id: UUID) -> tuple[Evidence, ...]:
+        """Return the complete durable evidence set without judgment or filtering."""
+        ...
+
+
 class VerifiedEvidenceRegistry:
     """Persist evidence and optionally mirror it into the append-only audit ledger."""
 
@@ -222,6 +231,10 @@ class VerifiedEvidenceRegistry:
         return stored
 
     def list_for_task(self, task_id: UUID) -> tuple[Evidence, ...]:
+        return self.store.list_for_task(task_id)
+
+    def current_evidence(self, task_id: UUID) -> tuple[Evidence, ...]:
+        """Return the exact durable task evidence set without lifecycle judgment."""
         return self.store.list_for_task(task_id)
 
     def verify_integrity(self) -> bool:

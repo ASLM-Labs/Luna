@@ -1941,8 +1941,8 @@
       "size_bytes": 3039
     },
     "src/luna/verification/__init__.py": {
-      "sha256": "c7ef92af135bbe0eb8309629e4535fbd7d5fede9bc3c2923f2c5dd959698b631",
-      "size_bytes": 1738
+      "sha256": "cc802489038e557450ac2f6ead10ecadefc73cfa033fa2bf4ded6fef989f63db",
+      "size_bytes": 1822
     },
     "src/luna/verification/claims.py": {
       "sha256": "2d1e1ff3db806872011eb099881ae9bff550f0dbdce97ed61d91aba9c592b2f7",
@@ -1965,8 +1965,8 @@
       "size_bytes": 14201
     },
     "src/luna/verification/evidence_store.py": {
-      "sha256": "a45a69bea00ef1728de7bd95aea590de2849b05939db60fc715219320a0ffcef",
-      "size_bytes": 7856
+      "sha256": "a51d47b6ff866a5ea171c66542987623cd8053786702a4061bd750343844cbfd",
+      "size_bytes": 8388
     },
     "src/luna/verification/gate.py": {
       "sha256": "a8172c308e9047a4efea49b03ccca71cb187ff3980a3e5e5b498392fbbf9e29b",
@@ -2195,6 +2195,10 @@
     "tests/test_current_session_provider.py": {
       "sha256": "a13df4eb575ecae60a0e859c9b76eed4f101a06ba6aa01f59cfa8377d459127c",
       "size_bytes": 5875
+    },
+    "tests/test_current_verification_evidence_provider.py": {
+      "sha256": "ec077b392f90c5a3855216a40fbb41384e6411e0a7ea4016d403aab95c5aa08a",
+      "size_bytes": 3888
     },
     "tests/test_desktop_brand_assets.py": {
       "sha256": "e75e4ab977eac8bd9e70865944e7aabc942331c4eb9b1615a96e524fa63ccf2e",

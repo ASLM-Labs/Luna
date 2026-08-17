@@ -6,6 +6,7 @@ from luna.verification.claims import (
 )
 from luna.verification.evidence_store import (
     EVIDENCE_STORE_SCHEMA_VERSION,
+    CurrentVerificationEvidenceProvider,
     EvidenceStoreConflictError,
     EvidenceStoreError,
     SQLiteEvidenceStore,
@@ -42,6 +43,7 @@ __all__ = [
     "CompletionGate",
     "CompletionGateError",
     "CompletionGateResult",
+    "CurrentVerificationEvidenceProvider",
     "DeterministicVerifier",
     "EvidenceDisagreement",
     "EvidenceRejection",
