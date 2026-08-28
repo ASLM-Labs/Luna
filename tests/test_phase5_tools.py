@@ -306,3 +306,39 @@ def test_tool_failure_reports_verified_automatic_rollback(
     assert outcome.result.status is ToolResultStatus.FAILURE
     assert outcome.result.metadata["rollback_verified"] is True
     assert target.read_text(encoding="utf-8") == "stable"
+
+
+def test_existing_write_mode_is_visible_in_tool_evidence(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "notes.txt"
+    target.write_text("before", encoding="utf-8")
+    before = sha256(b"before").hexdigest()
+
+    contract = _contract(tmp_path, write_allowed=True)
+
+    outcome = ToolDispatcher(build_phase5_registry()).dispatch(
+        request=ToolRequest(
+            task_id=contract.task_id,
+            trace_id=uuid4(),
+            tool_name="filesystem.write_text",
+            arguments={
+                "path": "notes.txt",
+                "content": "after",
+                "expected_sha256": before,
+                "create_if_missing": False,
+            },
+            expectation_id=uuid4(),
+        ),
+        task_contract=contract,
+        policy=ToolPolicy(
+            allowed_tools=("filesystem.write_text",),
+            autonomy_level=AutonomyLevel.BOUNDED,
+            max_risk=RiskLevel.MEDIUM,
+        ),
+    )
+
+    assert outcome.result.status is ToolResultStatus.SUCCESS
+    assert outcome.result.metadata["after_mode"] == (
+        target.stat().st_mode & 0o7777
+    )

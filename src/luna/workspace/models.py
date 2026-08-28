@@ -8,7 +8,7 @@ from enum import StrEnum
 from hashlib import sha256
 from uuid import UUID, uuid4
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from luna.contracts.base import LunaContractModel, require_utc, utc_now
 
@@ -48,6 +48,38 @@ class RollbackStatus(StrEnum):
 
     RESTORED = "RESTORED"
     NO_CHANGES = "NO_CHANGES"
+
+
+class WorkspaceTargetBasis(LunaContractModel):
+    """Immutable state accepted before mutating one workspace target."""
+
+    model_config = ConfigDict(frozen=True)
+
+    relative_path: str = Field(min_length=1, max_length=4000)
+    existed: bool
+    content_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(default=0, ge=0)
+    mode: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_basis(self) -> WorkspaceTargetBasis:
+        if self.existed:
+            if self.content_digest is None or self.mode is None:
+                raise ValueError(
+                    "existing target basis requires digest and mode"
+                )
+        elif (
+            self.content_digest is not None
+            or self.size_bytes != 0
+            or self.mode is not None
+        ):
+            raise ValueError(
+                "absent target basis cannot carry file content metadata"
+            )
+        return self
 
 
 class SnapshotEntry(LunaContractModel):
@@ -149,6 +181,7 @@ class FileChange(LunaContractModel):
     after_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     before_size_bytes: int = Field(default=0, ge=0)
     after_size_bytes: int = Field(default=0, ge=0)
+    after_mode: int | None = Field(default=None, ge=0)
     created: bool = False
     deleted: bool = False
 

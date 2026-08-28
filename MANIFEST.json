@@ -2052,21 +2052,25 @@
       "sha256": "13f86e83ca329d3552c6c4c9e8d6fb85180d4d8fe50b7adf086fae143eb535fe",
       "size_bytes": 694
     },
+    "src/luna/workspace/coordination.py": {
+      "sha256": "42a773a91a25b0de8d6a81c132f46fcfcae7212cf3ea09b3bd82dd943cbae3cc",
+      "size_bytes": 1619
+    },
     "src/luna/workspace/models.py": {
-      "sha256": "81166a26c8017343a01ac1efed6da566750ef7f92f03d15660ed65881d4c0329",
-      "size_bytes": 7517
+      "sha256": "c9aeed12402b65a462eae43cd917fe145e6c5cc5d13d3524901706e25260abff",
+      "size_bytes": 8609
     },
     "src/luna/workspace/mutator.py": {
-      "sha256": "7b35282d63b994e79d6898f6db762cd43e91c6a87aa52716a06dd46f86e6a5bf",
-      "size_bytes": 7186
+      "sha256": "139afe3d21a835a6dc47200a94b6f23db18893af70097d897a31e93ce197a7d9",
+      "size_bytes": 11119
     },
     "src/luna/workspace/store.py": {
       "sha256": "32b95f3b110a072108d15103da05ef9ba80063ad2a974e65ee54a55aa5d71c51",
       "size_bytes": 8855
     },
     "src/luna/workspace/tools.py": {
-      "sha256": "9690f7427aa9686369bacbae35481589aa92c60374edc4bc1f587d4662c365ba",
-      "size_bytes": 5479
+      "sha256": "ac063f1bfe47ce225d05c290a943ae6f19f7c565ffba5ad6cc3cd823c9964f4b",
+      "size_bytes": 5577
     },
     "tests/test_adaptive_planner.py": {
       "sha256": "7d137670137b457885bbef5e8b46079603ac861107dd32861ec285e831a9595f",
@@ -2413,8 +2417,8 @@
       "size_bytes": 15644
     },
     "tests/test_phase5_tools.py": {
-      "sha256": "9c5f22202cfbd225b5594dfea0c7ced2134b5bb9827787759cef14a3cf1f4eff",
-      "size_bytes": 10468
+      "sha256": "fb6d8e20e275845617c6e9cf4bf4f985745ca911ff12b35ea3e8d4120d674c10",
+      "size_bytes": 11579
     },
     "tests/test_phase7_completion_gate.py": {
       "sha256": "6349a95deb3907bb625b5e5ac8dd0a0c4655d412ad3eaf0738d47fa8a0c3dab0",
@@ -2529,8 +2533,8 @@
       "size_bytes": 5946
     },
     "tests/test_workspace_mutator.py": {
-      "sha256": "0a757671b13067a529bb1c417cf172514e2c02c6b81730da506253a33faa2daa",
-      "size_bytes": 5269
+      "sha256": "5b7c2383e2d97cc163eeec65f41608282662e53bc65834aba27027c52fabbf97",
+      "size_bytes": 12258
     },
     "tests/test_workspace_snapshot.py": {
       "sha256": "61e612f69d28f9c7dc2d0a542ba1ae2d50db3495eb63d5b6c1f3d801c001107a",

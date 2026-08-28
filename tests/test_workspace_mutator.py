@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 
@@ -164,3 +165,246 @@ def test_symlink_component_is_rejected_when_supported(tmp_path: Path) -> None:
         )
 
     assert not (outside / "escape.txt").exists()
+
+
+def test_same_process_luna_writers_cannot_both_publish_from_same_accepted_basis(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    target = source / "module.py"
+    target.write_text("A", encoding="utf-8")
+    expected = _digest("A")
+
+    first = _mutator(tmp_path)
+    second = _mutator(tmp_path)
+
+    first_paused = Event()
+    release_first = Event()
+    second_reached_snapshot = Event()
+
+    first_create_snapshot = first.store.create_snapshot
+    second_create_snapshot = second.store.create_snapshot
+
+    def pause_first_snapshot(*, task_id, relative_paths):
+        first_paused.set()
+        assert release_first.wait(timeout=5)
+        return first_create_snapshot(
+            task_id=task_id,
+            relative_paths=relative_paths,
+        )
+
+    def observe_second_snapshot(*, task_id, relative_paths):
+        second_reached_snapshot.set()
+        return second_create_snapshot(
+            task_id=task_id,
+            relative_paths=relative_paths,
+        )
+
+    monkeypatch.setattr(first.store, "create_snapshot", pause_first_snapshot)
+    monkeypatch.setattr(second.store, "create_snapshot", observe_second_snapshot)
+
+    successes: list[str] = []
+    failures: list[Exception] = []
+
+    def run(mutator: WorkspaceMutator, content: str) -> None:
+        try:
+            mutator.write_text(
+                relative_path="src/module.py",
+                content=content,
+                expected_sha256=expected,
+                create_if_missing=False,
+            )
+            successes.append(content)
+        except Exception as exc:
+            failures.append(exc)
+
+    worker1 = Thread(target=run, args=(first, "first"))
+    worker2 = Thread(target=run, args=(second, "second"))
+
+    worker1.start()
+    assert first_paused.wait(timeout=5)
+
+    worker2.start()
+
+    second_entered_unserialized_window = second_reached_snapshot.wait(timeout=2)
+
+    if second_entered_unserialized_window:
+        worker2.join(timeout=5)
+        assert not worker2.is_alive()
+
+    release_first.set()
+
+    worker1.join(timeout=5)
+    worker2.join(timeout=5)
+
+    assert not worker1.is_alive()
+    assert not worker2.is_alive()
+
+    assert len(successes) == 1
+    assert len(failures) == 1
+    assert isinstance(failures[0], WorkspaceMutationError)
+    assert target.read_text(encoding="utf-8") == successes[0]
+
+
+def test_snapshot_must_match_the_exact_basis_accepted_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    target = source / "module.py"
+    target.write_text("A", encoding="utf-8")
+
+    mutator = _mutator(tmp_path)
+    original_create_snapshot = mutator.store.create_snapshot
+
+    def mutate_before_snapshot(*, task_id, relative_paths):
+        target.write_text("foreign-B", encoding="utf-8")
+        return original_create_snapshot(
+            task_id=task_id,
+            relative_paths=relative_paths,
+        )
+
+    monkeypatch.setattr(
+        mutator.store,
+        "create_snapshot",
+        mutate_before_snapshot,
+    )
+
+    with pytest.raises(WorkspaceMutationError):
+        mutator.write_text(
+            relative_path="src/module.py",
+            content="Luna-C",
+            expected_sha256=_digest("A"),
+            create_if_missing=False,
+        )
+
+    assert target.read_text(encoding="utf-8") == "foreign-B"
+
+
+def test_target_basis_is_revalidated_after_snapshot_before_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    target = source / "module.py"
+    target.write_text("A", encoding="utf-8")
+
+    mutator = _mutator(tmp_path)
+    original_create_snapshot = mutator.store.create_snapshot
+
+    def mutate_after_snapshot(*, task_id, relative_paths):
+        snapshot = original_create_snapshot(
+            task_id=task_id,
+            relative_paths=relative_paths,
+        )
+        target.write_text("foreign-B", encoding="utf-8")
+        return snapshot
+
+    monkeypatch.setattr(
+        mutator.store,
+        "create_snapshot",
+        mutate_after_snapshot,
+    )
+
+    with pytest.raises(WorkspaceMutationError):
+        mutator.write_text(
+            relative_path="src/module.py",
+            content="Luna-C",
+            expected_sha256=_digest("A"),
+            create_if_missing=False,
+        )
+
+    assert target.read_text(encoding="utf-8") == "foreign-B"
+
+
+def test_committed_change_records_after_mode_and_matches_snapshot_before_basis(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    target = source / "module.py"
+    target.write_text("before", encoding="utf-8")
+
+    mutator = _mutator(tmp_path)
+
+    result = mutator.write_text(
+        relative_path="src/module.py",
+        content="after",
+        expected_sha256=_digest("before"),
+        create_if_missing=False,
+    )
+
+    snapshot_entry = result.snapshot.entries[0]
+    change = result.changes[0]
+
+    assert snapshot_entry.relative_path == change.relative_path
+    assert snapshot_entry.existed is True
+    assert snapshot_entry.content_digest == change.before_digest
+    assert snapshot_entry.size_bytes == change.before_size_bytes
+
+    assert change.after_mode is not None
+    assert change.after_mode == (target.stat().st_mode & 0o7777)
+
+
+def test_same_process_serializer_uses_platform_case_identity_for_target() -> None:
+    import os
+    from threading import Event, Thread
+
+    import pytest
+
+    from luna.workspace.coordination import WorkspaceTargetSerializer
+
+    lower = "src/module.py"
+    alias = "SRC/MODULE.PY"
+
+    if os.path.normcase(lower) != os.path.normcase(alias):
+        pytest.skip("platform treats these paths as distinct identities")
+
+    root_digest = "w1-case-alias-regression"
+    first = WorkspaceTargetSerializer(
+        workspace_root_digest=root_digest,
+    )
+    second = WorkspaceTargetSerializer(
+        workspace_root_digest=root_digest,
+    )
+
+    attempting = Event()
+    entered = Event()
+
+    def second_writer() -> None:
+        attempting.set()
+        with second.hold(alias):
+            entered.set()
+
+    worker = Thread(target=second_writer)
+
+    with first.hold(lower):
+        worker.start()
+
+        assert attempting.wait(timeout=2)
+        assert not entered.wait(timeout=2)
+
+    assert entered.wait(timeout=2)
+
+    worker.join(timeout=5)
+    assert not worker.is_alive()
+
+
+def test_same_process_serializer_releases_idle_registry_entry() -> None:
+    import luna.workspace.coordination as coordination
+    from luna.workspace.coordination import WorkspaceTargetSerializer
+
+    before = len(coordination._TARGET_LOCKS)
+
+    serializer = WorkspaceTargetSerializer(
+        workspace_root_digest="w1-registry-cleanup-regression",
+    )
+
+    with serializer.hold("src/module.py"):
+        assert len(coordination._TARGET_LOCKS) == before + 1
+
+    assert len(coordination._TARGET_LOCKS) == before

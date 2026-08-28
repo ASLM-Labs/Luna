@@ -88,6 +88,7 @@ class WriteTextTool:
                 "snapshot_id": str(result.snapshot.snapshot_id),
                 "before_sha256": change.before_digest or "ABSENT",
                 "after_sha256": change.after_digest or "ABSENT",
+                "after_mode": change.after_mode,
                 "operation": "write_text",
             },
         )
@@ -120,6 +121,7 @@ class ReplaceTextTool:
                 "snapshot_id": str(result.snapshot.snapshot_id),
                 "before_sha256": change.before_digest or "ABSENT",
                 "after_sha256": change.after_digest or "ABSENT",
+                "after_mode": change.after_mode,
                 "operation": "replace_text",
             },
         )
