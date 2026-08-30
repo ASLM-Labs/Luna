@@ -161,6 +161,7 @@ class ToolRoute(LunaContractModel):
     family: ToolFamily
     action_kinds: tuple[ActionKind, ...] = Field(min_length=1)
     target_kinds: tuple[ActionTargetKind, ...] = Field(min_length=1)
+    default_for_shape: bool = True
 
     @field_validator("action_kinds")
     @classmethod

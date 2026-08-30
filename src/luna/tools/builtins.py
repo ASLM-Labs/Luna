@@ -157,7 +157,12 @@ def build_phase5_registry() -> ToolRegistry:
     """Return Phase 4 read tools plus snapshot-first writes and safe argv execution."""
     from luna.contracts.enums import RiskLevel
     from luna.shell import RunArgvTool
-    from luna.workspace.tools import ReplaceTextTool, RollbackSnapshotTool, WriteTextTool
+    from luna.workspace.tools import (
+        ReplaceTextTool,
+        RollbackSnapshotTool,
+        SafeUndoSnapshotTool,
+        WriteTextTool,
+    )
 
     registry = build_phase4_registry()
     registry.register(
@@ -248,8 +253,35 @@ def build_phase5_registry() -> ToolRegistry:
     )
     registry.register(
         ToolSpec(
+            name="workspace.safe_undo",
+            description=(
+                "Conditionally undo one committed task-owned "
+                "snapshot only when the current Windows target "
+                "still matches its committed after-state proof."
+            ),
+            risk_level=RiskLevel.HIGH,
+            capabilities=(ToolCapability.WRITE,),
+            argument_schema={
+                "snapshot_id": ToolArgumentRule(
+                    argument_type=ToolArgumentType.STRING,
+                    required=True,
+                    min_length=36,
+                    max_length=36,
+                )
+            },
+            default_timeout_ms=10000,
+            max_timeout_ms=30000,
+            max_output_chars=8000,
+        ),
+        SafeUndoSnapshotTool(),
+    )
+    registry.register(
+        ToolSpec(
             name="workspace.rollback",
-            description="Restore one task-owned snapshot and verify every restored digest.",
+            description=(
+                "Compatibility alias for workspace.safe_undo "
+                "with the same conditional no-clobber semantics."
+            ),
             risk_level=RiskLevel.HIGH,
             capabilities=(ToolCapability.WRITE,),
             argument_schema={

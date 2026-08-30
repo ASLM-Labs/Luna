@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -40,6 +41,10 @@ def _contract(
     )
 
 
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="explicit conditional undo is Windows-only",
+)
 def test_write_tool_creates_snapshot_and_explicit_rollback_removes_file(
     tmp_path: Path,
 ) -> None:

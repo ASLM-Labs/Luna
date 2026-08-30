@@ -6,11 +6,13 @@ import ctypes
 import os
 from dataclasses import dataclass
 from enum import StrEnum
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 from uuid import uuid4
 
 from luna.tools.paths import normalize_relative_path
+from luna.workspace.models import WindowsAfterStateToken
 
 
 class WindowsPublicationError(RuntimeError):
@@ -54,6 +56,14 @@ class TargetObservation:
 
 
 @dataclass(frozen=True)
+class WindowsTargetState:
+    """Handle-bound target observation plus durable after-state token."""
+
+    observation: TargetObservation
+    token: WindowsAfterStateToken
+
+
+@dataclass(frozen=True)
 class _SecurityState:
     """DACL-bearing state captured from one bound file handle."""
 
@@ -66,6 +76,8 @@ _HANDLE = ctypes.c_void_p
 _ULONG = ctypes.c_uint32
 _USHORT = ctypes.c_uint16
 _DWORD = ctypes.c_uint32
+_ULONGLONG = ctypes.c_uint64
+_BYTE = ctypes.c_ubyte
 _BOOLEAN = ctypes.c_ubyte
 
 
@@ -121,6 +133,19 @@ class _FileBasicInfo(ctypes.Structure):
         ("LastWriteTime", ctypes.c_int64),
         ("ChangeTime", ctypes.c_int64),
         ("FileAttributes", _DWORD),
+    ]
+
+
+class _FileId128(ctypes.Structure):
+    _fields_ = [
+        ("Identifier", _BYTE * 16),
+    ]
+
+
+class _FileIdInfo(ctypes.Structure):
+    _fields_ = [
+        ("VolumeSerialNumber", _ULONGLONG),
+        ("FileId", _FileId128),
     ]
 
 
@@ -180,6 +205,7 @@ _OBJ_CASE_INSENSITIVE = 0x00000040
 _FILE_BASIC_INFO_CLASS = 0
 _FILE_STANDARD_INFO_CLASS = 1
 _FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
+_FILE_ID_INFO_CLASS = 18
 
 _SE_FILE_OBJECT = 1
 _DACL_SECURITY_INFORMATION = 0x00000004
@@ -646,15 +672,160 @@ def _file_basic_info(handle: int) -> _FileBasicInfo:
     return info
 
 
-def _file_mode(handle: int) -> int:
-    attributes = int(
-        _file_basic_info(handle).FileAttributes
+def _file_id_info(
+    handle: int,
+) -> tuple[int, str]:
+    info = _FileIdInfo()
+
+    if not _api().get_info(
+        _HANDLE(handle),
+        _FILE_ID_INFO_CLASS,
+        ctypes.byref(info),
+        ctypes.sizeof(info),
+    ):
+        raise _last_error(
+            "GetFileInformationByHandleEx(FileIdInfo)"
+        )
+
+    return (
+        int(info.VolumeSerialNumber),
+        bytes(info.FileId.Identifier).hex(),
     )
 
+
+def _mode_from_attributes(
+    attributes: int,
+) -> int:
     if attributes & _FILE_ATTRIBUTE_READONLY:
         return 0o444
 
     return 0o666
+
+
+def _file_mode(handle: int) -> int:
+    return _mode_from_attributes(
+        int(
+            _file_basic_info(
+                handle
+            ).FileAttributes
+        )
+    )
+
+
+def _basic_state_key(
+    info: _FileBasicInfo,
+) -> tuple[int, int, int, int]:
+    return (
+        int(info.CreationTime),
+        int(info.LastWriteTime),
+        int(info.ChangeTime),
+        int(info.FileAttributes),
+    )
+
+
+def _observe_handle_with_token(
+    handle: int,
+) -> WindowsTargetState:
+    basic_before = _file_basic_info(
+        handle
+    )
+    identity_before = _file_id_info(
+        handle
+    )
+    security_before = _capture_security(
+        handle
+    )
+
+    _seek_start(handle)
+    content = _read_all(handle)
+
+    basic_after = _file_basic_info(
+        handle
+    )
+    identity_after = _file_id_info(
+        handle
+    )
+    security_after = _capture_security(
+        handle
+    )
+
+    if identity_after != identity_before:
+        raise WindowsPublicationError(
+            "target identity changed during bound observation"
+        )
+
+    if (
+        _basic_state_key(basic_after)
+        != _basic_state_key(basic_before)
+    ):
+        raise WindowsPublicationError(
+            "target freshness changed during bound observation"
+        )
+
+    if (
+        security_after.dacl
+        != security_before.dacl
+        or security_after.protected
+        is not security_before.protected
+    ):
+        raise WindowsPublicationError(
+            "target DACL changed during bound observation"
+        )
+
+    mode = _mode_from_attributes(
+        int(basic_after.FileAttributes)
+    )
+
+    observation = TargetObservation(
+        existed=True,
+        content=content,
+        mode=mode,
+        security_descriptor=(
+            security_after.descriptor
+        ),
+        dacl=security_after.dacl,
+        dacl_protected=(
+            security_after.protected
+        ),
+    )
+
+    dacl_sha256 = (
+        None
+        if security_after.dacl is None
+        else sha256(
+            security_after.dacl
+        ).hexdigest()
+    )
+
+    token = WindowsAfterStateToken(
+        volume_serial_number=(
+            identity_after[0]
+        ),
+        file_id=identity_after[1],
+        creation_time=int(
+            basic_after.CreationTime
+        ),
+        last_write_time=int(
+            basic_after.LastWriteTime
+        ),
+        change_time=int(
+            basic_after.ChangeTime
+        ),
+        content_sha256=sha256(
+            content
+        ).hexdigest(),
+        size_bytes=len(content),
+        mode=mode,
+        dacl_sha256=dacl_sha256,
+        dacl_protected=(
+            security_after.protected
+        ),
+    )
+
+    return WindowsTargetState(
+        observation=observation,
+        token=token,
+    )
 
 
 def _set_file_mode(
@@ -979,6 +1150,76 @@ def _open_file(parent: int, name: str) -> tuple[int, int | None]:
         raise
 
 
+def _open_fenced_file(
+    parent: int,
+    name: str,
+    *,
+    writable: bool,
+    deletable: bool,
+) -> tuple[int, int | None]:
+    desired_access = (
+        _FILE_READ_DATA
+        | _FILE_READ_ATTRIBUTES
+        | _READ_CONTROL
+        | _SYNCHRONIZE
+    )
+
+    if writable:
+        desired_access |= _FILE_WRITE_DATA
+
+    if deletable:
+        desired_access |= _DELETE
+
+    backing, text, attrs = _object_attributes(
+        parent,
+        name,
+    )
+    handle = _HANDLE()
+    iosb = _IoStatusBlock()
+
+    status = int(
+        _api().nt_open(
+            ctypes.byref(handle),
+            desired_access,
+            ctypes.byref(attrs),
+            ctypes.byref(iosb),
+            _FILE_SHARE_READ,
+            _FILE_NON_DIRECTORY_FILE
+            | _FILE_SYNCHRONOUS_IO_NONALERT
+            | _FILE_OPEN_REPARSE_POINT,
+        )
+    )
+
+    _ = backing, text
+
+    if status < 0:
+        if handle.value is not None:
+            _close(
+                int(handle.value)
+            )
+
+        return status, None
+
+    if handle.value is None:
+        raise WindowsPublicationError(
+            "NtOpenFile(fenced target) returned no handle"
+        )
+
+    value = int(handle.value)
+
+    try:
+        _reject_reparse(
+            value,
+            subject=f"fenced target {name!r}",
+        )
+
+        return status, value
+
+    except Exception:
+        _close(value)
+        raise
+
+
 def _create_stage(
     parent: int,
     name: str,
@@ -1106,6 +1347,258 @@ def _discard(
         raise WindowsPublicationError(
             f"NtSetInformationFile(disposition) failed with {_status_text(status)}"
         )
+
+
+class FencedTarget:
+    """Exact expected target held under Windows write/delete exclusion."""
+
+    def __init__(
+        self,
+        *,
+        parent_handle: int,
+        name: str,
+        handle: int,
+        expected_after: WindowsAfterStateToken,
+        may_restore: bool,
+        may_delete: bool,
+    ) -> None:
+        self.parent_handle = parent_handle
+        self.name = name
+        self.expected_after = expected_after
+        self._handle: int | None = handle
+        self._may_restore = may_restore
+        self._may_delete = may_delete
+
+    def _require_handle(self) -> int:
+        if self._handle is None:
+            raise WindowsPublicationError(
+                "fenced target handle is closed"
+            )
+
+        return self._handle
+
+    def verify_expected(
+        self,
+    ) -> WindowsTargetState:
+        state = _observe_handle_with_token(
+            self._require_handle()
+        )
+
+        if state.token != self.expected_after:
+            raise WindowsPublicationError(
+                "fenced target does not match "
+                "committed after-state token"
+            )
+
+        return state
+
+    def restore_existing_content(
+        self,
+        content: bytes,
+        *,
+        mode: int,
+    ) -> WindowsTargetState:
+        if not self._may_restore:
+            raise WindowsPublicationError(
+                "fenced target lacks restore authority"
+            )
+
+        if mode != self.expected_after.mode:
+            raise WindowsPublicationError(
+                "before-state mode does not match "
+                "published mode"
+            )
+
+        accepted_after = self.verify_expected()
+
+        accepted_after_content = (
+            accepted_after.observation.content
+        )
+
+        if accepted_after_content is None:
+            raise WindowsPublicationError(
+                "verified after-state lacks content"
+            )
+
+        handle = self._require_handle()
+
+        expected_content_sha256 = sha256(
+            content
+        ).hexdigest()
+
+        try:
+            _replace_all(
+                handle,
+                content,
+            )
+
+            restored = _observe_handle_with_token(
+                handle
+            )
+
+            if (
+                restored.token.volume_serial_number
+                != self.expected_after.volume_serial_number
+                or restored.token.file_id
+                != self.expected_after.file_id
+                or restored.token.creation_time
+                != self.expected_after.creation_time
+                or restored.token.content_sha256
+                != expected_content_sha256
+                or restored.token.size_bytes
+                != len(content)
+                or restored.token.mode
+                != mode
+                or restored.token.dacl_sha256
+                != self.expected_after.dacl_sha256
+                or restored.token.dacl_protected
+                is not self.expected_after.dacl_protected
+            ):
+                raise WindowsPublicationError(
+                    "fenced existing-target restore "
+                    "verification failed"
+                )
+
+            return restored
+
+        except Exception as exc:
+            try:
+                current = _observe_handle_with_token(
+                    handle
+                )
+            except Exception:
+                current = None
+
+            if (
+                current is not None
+                and current.token == self.expected_after
+            ):
+                raise WindowsPublicationError(
+                    "fenced existing-target restore "
+                    "failed before target state changed"
+                ) from exc
+
+            try:
+                _replace_all(
+                    handle,
+                    accepted_after_content,
+                )
+
+                recovered = (
+                    _observe_handle_with_token(
+                        handle
+                    )
+                )
+
+                if (
+                    recovered.observation.content
+                    != accepted_after_content
+                    or recovered.token.volume_serial_number
+                    != self.expected_after.volume_serial_number
+                    or recovered.token.file_id
+                    != self.expected_after.file_id
+                    or recovered.token.creation_time
+                    != self.expected_after.creation_time
+                    or recovered.token.content_sha256
+                    != self.expected_after.content_sha256
+                    or recovered.token.size_bytes
+                    != self.expected_after.size_bytes
+                    or recovered.token.mode
+                    != self.expected_after.mode
+                    or recovered.token.dacl_sha256
+                    != self.expected_after.dacl_sha256
+                    or recovered.token.dacl_protected
+                    is not self.expected_after.dacl_protected
+                ):
+                    raise WindowsPublicationError(
+                        "accepted after-state recovery "
+                        "verification failed"
+                    )
+
+            except Exception as recovery_exc:
+                raise WindowsPublicationError(
+                    "fenced existing-target restore "
+                    f"failed: {exc}; accepted after-state "
+                    "recovery also failed: "
+                    f"{recovery_exc}"
+                ) from recovery_exc
+
+            if recovered.token == self.expected_after:
+                raise WindowsPublicationError(
+                    "fenced existing-target restore "
+                    "failed; committed after-state "
+                    "was fully recovered"
+                ) from exc
+
+            raise WindowsPublicationError(
+                "fenced existing-target restore failed; "
+                "accepted after-state content was recovered "
+                "but the original after-state token is no "
+                "longer reusable"
+            ) from exc
+
+    def delete_created_target(
+        self,
+    ) -> TargetObservation:
+        if not self._may_delete:
+            raise WindowsPublicationError(
+                "fenced target lacks delete authority"
+            )
+
+        self.verify_expected()
+
+        handle = self._require_handle()
+
+        _discard(
+            handle,
+            ignore_readonly=True,
+        )
+
+        self.close()
+
+        status, observed_handle = _open_file(
+            self.parent_handle,
+            self.name,
+        )
+
+        if (
+            _u32(status)
+            == _STATUS_OBJECT_NAME_NOT_FOUND
+        ):
+            return TargetObservation(
+                existed=False
+            )
+
+        if observed_handle is not None:
+            _close(
+                observed_handle
+            )
+
+        raise WindowsPublicationError(
+            "fenced created-target delete could not "
+            "verify bound target absence"
+        )
+
+    def close(self) -> None:
+        if self._handle is not None:
+            _close(
+                self._handle
+            )
+            self._handle = None
+
+    def __enter__(
+        self,
+    ) -> FencedTarget:
+        self._require_handle()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: object,
+        exc: object,
+        traceback: object,
+    ) -> None:
+        self.close()
 
 
 class StagedFile:
@@ -1242,6 +1735,22 @@ class StagedFile:
             )
 
         return _observe_handle(self._require_handle())
+
+    def observe_published_with_token(
+        self,
+    ) -> WindowsTargetState:
+        if (
+            self._publication
+            is not PublicationState.PUBLISHED
+        ):
+            raise WindowsPublicationError(
+                "published token observation requires "
+                "a confirmed PUBLISHED state"
+            )
+
+        return _observe_handle_with_token(
+            self._require_handle()
+        )
 
     def rollback_published(
         self,
@@ -1461,6 +1970,71 @@ class BoundPublicationParent:
 
         finally:
             _close(handle)
+
+    def _fence_expected_target(
+        self,
+        expected_after: WindowsAfterStateToken,
+        *,
+        writable: bool,
+        deletable: bool,
+    ) -> FencedTarget:
+        status, handle = _open_fenced_file(
+            self.parent_handle,
+            self.leaf_name,
+            writable=writable,
+            deletable=deletable,
+        )
+
+        if (
+            _u32(status)
+            == _STATUS_OBJECT_NAME_NOT_FOUND
+        ):
+            raise WindowsPublicationError(
+                "expected committed target is absent"
+            )
+
+        if status < 0 or handle is None:
+            raise WindowsPublicationError(
+                "NtOpenFile(fenced target) failed with "
+                f"{_status_text(status)}"
+            )
+
+        target = FencedTarget(
+            parent_handle=self.parent_handle,
+            name=self.leaf_name,
+            handle=handle,
+            expected_after=expected_after,
+            may_restore=writable,
+            may_delete=deletable,
+        )
+
+        try:
+            target.verify_expected()
+            return target
+
+        except Exception:
+            target.close()
+            raise
+
+    def fence_existing_restore(
+        self,
+        expected_after: WindowsAfterStateToken,
+    ) -> FencedTarget:
+        return self._fence_expected_target(
+            expected_after,
+            writable=True,
+            deletable=False,
+        )
+
+    def fence_created_delete(
+        self,
+        expected_after: WindowsAfterStateToken,
+    ) -> FencedTarget:
+        return self._fence_expected_target(
+            expected_after,
+            writable=False,
+            deletable=True,
+        )
 
     def create_stage(
         self,

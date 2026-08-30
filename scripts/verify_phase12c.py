@@ -184,7 +184,7 @@ def main() -> int:
         summary="Second side effect in same iteration.",
         arguments={"snapshot_id": str(uuid4())},
         required_capabilities=(ToolCapability.WRITE,),
-        preferred_tool_name="workspace.rollback",
+        preferred_tool_name="workspace.safe_undo",
         expectation_id=uuid4(),
     )
     try:

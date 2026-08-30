@@ -127,27 +127,65 @@ class ReplaceTextTool:
         )
 
 
-class RollbackSnapshotTool:
+class SafeUndoSnapshotTool:
+    """Canonical explicit conditional safe-undo tool."""
+
+    _stdout_operation = "safe undo"
+
     def execute(
         self,
         arguments: dict[str, ToolArgumentValue],
         context: ToolExecutionContext,
     ) -> ToolExecutionOutput:
         try:
-            snapshot_id = UUID(_string(arguments, "snapshot_id"))
+            snapshot_id = UUID(
+                _string(arguments, "snapshot_id")
+            )
         except ValueError as exc:
-            raise ToolExecutionDenied("snapshot_id must be a UUID") from exc
+            raise ToolExecutionDenied(
+                "snapshot_id must be a UUID"
+            ) from exc
+
         try:
-            result = _mutator(context).rollback(snapshot_id)
+            result = _mutator(
+                context
+            ).safe_undo(snapshot_id)
         except WorkspaceMutationError as exc:
-            raise ToolExecutionDenied(str(exc)) from exc
-        changed = tuple(dict.fromkeys((*result.restored_files, *result.removed_files)))
+            raise ToolExecutionDenied(
+                str(exc)
+            ) from exc
+
+        changed = tuple(
+            dict.fromkeys(
+                (
+                    *result.restored_files,
+                    *result.removed_files,
+                )
+            )
+        )
+
         return ToolExecutionOutput(
-            stdout=f"snapshot rollback {result.status.value.lower()}",
+            stdout=(
+                f"snapshot {self._stdout_operation} "
+                f"{result.status.value.lower()}"
+            ),
             changed_files=changed,
             metadata={
-                "snapshot_id": str(result.snapshot_id),
-                "rollback_status": result.status.value,
+                "snapshot_id": str(
+                    result.snapshot_id
+                ),
+                "rollback_status": (
+                    result.status.value
+                ),
                 "verified": result.verified,
+                "operation": "safe_undo",
             },
         )
+
+
+class RollbackSnapshotTool(
+    SafeUndoSnapshotTool
+):
+    """Compatibility alias for SafeUndoSnapshotTool."""
+
+    _stdout_operation = "rollback"

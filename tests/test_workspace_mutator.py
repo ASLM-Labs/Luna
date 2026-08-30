@@ -26,6 +26,10 @@ def _mutator(tmp_path: Path, *, protected: tuple[str, ...] = ()) -> WorkspaceMut
     )
 
 
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="explicit conditional undo is Windows-only",
+)
 def test_create_is_snapshot_first_and_explicitly_reversible(tmp_path: Path) -> None:
     mutator = _mutator(tmp_path)
     result = mutator.write_text(

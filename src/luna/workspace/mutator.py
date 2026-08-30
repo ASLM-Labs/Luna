@@ -16,6 +16,8 @@ from luna.workspace.models import (
     MutationStatus,
     RollbackResult,
     RollbackStatus,
+    SafeUndoReceiptState,
+    SnapshotEntry,
     WorkspaceMutationResult,
     WorkspaceSnapshot,
     WorkspaceTargetBasis,
@@ -346,6 +348,20 @@ class WorkspaceMutator:
             accepted_basis=accepted_basis,
         )
 
+        try:
+            self.store.prepare_undo_receipt(
+                snapshot=snapshot,
+                relative_path=relative_path,
+                expected_after_sha256=after_digest,
+                expected_after_size_bytes=len(encoded),
+            )
+
+        except Exception as exc:
+            raise WorkspaceMutationError(
+                "safe-undo receipt preparation failed: "
+                f"{exc}"
+            ) from exc
+
         stage = authority.create_stage(
             source=(
                 current_observation
@@ -436,12 +452,41 @@ class WorkspaceMutator:
                 )
 
             try:
-                observed = stage.observe_published()
+                published = (
+                    stage.observe_published_with_token()
+                )
 
                 after_mode = self._verify_bound_publication(
-                    observation=observed,
+                    observation=published.observation,
                     expected_content=encoded,
                     source=current_observation,
+                )
+
+                change = FileChange(
+                    relative_path=relative_path,
+                    before_digest=(
+                        accepted_basis.content_digest
+                    ),
+                    after_digest=after_digest,
+                    before_size_bytes=(
+                        accepted_basis.size_bytes
+                    ),
+                    after_size_bytes=len(encoded),
+                    after_mode=after_mode,
+                    created=not accepted_basis.existed,
+                )
+
+                result = WorkspaceMutationResult(
+                    task_id=self.task_id,
+                    snapshot=snapshot,
+                    status=MutationStatus.COMMITTED,
+                    changes=(change,),
+                )
+
+                self.store.commit_undo_receipt(
+                    snapshot_id=snapshot.snapshot_id,
+                    task_id=self.task_id,
+                    after_token=published.token,
                 )
 
             except Exception as exc:
@@ -469,22 +514,7 @@ class WorkspaceMutator:
                     rollback=rollback,
                 ) from exc
 
-            change = FileChange(
-                relative_path=relative_path,
-                before_digest=accepted_basis.content_digest,
-                after_digest=after_digest,
-                before_size_bytes=accepted_basis.size_bytes,
-                after_size_bytes=len(encoded),
-                after_mode=after_mode,
-                created=not accepted_basis.existed,
-            )
-
-            return WorkspaceMutationResult(
-                task_id=self.task_id,
-                snapshot=snapshot,
-                status=MutationStatus.COMMITTED,
-                changes=(change,),
-            )
+            return result
 
         finally:
             stage.close()
@@ -820,8 +850,323 @@ class WorkspaceMutator:
                 content=updated,
             )
 
-    def rollback(self, snapshot_id: UUID) -> RollbackResult:
+    @staticmethod
+    def _basis_from_snapshot_entry(
+        entry: SnapshotEntry,
+    ) -> WorkspaceTargetBasis:
+        return WorkspaceTargetBasis(
+            relative_path=entry.relative_path,
+            existed=entry.existed,
+            content_digest=entry.content_digest,
+            size_bytes=entry.size_bytes,
+            mode=entry.mode,
+        )
+
+    def safe_undo(
+        self,
+        snapshot_id: UUID,
+    ) -> RollbackResult:
+        """Conditionally undo one committed Windows mutation."""
+
+        if os.name != "nt":
+            raise WorkspaceMutationError(
+                "conditional safe undo is supported "
+                "only on Windows"
+            )
+
         try:
-            return self.store.restore(snapshot_id=snapshot_id, task_id=self.task_id)
+            initial_receipt = (
+                self.store.load_undo_receipt(
+                    snapshot_id,
+                    task_id=self.task_id,
+                )
+            )
+
         except SnapshotStoreError as exc:
-            raise WorkspaceMutationError(str(exc)) from exc
+            raise WorkspaceMutationError(
+                str(exc)
+            ) from exc
+
+        relative_path = (
+            initial_receipt.relative_path
+        )
+
+        with self._serializer.hold(
+            relative_path
+        ):
+            try:
+                receipt = (
+                    self.store.load_undo_receipt(
+                        snapshot_id,
+                        task_id=self.task_id,
+                    )
+                )
+
+                snapshot = (
+                    self.store.load_snapshot(
+                        snapshot_id
+                    )
+                )
+
+                if (
+                    len(snapshot.entries) != 1
+                    or snapshot.entries[0].relative_path
+                    != receipt.relative_path
+                ):
+                    raise WorkspaceMutationError(
+                        "safe-undo snapshot target "
+                        "binding is invalid"
+                    )
+
+                entry = snapshot.entries[0]
+
+                expected_before = (
+                    self._basis_from_snapshot_entry(
+                        entry
+                    )
+                )
+
+                if (
+                    receipt.state
+                    is SafeUndoReceiptState.PREPARED
+                ):
+                    raise WorkspaceMutationError(
+                        "PREPARED safe-undo receipt "
+                        "does not authorize undo"
+                    )
+
+                if (
+                    receipt.state
+                    is SafeUndoReceiptState.UNDONE
+                ):
+                    with BoundPublicationParent.bind(
+                        str(
+                            self.store.workspace_root
+                        ),
+                        receipt.relative_path,
+                    ) as authority:
+                        current = (
+                            authority.observe_target()
+                        )
+
+                        current_basis = (
+                            self._basis_from_bound_observation(
+                                relative_path=(
+                                    receipt.relative_path
+                                ),
+                                observation=current,
+                            )
+                        )
+
+                    if current_basis != expected_before:
+                        raise WorkspaceMutationError(
+                            "UNDONE safe-undo receipt "
+                            "target does not match "
+                            "snapshot before-state"
+                        )
+
+                    return RollbackResult(
+                        snapshot_id=snapshot_id,
+                        task_id=self.task_id,
+                        status=RollbackStatus.NO_CHANGES,
+                        verified=True,
+                    )
+
+                if (
+                    receipt.state
+                    is not SafeUndoReceiptState.COMMITTED
+                    or receipt.after_token is None
+                ):
+                    raise WorkspaceMutationError(
+                        "safe-undo receipt is not "
+                        "in an authorized state"
+                    )
+
+                before_content: bytes | None = None
+
+                if entry.existed:
+                    if (
+                        entry.content_digest is None
+                        or entry.mode is None
+                    ):
+                        raise WorkspaceMutationError(
+                            "existing safe-undo snapshot "
+                            "entry lacks before-state evidence"
+                        )
+
+                    before_content = self.store._blob(
+                        snapshot_id,
+                        entry.content_digest,
+                    )
+
+                    if (
+                        len(before_content)
+                        != entry.size_bytes
+                    ):
+                        raise WorkspaceMutationError(
+                            "safe-undo snapshot blob "
+                            "size does not match manifest"
+                        )
+
+                with BoundPublicationParent.bind(
+                    str(
+                        self.store.workspace_root
+                    ),
+                    receipt.relative_path,
+                ) as authority:
+                    if entry.existed:
+                        assert before_content is not None
+                        assert entry.mode is not None
+
+                        with (
+                            authority
+                            .fence_existing_restore(
+                                receipt.after_token
+                            )
+                        ) as fenced:
+                            restored = (
+                                fenced
+                                .restore_existing_content(
+                                    before_content,
+                                    mode=entry.mode,
+                                )
+                            )
+
+                            restored_basis = (
+                                self
+                                ._basis_from_bound_observation(
+                                    relative_path=(
+                                        receipt.relative_path
+                                    ),
+                                    observation=(
+                                        restored.observation
+                                    ),
+                                )
+                            )
+
+                        if (
+                            restored_basis
+                            != expected_before
+                        ):
+                            raise WorkspaceMutationError(
+                                "safe undo restored target "
+                                "failed independent "
+                                "before-state verification"
+                            )
+
+                    else:
+                        with (
+                            authority
+                            .fence_created_delete(
+                                receipt.after_token
+                            )
+                        ) as fenced:
+                            absent = (
+                                fenced
+                                .delete_created_target()
+                            )
+
+                        if absent.existed:
+                            raise WorkspaceMutationError(
+                                "safe undo created-target "
+                                "delete did not yield absence"
+                            )
+
+                        fresh_absent = (
+                            authority.observe_target()
+                        )
+
+                        if fresh_absent.existed:
+                            raise WorkspaceMutationError(
+                                "safe undo created-target "
+                                "absence verification failed"
+                            )
+
+                result = RollbackResult(
+                    snapshot_id=snapshot_id,
+                    task_id=self.task_id,
+                    status=RollbackStatus.RESTORED,
+                    restored_files=(
+                        (receipt.relative_path,)
+                        if entry.existed
+                        else ()
+                    ),
+                    removed_files=(
+                        ()
+                        if entry.existed
+                        else (
+                            receipt.relative_path,
+                        )
+                    ),
+                    verified=True,
+                )
+
+                try:
+                    undone = (
+                        self.store
+                        .mark_undo_receipt_undone(
+                            snapshot_id=snapshot_id,
+                            task_id=self.task_id,
+                        )
+                    )
+
+                except SnapshotStoreError as exc:
+                    try:
+                        durable = (
+                            self.store
+                            .load_undo_receipt(
+                                snapshot_id,
+                                task_id=self.task_id,
+                            )
+                        )
+
+                    except SnapshotStoreError:
+                        raise WorkspaceMutationError(
+                            "safe undo filesystem "
+                            "inverse was verified but "
+                            "receipt completion is "
+                            "uncertain; manual "
+                            "verification is required"
+                        ) from exc
+
+                    if (
+                        durable.state
+                        is not SafeUndoReceiptState.UNDONE
+                    ):
+                        raise WorkspaceMutationError(
+                            "safe undo filesystem "
+                            "inverse was verified but "
+                            "receipt remains incomplete; "
+                            "manual verification is required"
+                        ) from exc
+
+                    return result
+
+                if (
+                    undone.state
+                    is not SafeUndoReceiptState.UNDONE
+                ):
+                    raise WorkspaceMutationError(
+                        "safe undo receipt completion "
+                        "returned an unexpected state"
+                    )
+
+                return result
+
+            except WorkspaceMutationError:
+                raise
+
+            except (
+                SnapshotStoreError,
+                WindowsPublicationError,
+            ) as exc:
+                raise WorkspaceMutationError(
+                    str(exc)
+                ) from exc
+
+    def rollback(
+        self,
+        snapshot_id: UUID,
+    ) -> RollbackResult:
+        """Compatibility alias for conditional safe undo."""
+        return self.safe_undo(snapshot_id)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -141,23 +142,23 @@ def run_workspace() -> SmokeReport:
         rollback_request = ToolRequest(
             task_id=task_id,
             trace_id=uuid4(),
-            tool_name="workspace.rollback",
+            tool_name="workspace.safe_undo",
             arguments={"snapshot_id": snapshot_id},
             expectation_id=uuid4(),
         )
-        rollback_basis = sha256(b"diagnostics-workspace-rollback-basis").hexdigest()
+        rollback_basis = sha256(b"diagnostics-workspace-safe-undo-basis").hexdigest()
         rollback = dispatcher.dispatch(
             request=rollback_request,
             task_contract=contract,
             policy=ToolPolicy(
-                allowed_tools=("workspace.rollback",),
-                owner_approved_tools=("workspace.rollback",),
+                allowed_tools=("workspace.safe_undo",),
+                owner_approved_tools=("workspace.safe_undo",),
                 exact_call_approvals=(
                     ExactCallApproval.bind(
                         rollback_request,
                         basis_fingerprint=rollback_basis,
                         approved_by="diagnostics:owner",
-                        evidence_ref="diagnostics:workspace:rollback-approval",
+                        evidence_ref="diagnostics:workspace:safe-undo-approval",
                     ),
                 ),
                 autonomy_level=AutonomyLevel.OWNER_APPROVED,
@@ -175,9 +176,17 @@ def run_workspace() -> SmokeReport:
         return legacy_contract_report(
             "workspace",
             payload,
-            rollback.result.status.value == "SUCCESS"
-            and (not payload["file_exists_after_rollback"])
-            and (payload["rollback_verified"] is True),
+            (
+                rollback.result.status.value == "SUCCESS"
+                and (not payload["file_exists_after_rollback"])
+                and (payload["rollback_verified"] is True)
+                if os.name == "nt"
+                else (
+                    rollback.result.status.value == "BLOCKED"
+                    and payload["file_exists_after_rollback"] is True
+                    and payload["rollback_verified"] is False
+                )
+            ),
         )
 
 

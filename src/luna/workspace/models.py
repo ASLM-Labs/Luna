@@ -6,11 +6,12 @@ import json
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
+from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from luna.contracts.base import LunaContractModel, require_utc, utc_now
+from luna.contracts.base import SCHEMA_VERSION, LunaContractModel, require_utc, utc_now
 
 
 def _snapshot_digest_payload(
@@ -170,6 +171,328 @@ class WorkspaceSnapshot(LunaContractModel):
             entries=entries,
             created_at=active_created_at,
             snapshot_digest=digest,
+        )
+
+
+
+class SafeUndoReceiptState(StrEnum):
+    """Durable lifecycle state for one conditional safe-undo receipt."""
+
+    PREPARED = "PREPARED"
+    COMMITTED = "COMMITTED"
+    UNDONE = "UNDONE"
+
+
+class WindowsAfterStateToken(LunaContractModel):
+    """Durable Windows identity, freshness, content, and policy evidence."""
+
+    model_config = ConfigDict(frozen=True)
+
+    volume_serial_number: int = Field(ge=0)
+    file_id: str = Field(
+        pattern=r"^[0-9a-f]{32}$",
+    )
+    creation_time: int = Field(ge=0)
+    last_write_time: int = Field(ge=0)
+    change_time: int = Field(ge=0)
+    content_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(ge=0)
+    mode: int = Field(ge=0)
+    dacl_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    dacl_protected: bool
+
+
+def _safe_undo_receipt_digest_payload(
+    *,
+    schema_version: str,
+    receipt_version: int,
+    state: SafeUndoReceiptState,
+    snapshot_id: UUID,
+    snapshot_digest: str,
+    task_id: UUID,
+    workspace_root_digest: str,
+    relative_path: str,
+    expected_after_sha256: str,
+    expected_after_size_bytes: int,
+    after_token: WindowsAfterStateToken | None,
+) -> bytes:
+    payload = {
+        "schema_version": schema_version,
+        "receipt_version": receipt_version,
+        "state": state.value,
+        "snapshot_id": str(snapshot_id),
+        "snapshot_digest": snapshot_digest,
+        "task_id": str(task_id),
+        "workspace_root_digest": workspace_root_digest,
+        "relative_path": relative_path,
+        "expected_after_sha256": expected_after_sha256,
+        "expected_after_size_bytes": expected_after_size_bytes,
+        "after_token": (
+            None
+            if after_token is None
+            else after_token.model_dump(mode="json")
+        ),
+    }
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+class SafeUndoReceipt(LunaContractModel):
+    """Integrity-bound durable authority record for conditional safe undo."""
+
+    model_config = ConfigDict(frozen=True)
+
+    receipt_version: Literal[1] = 1
+    state: SafeUndoReceiptState
+
+    snapshot_id: UUID
+    snapshot_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    task_id: UUID
+    workspace_root_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    relative_path: str = Field(
+        min_length=1,
+        max_length=4000,
+    )
+
+    expected_after_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    expected_after_size_bytes: int = Field(
+        ge=0,
+    )
+
+    after_token: WindowsAfterStateToken | None = None
+
+    receipt_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    @model_validator(mode="after")
+    def validate_receipt(
+        self,
+    ) -> SafeUndoReceipt:
+        if (
+            self.state
+            is SafeUndoReceiptState.PREPARED
+        ):
+            if self.after_token is not None:
+                raise ValueError(
+                    "PREPARED safe-undo receipt "
+                    "cannot carry an after token"
+                )
+
+        elif self.after_token is None:
+            raise ValueError(
+                "COMMITTED or UNDONE safe-undo "
+                "receipt requires an after token"
+            )
+
+        if (
+            self.after_token is not None
+            and (
+                self.after_token.content_sha256
+                != self.expected_after_sha256
+                or self.after_token.size_bytes
+                != self.expected_after_size_bytes
+            )
+        ):
+            raise ValueError(
+                "safe-undo after token does not "
+                "match expected after-state semantics"
+            )
+
+        expected = sha256(
+            _safe_undo_receipt_digest_payload(
+                schema_version=self.schema_version,
+                receipt_version=self.receipt_version,
+                state=self.state,
+                snapshot_id=self.snapshot_id,
+                snapshot_digest=self.snapshot_digest,
+                task_id=self.task_id,
+                workspace_root_digest=(
+                    self.workspace_root_digest
+                ),
+                relative_path=self.relative_path,
+                expected_after_sha256=(
+                    self.expected_after_sha256
+                ),
+                expected_after_size_bytes=(
+                    self.expected_after_size_bytes
+                ),
+                after_token=self.after_token,
+            )
+        ).hexdigest()
+
+        if self.receipt_digest != expected:
+            raise ValueError(
+                "receipt_digest does not match "
+                "safe-undo receipt"
+            )
+
+        return self
+
+    @classmethod
+    def _build(
+        cls,
+        *,
+        state: SafeUndoReceiptState,
+        snapshot_id: UUID,
+        snapshot_digest: str,
+        task_id: UUID,
+        workspace_root_digest: str,
+        relative_path: str,
+        expected_after_sha256: str,
+        expected_after_size_bytes: int,
+        after_token: WindowsAfterStateToken | None,
+    ) -> SafeUndoReceipt:
+        digest = sha256(
+            _safe_undo_receipt_digest_payload(
+                schema_version=SCHEMA_VERSION,
+                receipt_version=1,
+                state=state,
+                snapshot_id=snapshot_id,
+                snapshot_digest=snapshot_digest,
+                task_id=task_id,
+                workspace_root_digest=(
+                    workspace_root_digest
+                ),
+                relative_path=relative_path,
+                expected_after_sha256=(
+                    expected_after_sha256
+                ),
+                expected_after_size_bytes=(
+                    expected_after_size_bytes
+                ),
+                after_token=after_token,
+            )
+        ).hexdigest()
+
+        return cls(
+            state=state,
+            snapshot_id=snapshot_id,
+            snapshot_digest=snapshot_digest,
+            task_id=task_id,
+            workspace_root_digest=(
+                workspace_root_digest
+            ),
+            relative_path=relative_path,
+            expected_after_sha256=(
+                expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                expected_after_size_bytes
+            ),
+            after_token=after_token,
+            receipt_digest=digest,
+        )
+
+    @classmethod
+    def build_prepared(
+        cls,
+        *,
+        snapshot_id: UUID,
+        snapshot_digest: str,
+        task_id: UUID,
+        workspace_root_digest: str,
+        relative_path: str,
+        expected_after_sha256: str,
+        expected_after_size_bytes: int,
+    ) -> SafeUndoReceipt:
+        return cls._build(
+            state=SafeUndoReceiptState.PREPARED,
+            snapshot_id=snapshot_id,
+            snapshot_digest=snapshot_digest,
+            task_id=task_id,
+            workspace_root_digest=(
+                workspace_root_digest
+            ),
+            relative_path=relative_path,
+            expected_after_sha256=(
+                expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                expected_after_size_bytes
+            ),
+            after_token=None,
+        )
+
+    def with_committed_after_state(
+        self,
+        after_token: WindowsAfterStateToken,
+    ) -> SafeUndoReceipt:
+        if (
+            self.state
+            is not SafeUndoReceiptState.PREPARED
+        ):
+            raise ValueError(
+                "safe-undo receipt commit "
+                "requires PREPARED state"
+            )
+
+        return type(self)._build(
+            state=SafeUndoReceiptState.COMMITTED,
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            after_token=after_token,
+        )
+
+    def with_undone_state(
+        self,
+    ) -> SafeUndoReceipt:
+        if (
+            self.state
+            is not SafeUndoReceiptState.COMMITTED
+        ):
+            raise ValueError(
+                "safe-undo receipt completion "
+                "requires COMMITTED state"
+            )
+
+        assert self.after_token is not None
+
+        return type(self)._build(
+            state=SafeUndoReceiptState.UNDONE,
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            after_token=self.after_token,
         )
 
 
