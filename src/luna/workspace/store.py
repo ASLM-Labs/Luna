@@ -94,6 +94,139 @@ class WorkspaceSnapshotStore:
             raise SnapshotStoreError("invalid snapshot identifier")
         return directory
 
+    def _persist_snapshot(
+        self,
+        *,
+        task_id: UUID,
+        entries: tuple[SnapshotEntry, ...],
+        blobs: dict[str, bytes],
+    ) -> WorkspaceSnapshot:
+        """Persist already-captured snapshot state without target path I/O."""
+
+        for digest, content in blobs.items():
+            if digest_bytes(content) != digest:
+                raise SnapshotStoreError(
+                    "captured snapshot blob digest does not match content"
+                )
+
+        for entry in entries:
+            if not entry.existed:
+                continue
+
+            assert entry.content_digest is not None
+
+            blob_content = blobs.get(
+                entry.content_digest
+            )
+
+            if blob_content is None:
+                raise SnapshotStoreError(
+                    "existing captured snapshot entry lacks its content blob"
+                )
+
+            if len(blob_content) != entry.size_bytes:
+                raise SnapshotStoreError(
+                    "captured snapshot entry size does not match content"
+                )
+
+        snapshot = WorkspaceSnapshot.build(
+            task_id=task_id,
+            workspace_root_digest=self.workspace_root_digest,
+            entries=entries,
+        )
+
+        directory = self._snapshot_directory(
+            snapshot.snapshot_id
+        )
+        blobs_directory = directory / "blobs"
+
+        try:
+            blobs_directory.mkdir(
+                parents=True,
+                exist_ok=False,
+            )
+
+            for digest, content in blobs.items():
+                atomic_write_bytes(
+                    blobs_directory / digest,
+                    content,
+                    mode=0o600,
+                )
+
+            atomic_write_bytes(
+                directory / "manifest.json",
+                snapshot.to_json().encode("utf-8"),
+                mode=0o600,
+            )
+
+        except Exception as exc:
+            if directory.exists():
+                import shutil
+
+                shutil.rmtree(
+                    directory,
+                    ignore_errors=True,
+                )
+
+            raise SnapshotStoreError(
+                f"snapshot persistence failed: {exc}"
+            ) from exc
+
+        return snapshot
+
+    def _create_snapshot_from_captured_state(
+        self,
+        *,
+        task_id: UUID,
+        relative_path: str,
+        existed: bool,
+        content: bytes | None,
+        mode: int | None,
+    ) -> WorkspaceSnapshot:
+        """Persist one authority-bound state without re-reading its path."""
+
+        normalized = self._validate_target_path(
+            relative_path
+        )
+
+        if existed:
+            if content is None or mode is None:
+                raise SnapshotStoreError(
+                    "existing captured state requires content and mode"
+                )
+
+            digest = digest_bytes(content)
+
+            entry = SnapshotEntry(
+                relative_path=normalized,
+                existed=True,
+                content_digest=digest,
+                size_bytes=len(content),
+                mode=mode,
+            )
+
+            return self._persist_snapshot(
+                task_id=task_id,
+                entries=(entry,),
+                blobs={digest: content},
+            )
+
+        if content is not None or mode is not None:
+            raise SnapshotStoreError(
+                "absent captured state cannot carry content or mode"
+            )
+
+        entry = SnapshotEntry(
+            relative_path=normalized,
+            existed=False,
+        )
+
+        return self._persist_snapshot(
+            task_id=task_id,
+            entries=(entry,),
+            blobs={},
+        )
+
     def create_snapshot(
         self,
         *,
@@ -133,30 +266,11 @@ class WorkspaceSnapshotStore:
                     )
                 )
 
-        snapshot = WorkspaceSnapshot.build(
+        return self._persist_snapshot(
             task_id=task_id,
-            workspace_root_digest=self.workspace_root_digest,
             entries=tuple(entries),
+            blobs=blobs,
         )
-        directory = self._snapshot_directory(snapshot.snapshot_id)
-        blobs_directory = directory / "blobs"
-        try:
-            blobs_directory.mkdir(parents=True, exist_ok=False)
-            for digest, content in blobs.items():
-                blob_path = blobs_directory / digest
-                atomic_write_bytes(blob_path, content, mode=0o600)
-            atomic_write_bytes(
-                directory / "manifest.json",
-                snapshot.to_json().encode("utf-8"),
-                mode=0o600,
-            )
-        except Exception as exc:
-            if directory.exists():
-                import shutil
-
-                shutil.rmtree(directory, ignore_errors=True)
-            raise SnapshotStoreError(f"snapshot persistence failed: {exc}") from exc
-        return snapshot
 
     def load_snapshot(self, snapshot_id: UUID) -> WorkspaceSnapshot:
         manifest_path = self._snapshot_directory(snapshot_id) / "manifest.json"

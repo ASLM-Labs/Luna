@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import stat
 from hashlib import sha256
 from os import fstat
@@ -14,6 +15,7 @@ from luna.workspace.models import (
     FileChange,
     MutationStatus,
     RollbackResult,
+    RollbackStatus,
     WorkspaceMutationResult,
     WorkspaceSnapshot,
     WorkspaceTargetBasis,
@@ -23,6 +25,12 @@ from luna.workspace.store import (
     WorkspaceSnapshotStore,
     atomic_write_bytes,
     digest_file,
+)
+from luna.workspace.windows_publication import (
+    BoundPublicationParent,
+    PublicationState,
+    TargetObservation,
+    WindowsPublicationError,
 )
 
 
@@ -158,6 +166,329 @@ class WorkspaceMutator:
                 "target basis changed before mutation publication"
             )
 
+    @staticmethod
+    def _basis_from_bound_observation(
+        *,
+        relative_path: str,
+        observation: TargetObservation,
+    ) -> WorkspaceTargetBasis:
+        if not observation.existed:
+            if any(
+                value is not None
+                for value in (
+                    observation.content,
+                    observation.mode,
+                    observation.security_descriptor,
+                    observation.dacl,
+                    observation.dacl_protected,
+                )
+            ):
+                raise WorkspaceMutationError(
+                    "absent bound observation contains target state"
+                )
+
+            return WorkspaceTargetBasis(
+                relative_path=relative_path,
+                existed=False,
+            )
+
+        if (
+            observation.content is None
+            or observation.mode is None
+            or observation.security_descriptor is None
+            or observation.dacl_protected is None
+        ):
+            raise WorkspaceMutationError(
+                "existing bound observation lacks required "
+                "content, mode, or security evidence"
+            )
+
+        return WorkspaceTargetBasis(
+            relative_path=relative_path,
+            existed=True,
+            content_digest=sha256(observation.content).hexdigest(),
+            size_bytes=len(observation.content),
+            mode=observation.mode,
+        )
+
+    def _snapshot_from_bound_observation(
+        self,
+        *,
+        relative_path: str,
+        accepted_basis: WorkspaceTargetBasis,
+        observation: TargetObservation,
+    ) -> WorkspaceSnapshot:
+        try:
+            snapshot = self.store._create_snapshot_from_captured_state(
+                task_id=self.task_id,
+                relative_path=relative_path,
+                existed=observation.existed,
+                content=observation.content,
+                mode=observation.mode,
+            )
+        except SnapshotStoreError as exc:
+            raise WorkspaceMutationError(str(exc)) from exc
+
+        if not self._snapshot_matches_basis(
+            snapshot,
+            accepted_basis,
+        ):
+            raise WorkspaceMutationError(
+                "snapshot state does not match accepted mutation basis"
+            )
+
+        return snapshot
+
+    def _require_current_bound_basis(
+        self,
+        *,
+        authority: BoundPublicationParent,
+        accepted_basis: WorkspaceTargetBasis,
+    ) -> TargetObservation:
+        observation = authority.observe_target()
+
+        current_basis = self._basis_from_bound_observation(
+            relative_path=accepted_basis.relative_path,
+            observation=observation,
+        )
+
+        if current_basis != accepted_basis:
+            raise WorkspaceMutationError(
+                "target basis changed before mutation publication"
+            )
+
+        return observation
+
+    @staticmethod
+    def _verify_bound_publication(
+        *,
+        observation: TargetObservation,
+        expected_content: bytes,
+        source: TargetObservation,
+    ) -> int:
+        if (
+            not observation.existed
+            or observation.content is None
+            or observation.mode is None
+            or observation.content != expected_content
+        ):
+            raise WorkspaceMutationError(
+                "post-write bound content verification failed"
+            )
+
+        if source.existed:
+            if (
+                source.mode is None
+                or source.dacl_protected is None
+            ):
+                raise WorkspaceMutationError(
+                    "publication source lacks required mode "
+                    "or DACL evidence"
+                )
+
+            if (
+                observation.mode != source.mode
+                or observation.dacl != source.dacl
+                or observation.dacl_protected
+                is not source.dacl_protected
+            ):
+                raise WorkspaceMutationError(
+                    "post-write bound mode or DACL "
+                    "verification failed"
+                )
+
+        return observation.mode
+
+    def _bound_rollback_result(
+        self,
+        *,
+        snapshot: WorkspaceSnapshot,
+        relative_path: str,
+        original: TargetObservation,
+    ) -> RollbackResult:
+        return RollbackResult(
+            snapshot_id=snapshot.snapshot_id,
+            task_id=self.task_id,
+            status=RollbackStatus.RESTORED,
+            restored_files=(
+                (relative_path,)
+                if original.existed
+                else ()
+            ),
+            removed_files=(
+                ()
+                if original.existed
+                else (relative_path,)
+            ),
+            verified=True,
+        )
+
+    def _commit_text_windows(
+        self,
+        *,
+        relative_path: str,
+        authority: BoundPublicationParent,
+        accepted_basis: WorkspaceTargetBasis,
+        accepted_observation: TargetObservation,
+        content: str,
+    ) -> WorkspaceMutationResult:
+        snapshot = self._snapshot_from_bound_observation(
+            relative_path=relative_path,
+            accepted_basis=accepted_basis,
+            observation=accepted_observation,
+        )
+
+        encoded = content.encode("utf-8")
+        after_digest = sha256(encoded).hexdigest()
+
+        current_observation = self._require_current_bound_basis(
+            authority=authority,
+            accepted_basis=accepted_basis,
+        )
+
+        stage = authority.create_stage(
+            source=(
+                current_observation
+                if current_observation.existed
+                else None
+            )
+        )
+
+        try:
+            try:
+                stage.write_bytes(encoded)
+
+            except Exception as exc:
+                try:
+                    stage.discard()
+                except Exception as cleanup_exc:
+                    raise WorkspaceMutationError(
+                        "mutation staging failed and private "
+                        "stage cleanup failed: "
+                        f"{cleanup_exc}"
+                    ) from exc
+
+                raise WorkspaceMutationError(
+                    f"mutation staging failed: {exc}"
+                ) from exc
+
+            try:
+                publication = stage.publish(
+                    authority.leaf_name,
+                    replace=accepted_basis.existed,
+                )
+
+            except Exception as exc:
+                state = stage.publication_state
+
+                if state is None:
+                    try:
+                        stage.discard()
+                    except Exception as cleanup_exc:
+                        raise WorkspaceMutationError(
+                            "mutation publication failed before "
+                            "native publication and private "
+                            "stage cleanup failed: "
+                            f"{cleanup_exc}"
+                        ) from exc
+
+                    raise WorkspaceMutationError(
+                        "mutation publication failed before "
+                        f"native publication: {exc}"
+                    ) from exc
+
+                if state is PublicationState.UNKNOWN:
+                    raise WorkspaceMutationError(
+                        "mutation publication outcome is unknown; "
+                        "manual verification is required"
+                    ) from exc
+
+                raise WorkspaceMutationError(
+                    "mutation publication lifecycle is inconsistent; "
+                    "manual verification is required"
+                ) from exc
+
+            if publication.state is PublicationState.COLLISION:
+                try:
+                    stage.discard()
+                except Exception as cleanup_exc:
+                    raise WorkspaceMutationError(
+                        "mutation publication collided and private "
+                        "stage cleanup failed: "
+                        f"{cleanup_exc}"
+                    ) from cleanup_exc
+
+                raise WorkspaceMutationError(
+                    "target namespace changed before "
+                    "mutation publication"
+                )
+
+            if publication.state is PublicationState.UNKNOWN:
+                raise WorkspaceMutationError(
+                    "mutation publication outcome is unknown; "
+                    "manual verification is required"
+                )
+
+            if publication.state is not PublicationState.PUBLISHED:
+                raise WorkspaceMutationError(
+                    "mutation publication returned an "
+                    "unsupported state"
+                )
+
+            try:
+                observed = stage.observe_published()
+
+                after_mode = self._verify_bound_publication(
+                    observation=observed,
+                    expected_content=encoded,
+                    source=current_observation,
+                )
+
+            except Exception as exc:
+                try:
+                    stage.rollback_published(
+                        current_observation
+                    )
+
+                    rollback = self._bound_rollback_result(
+                        snapshot=snapshot,
+                        relative_path=relative_path,
+                        original=current_observation,
+                    )
+
+                except Exception as rollback_exc:
+                    raise WorkspaceMutationError(
+                        "mutation failed after confirmed "
+                        "publication and bound rollback failed: "
+                        f"{rollback_exc}"
+                    ) from exc
+
+                raise WorkspaceMutationError(
+                    "mutation failed after confirmed publication "
+                    f"and was rolled back: {exc}",
+                    rollback=rollback,
+                ) from exc
+
+            change = FileChange(
+                relative_path=relative_path,
+                before_digest=accepted_basis.content_digest,
+                after_digest=after_digest,
+                before_size_bytes=accepted_basis.size_bytes,
+                after_size_bytes=len(encoded),
+                after_mode=after_mode,
+                created=not accepted_basis.existed,
+            )
+
+            return WorkspaceMutationResult(
+                task_id=self.task_id,
+                snapshot=snapshot,
+                status=MutationStatus.COMMITTED,
+                changes=(change,),
+            )
+
+        finally:
+            stage.close()
+
     def _commit_text(
         self,
         *,
@@ -234,7 +565,76 @@ class WorkspaceMutator:
         normalized, _ = self._target(relative_path)
 
         with self._serializer.hold(normalized):
+            if os.name == "nt":
+                try:
+                    with BoundPublicationParent.bind(
+                        str(self.store.workspace_root),
+                        normalized,
+                        create_missing_parents=(
+                            create_if_missing
+                            and expected_sha256 is None
+                        ),
+                    ) as authority:
+                        accepted_observation = (
+                            authority.observe_target()
+                        )
+
+                        accepted_basis = (
+                            self._basis_from_bound_observation(
+                                relative_path=normalized,
+                                observation=accepted_observation,
+                            )
+                        )
+
+                        if accepted_basis.existed:
+                            if expected_sha256 is None:
+                                raise WorkspaceMutationError(
+                                    "existing file write requires "
+                                    "expected_sha256"
+                                )
+
+                            if (
+                                accepted_basis.content_digest
+                                != expected_sha256
+                            ):
+                                raise WorkspaceMutationError(
+                                    "existing file digest does not "
+                                    "match precondition"
+                                )
+
+                        else:
+                            if not create_if_missing:
+                                raise WorkspaceMutationError(
+                                    "target is missing and creation "
+                                    "was not approved"
+                                )
+
+                            if expected_sha256 is not None:
+                                raise WorkspaceMutationError(
+                                    "new file creation cannot carry "
+                                    "expected_sha256"
+                                )
+
+                        return self._commit_text_windows(
+                            relative_path=normalized,
+                            authority=authority,
+                            accepted_basis=accepted_basis,
+                            accepted_observation=(
+                                accepted_observation
+                            ),
+                            content=content,
+                        )
+
+                except WorkspaceMutationError:
+                    raise
+
+                except WindowsPublicationError as exc:
+                    raise WorkspaceMutationError(
+                        str(exc)
+                    ) from exc
+
             normalized, target = self._target(normalized)
+
             accepted_basis, _ = self._capture_target_basis(
                 relative_path=normalized,
                 target=target,
@@ -278,6 +678,94 @@ class WorkspaceMutator:
         normalized, _ = self._target(relative_path)
 
         with self._serializer.hold(normalized):
+            if os.name == "nt":
+                try:
+                    with BoundPublicationParent.bind(
+                        str(self.store.workspace_root),
+                        normalized,
+                    ) as authority:
+                        accepted_observation = (
+                            authority.observe_target()
+                        )
+
+                        accepted_basis = (
+                            self._basis_from_bound_observation(
+                                relative_path=normalized,
+                                observation=accepted_observation,
+                            )
+                        )
+
+                        original_bytes = accepted_observation.content
+
+                        if (
+                            not accepted_basis.existed
+                            or original_bytes is None
+                        ):
+                            raise WorkspaceMutationError(
+                                "replace target must be an "
+                                "existing regular file"
+                            )
+
+                        if (
+                            accepted_basis.content_digest
+                            != expected_sha256
+                        ):
+                            raise WorkspaceMutationError(
+                                "replace target digest does not "
+                                "match precondition"
+                            )
+
+                        try:
+                            original = original_bytes.decode(
+                                "utf-8"
+                            )
+                        except UnicodeDecodeError as exc:
+                            raise WorkspaceMutationError(
+                                "replace target is not valid UTF-8"
+                            ) from exc
+
+                        actual_occurrences = original.count(
+                            old_text
+                        )
+
+                        if (
+                            actual_occurrences
+                            != expected_occurrences
+                        ):
+                            raise WorkspaceMutationError(
+                                "replace occurrence count does "
+                                "not match explicit expectation"
+                            )
+
+                        updated = original.replace(
+                            old_text,
+                            new_text,
+                        )
+
+                        if updated == original:
+                            raise WorkspaceMutationError(
+                                "replace operation would produce "
+                                "no change"
+                            )
+
+                        return self._commit_text_windows(
+                            relative_path=normalized,
+                            authority=authority,
+                            accepted_basis=accepted_basis,
+                            accepted_observation=(
+                                accepted_observation
+                            ),
+                            content=updated,
+                        )
+
+                except WorkspaceMutationError:
+                    raise
+
+                except WindowsPublicationError as exc:
+                    raise WorkspaceMutationError(
+                        str(exc)
+                    ) from exc
+
             normalized, target = self._target(normalized)
 
             if not target.is_file() or target.is_symlink():
@@ -285,12 +773,17 @@ class WorkspaceMutator:
                     "replace target must be an existing regular file"
                 )
 
-            accepted_basis, original_bytes = self._capture_target_basis(
-                relative_path=normalized,
-                target=target,
+            accepted_basis, original_bytes = (
+                self._capture_target_basis(
+                    relative_path=normalized,
+                    target=target,
+                )
             )
 
-            if not accepted_basis.existed or original_bytes is None:
+            if (
+                not accepted_basis.existed
+                or original_bytes is None
+            ):
                 raise WorkspaceMutationError(
                     "replace target must be an existing regular file"
                 )

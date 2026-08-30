@@ -266,23 +266,66 @@ def test_tool_failure_reports_verified_automatic_rollback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from luna.workspace import WorkspaceMutationError, WorkspaceMutator
+    import os
+
+    from luna.workspace import (
+        WorkspaceMutationError,
+        WorkspaceMutator,
+    )
 
     target = tmp_path / "notes.txt"
-    target.write_text("stable", encoding="utf-8")
+    target.write_text(
+        "stable",
+        encoding="utf-8",
+    )
     before = sha256(b"stable").hexdigest()
 
-    def fail_verification(path: Path, expected_digest: str) -> None:
-        del path, expected_digest
-        raise WorkspaceMutationError("injected verification failure")
+    if os.name == "nt":
 
-    monkeypatch.setattr(
-        WorkspaceMutator,
-        "_verify_after_write",
-        staticmethod(fail_verification),
+        def fail_bound_verification(
+            *,
+            observation: object,
+            expected_content: bytes,
+            source: object,
+        ) -> int:
+            del observation, expected_content, source
+
+            raise WorkspaceMutationError(
+                "injected verification failure"
+            )
+
+        monkeypatch.setattr(
+            WorkspaceMutator,
+            "_verify_bound_publication",
+            staticmethod(fail_bound_verification),
+        )
+
+    else:
+
+        def fail_verification(
+            path: Path,
+            expected_digest: str,
+        ) -> None:
+            del path, expected_digest
+
+            raise WorkspaceMutationError(
+                "injected verification failure"
+            )
+
+        monkeypatch.setattr(
+            WorkspaceMutator,
+            "_verify_after_write",
+            staticmethod(fail_verification),
+        )
+
+    contract = _contract(
+        tmp_path,
+        write_allowed=True,
     )
-    contract = _contract(tmp_path, write_allowed=True)
-    outcome = ToolDispatcher(build_phase5_registry()).dispatch(
+
+    outcome = ToolDispatcher(
+        build_phase5_registry()
+    ).dispatch(
         request=ToolRequest(
             task_id=contract.task_id,
             trace_id=uuid4(),
@@ -303,10 +346,17 @@ def test_tool_failure_reports_verified_automatic_rollback(
         ),
     )
 
-    assert outcome.result.status is ToolResultStatus.FAILURE
-    assert outcome.result.metadata["rollback_verified"] is True
-    assert target.read_text(encoding="utf-8") == "stable"
-
+    assert (
+        outcome.result.status
+        is ToolResultStatus.FAILURE
+    )
+    assert (
+        outcome.result.metadata["rollback_verified"]
+        is True
+    )
+    assert target.read_text(
+        encoding="utf-8"
+    ) == "stable"
 
 def test_existing_write_mode_is_visible_in_tool_evidence(
     tmp_path: Path,
