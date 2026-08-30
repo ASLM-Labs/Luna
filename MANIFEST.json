@@ -813,8 +813,8 @@
       "size_bytes": 5281
     },
     "scripts/verify_phase5.py": {
-      "sha256": "4659069b710070f64da0fb605e54dfa38033eff42905140ada081afa39e703e9",
-      "size_bytes": 10591
+      "sha256": "bf0973b37dbb79ec1a430e1a0821d5788c0199583da1d8fbc4aa4b8c038953c1",
+      "size_bytes": 11124
     },
     "scripts/verify_phase6.py": {
       "sha256": "fe586d0164562bdfe6213136c25b2e2a63e71895fe01bcbb42e79d2feaf93b67",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -211,11 +212,28 @@ def main() -> int:
             protected_paths=(),
         )
 
-        def injected_failure(path: Path, expected_digest: str) -> None:
-            del path, expected_digest
-            raise WorkspaceMutationError("injected verification failure")
+        if os.name == "nt":
 
-        mutator._verify_after_write = injected_failure  # type: ignore[method-assign]
+            def injected_bound_failure(
+                *,
+                observation: object,
+                expected_content: bytes,
+                source: object,
+            ) -> int:
+                del observation, expected_content, source
+                raise WorkspaceMutationError("injected verification failure")
+
+            mutator._verify_bound_publication = (  # type: ignore[method-assign]
+                injected_bound_failure
+            )
+        else:
+
+            def injected_failure(path: Path, expected_digest: str) -> None:
+                del path, expected_digest
+                raise WorkspaceMutationError("injected verification failure")
+
+            mutator._verify_after_write = injected_failure  # type: ignore[method-assign]
+
         automatic_rollback_ok = False
         try:
             mutator.write_text(
