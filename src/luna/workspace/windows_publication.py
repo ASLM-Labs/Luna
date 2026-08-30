@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, ClassVar
 from uuid import uuid4
 
 from luna.tools.paths import normalize_relative_path
@@ -89,7 +89,7 @@ class _ObjectAttributes(ctypes.Structure):
 
 
 class _IosbUnion(ctypes.Union):
-    _fields_ = [  # noqa: RUF012 - required ctypes ABI declaration
+    _fields_: ClassVar[list[tuple[str, Any]]] = [
         ("Status", ctypes.c_long),
         ("Pointer", ctypes.c_void_p),
     ]

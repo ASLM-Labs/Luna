@@ -2073,8 +2073,8 @@
       "size_bytes": 5577
     },
     "src/luna/workspace/windows_publication.py": {
-      "sha256": "a0372d4180146bfac2e9c70842c54ef1844e46fbf11c2b4e871ce7348066b7c4",
-      "size_bytes": 40704
+      "sha256": "656a536695521c3d1f58934ff9631427b96d987b5162489188d9c24f72b22f48",
+      "size_bytes": 40697
     },
     "tests/test_adaptive_planner.py": {
       "sha256": "7d137670137b457885bbef5e8b46079603ac861107dd32861ec285e831a9595f",
