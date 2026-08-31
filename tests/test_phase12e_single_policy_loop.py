@@ -859,7 +859,7 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     isolated_root = Path(receipts[0].execution_workspace_root)
     assert isolated_root != repo.resolve()
     assert (repo / "note.txt").read_text(encoding="utf-8") == "original\n"
-    assert (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated"
+    assert (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated\n"
     assert len(observations) == 2
     assert observations[-1].outcome.request.tool_name == "filesystem.read_text"
     assert observations[-1].outcome.result.stdout_excerpt == "isolated"

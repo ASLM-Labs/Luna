@@ -32,6 +32,24 @@ class AppliedChangeState(StrEnum):
     DEGRADED = "DEGRADED"
 
 
+class AppliedChangeBindingState(StrEnum):
+    """Durable binding availability for one result."""
+
+    BOUND = "BOUND"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class AppliedChangeBindingError(StrEnum):
+    """Stable reason why durable result binding is unavailable."""
+
+    STORE_NOT_CONFIGURED = "STORE_NOT_CONFIGURED"
+    CANDIDATE_TASK_MISMATCH = "CANDIDATE_TASK_MISMATCH"
+    CANDIDATE_SOURCE_MISMATCH = "CANDIDATE_SOURCE_MISMATCH"
+    CANDIDATE_PATH_MISMATCH = "CANDIDATE_PATH_MISMATCH"
+    PERSISTENCE_FAILED = "PERSISTENCE_FAILED"
+    PERSISTED_SET_MISMATCH = "PERSISTED_SET_MISMATCH"
+
+
 class AppliedChangeOperation(StrEnum):
     """Controlled text mutation represented by applied-change evidence."""
 
@@ -468,3 +486,79 @@ class AppliedChangeRecord(LunaContractModel):
                 self.candidate.relative_path
             ),
         )
+
+
+
+def applied_change_manifest_sha256(
+    records: tuple[
+        AppliedChangeRecord,
+        ...,
+    ],
+) -> str:
+    """Digest one exact result's immutable record set."""
+
+    if not records:
+        raise ValueError(
+            "applied-change manifest requires records"
+        )
+
+    first = records[0]
+
+    binding = (
+        first.task_id,
+        first.request_id,
+        first.result_id,
+    )
+
+    if any(
+        (
+            record.task_id,
+            record.request_id,
+            record.result_id,
+        )
+        != binding
+        for record in records
+    ):
+        raise ValueError(
+            "applied-change manifest records must "
+            "share one exact result binding"
+        )
+
+    references = tuple(
+        sorted(
+            (
+                record.as_ref()
+                for record in records
+            ),
+            key=lambda reference: (
+                reference.relative_path,
+                str(reference.record_id),
+            ),
+        )
+    )
+
+    payload = {
+        "manifest_version": 1,
+        "task_id": str(first.task_id),
+        "request_id": str(first.request_id),
+        "result_id": str(first.result_id),
+        "references": [
+            reference.model_dump(
+                mode="json"
+            )
+            for reference in references
+        ],
+    }
+
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+    return sha256(
+        b"luna-applied-change-manifest-v1\0"
+        + serialized
+    ).hexdigest()

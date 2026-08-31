@@ -14,6 +14,7 @@ from luna.applied_changes.models import (
     AppliedChangeProjectionPolicy,
     AppliedChangeRecord,
     AppliedChangeState,
+    applied_change_manifest_sha256,
 )
 from luna.applied_changes.projector import (
     project_text_change,
@@ -236,6 +237,249 @@ def test_store_rejects_duplicate_result_path_binding(
         match="result/path binding",
     ):
         store.persist(second)
+
+
+
+def test_store_persist_many_preserves_atomic_set_and_input_order(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteAppliedChangeStore(
+        tmp_path
+        / "applied_changes.sqlite3"
+    )
+
+    task_id = uuid4()
+    request_id = uuid4()
+    result_id = uuid4()
+
+    zeta = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="zeta.txt",
+    )
+
+    alpha = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="alpha.txt",
+    )
+
+    persisted = store.persist_many(
+        (
+            zeta,
+            alpha,
+        )
+    )
+
+    assert persisted == (
+        zeta,
+        alpha,
+    )
+
+    assert store.list_for_result(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+    ) == (
+        alpha,
+        zeta,
+    )
+
+
+def test_store_persist_many_rolls_back_earlier_insert_on_late_conflict(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteAppliedChangeStore(
+        tmp_path
+        / "applied_changes.sqlite3"
+    )
+
+    task_id = uuid4()
+    request_id = uuid4()
+    result_id = uuid4()
+
+    existing = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="b.txt",
+        after="existing\n",
+    )
+
+    store.persist(existing)
+
+    first = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="a.txt",
+    )
+
+    conflicting = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="b.txt",
+        after="different\n",
+    )
+
+    with pytest.raises(
+        AppliedChangeConflictError,
+        match="result/path binding",
+    ):
+        store.persist_many(
+            (
+                first,
+                conflicting,
+            )
+        )
+
+    with pytest.raises(
+        AppliedChangeStoreError,
+        match="does not exist",
+    ):
+        store.load(
+            first.record_id
+        )
+
+    assert (
+        store.load(
+            existing.record_id
+        )
+        == existing
+    )
+
+
+def test_store_persist_many_rejects_duplicate_batch_binding_without_write(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteAppliedChangeStore(
+        tmp_path
+        / "applied_changes.sqlite3"
+    )
+
+    task_id = uuid4()
+    request_id = uuid4()
+    result_id = uuid4()
+
+    first = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+    )
+
+    second = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        after="different\n",
+    )
+
+    with pytest.raises(
+        AppliedChangeConflictError,
+        match="duplicate result/path binding",
+    ):
+        store.persist_many(
+            (
+                first,
+                second,
+            )
+        )
+
+    for record in (
+        first,
+        second,
+    ):
+        with pytest.raises(
+            AppliedChangeStoreError,
+            match="does not exist",
+        ):
+            store.load(
+                record.record_id
+            )
+
+
+def test_applied_change_manifest_is_order_independent_for_exact_result(
+    tmp_path: Path,
+) -> None:
+    del tmp_path
+
+    task_id = uuid4()
+    request_id = uuid4()
+    result_id = uuid4()
+
+    alpha = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="alpha.txt",
+        record_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+    )
+
+    zeta = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=result_id,
+        relative_path="zeta.txt",
+        record_id=UUID(
+            "00000000-0000-0000-0000-000000000002"
+        ),
+    )
+
+    forward = applied_change_manifest_sha256(
+        (
+            alpha,
+            zeta,
+        )
+    )
+
+    reverse = applied_change_manifest_sha256(
+        (
+            zeta,
+            alpha,
+        )
+    )
+
+    assert forward == reverse
+    assert len(forward) == 64
+
+
+def test_applied_change_manifest_rejects_mixed_result_binding(
+    tmp_path: Path,
+) -> None:
+    del tmp_path
+
+    task_id = uuid4()
+    request_id = uuid4()
+
+    first = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=uuid4(),
+        relative_path="alpha.txt",
+    )
+
+    second = _record(
+        task_id=task_id,
+        request_id=request_id,
+        result_id=uuid4(),
+        relative_path="zeta.txt",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="one exact result binding",
+    ):
+        applied_change_manifest_sha256(
+            (
+                first,
+                second,
+            )
+        )
 
 
 def test_store_detects_payload_tamper_after_restart(

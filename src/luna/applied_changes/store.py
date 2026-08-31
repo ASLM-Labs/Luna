@@ -327,146 +327,219 @@ class SQLiteAppliedChangeStore:
 
         return record
 
+    @staticmethod
+    def _persist_record_in_transaction(
+        connection: sqlite3.Connection,
+        record: AppliedChangeRecord,
+    ) -> AppliedChangeRecord:
+        existing_row = (
+            connection.execute(
+                """
+                SELECT *
+                FROM applied_change_records
+                WHERE record_id = ?
+                """,
+                (
+                    str(record.record_id),
+                ),
+            )
+            .fetchone()
+        )
+
+        if existing_row is not None:
+            existing = (
+                SQLiteAppliedChangeStore
+                ._record_from_row(
+                    existing_row
+                )
+            )
+
+            if existing != record:
+                raise (
+                    AppliedChangeConflictError(
+                        "applied-change "
+                        "record_id already "
+                        "exists with "
+                        "different content"
+                    )
+                )
+
+            return existing
+
+        binding_row = (
+            connection.execute(
+                """
+                SELECT *
+                FROM applied_change_records
+                WHERE task_id = ?
+                  AND request_id = ?
+                  AND result_id = ?
+                  AND relative_path = ?
+                """,
+                (
+                    str(record.task_id),
+                    str(record.request_id),
+                    str(record.result_id),
+                    (
+                        record.candidate
+                        .relative_path
+                    ),
+                ),
+            )
+            .fetchone()
+        )
+
+        if binding_row is not None:
+            existing = (
+                SQLiteAppliedChangeStore
+                ._record_from_row(
+                    binding_row
+                )
+            )
+
+            if existing != record:
+                raise (
+                    AppliedChangeConflictError(
+                        "applied-change "
+                        "result/path binding "
+                        "already exists with "
+                        "different content"
+                    )
+                )
+
+            return existing
+
+        try:
+            connection.execute(
+                """
+                INSERT INTO
+                applied_change_records(
+                    record_id,
+                    task_id,
+                    request_id,
+                    result_id,
+                    relative_path,
+                    state,
+                    integrity_digest,
+                    payload_json,
+                    payload_sha256,
+                    recorded_at
+                )
+                VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    str(record.record_id),
+                    str(record.task_id),
+                    str(record.request_id),
+                    str(record.result_id),
+                    (
+                        record.candidate
+                        .relative_path
+                    ),
+                    (
+                        record.candidate
+                        .state.value
+                    ),
+                    record.integrity_digest,
+                    _canonical_json(record),
+                    _payload_sha256(
+                        _canonical_json(
+                            record
+                        )
+                    ),
+                    (
+                        record.recorded_at
+                        .isoformat()
+                    ),
+                ),
+            )
+
+        except sqlite3.IntegrityError as exc:
+            raise AppliedChangeConflictError(
+                "applied-change immutable "
+                "binding conflict"
+            ) from exc
+
+        return record
+
+    def persist_many(
+        self,
+        records: tuple[
+            AppliedChangeRecord,
+            ...,
+        ],
+    ) -> tuple[
+        AppliedChangeRecord,
+        ...,
+    ]:
+        """Persist one exact record set atomically."""
+
+        if not records:
+            return ()
+
+        record_ids = tuple(
+            record.record_id
+            for record in records
+        )
+
+        if len(record_ids) != len(
+            set(record_ids)
+        ):
+            raise AppliedChangeConflictError(
+                "applied-change batch contains "
+                "duplicate record_id"
+            )
+
+        bindings = tuple(
+            (
+                record.task_id,
+                record.request_id,
+                record.result_id,
+                (
+                    record.candidate
+                    .relative_path
+                ),
+            )
+            for record in records
+        )
+
+        if len(bindings) != len(
+            set(bindings)
+        ):
+            raise AppliedChangeConflictError(
+                "applied-change batch contains "
+                "duplicate result/path binding"
+            )
+
+        with self._transaction() as connection:
+            persisted = tuple(
+                self._persist_record_in_transaction(
+                    connection,
+                    record,
+                )
+                for record in records
+            )
+
+        return tuple(
+            self.load(
+                record.record_id
+            )
+            for record in persisted
+        )
+
     def persist(
         self,
         record: AppliedChangeRecord,
     ) -> AppliedChangeRecord:
         """Persist exactly once or reject immutable conflicts."""
 
-        payload = _canonical_json(
-            record
+        persisted = self.persist_many(
+            (record,)
         )
 
-        with self._transaction() as connection:
-            existing_row = (
-                connection.execute(
-                    """
-                    SELECT *
-                    FROM applied_change_records
-                    WHERE record_id = ?
-                    """,
-                    (
-                        str(record.record_id),
-                    ),
-                )
-                .fetchone()
-            )
-
-            if existing_row is not None:
-                existing = (
-                    self._record_from_row(
-                        existing_row
-                    )
-                )
-
-                if existing != record:
-                    raise (
-                        AppliedChangeConflictError(
-                            "applied-change "
-                            "record_id already "
-                            "exists with "
-                            "different content"
-                        )
-                    )
-
-                return existing
-
-            binding_row = (
-                connection.execute(
-                    """
-                    SELECT *
-                    FROM applied_change_records
-                    WHERE task_id = ?
-                      AND request_id = ?
-                      AND result_id = ?
-                      AND relative_path = ?
-                    """,
-                    (
-                        str(record.task_id),
-                        str(record.request_id),
-                        str(record.result_id),
-                        (
-                            record.candidate
-                            .relative_path
-                        ),
-                    ),
-                )
-                .fetchone()
-            )
-
-            if binding_row is not None:
-                existing = (
-                    self._record_from_row(
-                        binding_row
-                    )
-                )
-
-                if existing != record:
-                    raise (
-                        AppliedChangeConflictError(
-                            "applied-change "
-                            "result/path binding "
-                            "already exists with "
-                            "different content"
-                        )
-                    )
-
-                return existing
-
-            try:
-                connection.execute(
-                    """
-                    INSERT INTO
-                    applied_change_records(
-                        record_id,
-                        task_id,
-                        request_id,
-                        result_id,
-                        relative_path,
-                        state,
-                        integrity_digest,
-                        payload_json,
-                        payload_sha256,
-                        recorded_at
-                    )
-                    VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                    )
-                    """,
-                    (
-                        str(record.record_id),
-                        str(record.task_id),
-                        str(record.request_id),
-                        str(record.result_id),
-                        (
-                            record.candidate
-                            .relative_path
-                        ),
-                        (
-                            record.candidate
-                            .state.value
-                        ),
-                        record.integrity_digest,
-                        payload,
-                        _payload_sha256(
-                            payload
-                        ),
-                        (
-                            record.recorded_at
-                            .isoformat()
-                        ),
-                    ),
-                )
-
-            except sqlite3.IntegrityError as exc:
-                raise AppliedChangeConflictError(
-                    "applied-change immutable "
-                    "binding conflict"
-                ) from exc
-
-        return self.load(
-            record.record_id
-        )
+        return persisted[0]
 
     def load(
         self,
