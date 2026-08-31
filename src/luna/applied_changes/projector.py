@@ -476,3 +476,153 @@ def project_text_change(
         after_size_bytes=after_size_bytes,
         hunks=hunks,
     )
+
+def project_text_change_bytes(
+    *,
+    task_id: UUID,
+    operation: AppliedChangeOperation,
+    relative_path: str,
+    before_content: bytes | None,
+    after_content: bytes,
+    before_digest: str | None,
+    after_digest: str,
+    before_size_bytes: int,
+    after_size_bytes: int,
+    policy: AppliedChangeProjectionPolicy,
+) -> AppliedChangeCandidate:
+    """Project text evidence from an exact raw-byte mutation basis.
+
+    Raw digest and size checks happen before UTF-8 decoding so
+    evidence-basis mismatch remains distinguishable from encoding
+    unavailability. Invalid text encoding degrades only the rich
+    projection and does not redefine mutation correctness.
+    """
+
+    before_existed = (
+        before_digest is not None
+    )
+
+    if before_existed:
+        if (
+            before_content is None
+            or len(before_content)
+            != before_size_bytes
+            or _digest_bytes(before_content)
+            != before_digest
+        ):
+            return _degraded(
+                task_id=task_id,
+                operation=operation,
+                relative_path=relative_path,
+                before_existed=True,
+                before_digest=before_digest,
+                after_digest=after_digest,
+                before_size_bytes=(
+                    before_size_bytes
+                ),
+                after_size_bytes=(
+                    after_size_bytes
+                ),
+                reason=(
+                    AppliedChangeDegradationReason
+                    .BEFORE_CONTENT_BASIS_MISMATCH
+                ),
+            )
+
+    elif (
+        before_content is not None
+        or before_size_bytes != 0
+    ):
+        return _degraded(
+            task_id=task_id,
+            operation=operation,
+            relative_path=relative_path,
+            before_existed=False,
+            before_digest=None,
+            after_digest=after_digest,
+            before_size_bytes=(
+                before_size_bytes
+            ),
+            after_size_bytes=(
+                after_size_bytes
+            ),
+            reason=(
+                AppliedChangeDegradationReason
+                .BEFORE_CONTENT_BASIS_MISMATCH
+            ),
+        )
+
+    if (
+        len(after_content)
+        != after_size_bytes
+        or _digest_bytes(after_content)
+        != after_digest
+    ):
+        return _degraded(
+            task_id=task_id,
+            operation=operation,
+            relative_path=relative_path,
+            before_existed=before_existed,
+            before_digest=before_digest,
+            after_digest=after_digest,
+            before_size_bytes=(
+                before_size_bytes
+            ),
+            after_size_bytes=(
+                after_size_bytes
+            ),
+            reason=(
+                AppliedChangeDegradationReason
+                .AFTER_CONTENT_BASIS_MISMATCH
+            ),
+        )
+
+    try:
+        before_text = (
+            None
+            if before_content is None
+            else before_content.decode(
+                "utf-8"
+            )
+        )
+
+        after_text = after_content.decode(
+            "utf-8"
+        )
+
+    except UnicodeDecodeError:
+        return _degraded(
+            task_id=task_id,
+            operation=operation,
+            relative_path=relative_path,
+            before_existed=before_existed,
+            before_digest=before_digest,
+            after_digest=after_digest,
+            before_size_bytes=(
+                before_size_bytes
+            ),
+            after_size_bytes=(
+                after_size_bytes
+            ),
+            reason=(
+                AppliedChangeDegradationReason
+                .TEXT_ENCODING_UNSUPPORTED
+            ),
+        )
+
+    return project_text_change(
+        task_id=task_id,
+        operation=operation,
+        relative_path=relative_path,
+        before_text=before_text,
+        after_text=after_text,
+        before_digest=before_digest,
+        after_digest=after_digest,
+        before_size_bytes=(
+            before_size_bytes
+        ),
+        after_size_bytes=(
+            after_size_bytes
+        ),
+        policy=policy,
+    )

@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from luna.applied_changes.models import AppliedChangeCandidate
 from luna.contracts.base import SCHEMA_VERSION, LunaContractModel, require_utc, utc_now
 
 
@@ -551,6 +552,7 @@ class WorkspaceMutationResult(LunaContractModel):
     snapshot: WorkspaceSnapshot
     status: MutationStatus
     changes: tuple[FileChange, ...] = Field(min_length=1)
+    applied_changes: tuple[AppliedChangeCandidate, ...] = ()
     rollback: RollbackResult | None = None
 
     @model_validator(mode="after")
@@ -571,5 +573,118 @@ class WorkspaceMutationResult(LunaContractModel):
             raise ValueError(
                 "rolled-back mutation requires matching rollback result"
             )
+
+        if self.applied_changes:
+            if self.status is not MutationStatus.COMMITTED:
+                raise ValueError(
+                    "applied-change evidence requires a committed mutation"
+                )
+
+            if len(self.applied_changes) != len(self.changes):
+                raise ValueError(
+                    "applied-change evidence must cover every file change"
+                )
+
+            change_paths = tuple(
+                change.relative_path
+                for change in self.changes
+            )
+            candidate_paths = tuple(
+                candidate.relative_path
+                for candidate in self.applied_changes
+            )
+
+            if len(change_paths) != len(set(change_paths)):
+                raise ValueError(
+                    "file changes must have unique paths when "
+                    "applied-change evidence is present"
+                )
+
+            if len(candidate_paths) != len(set(candidate_paths)):
+                raise ValueError(
+                    "applied-change candidates must have unique paths"
+                )
+
+            if set(change_paths) != set(candidate_paths):
+                raise ValueError(
+                    "applied-change paths must exactly match file changes"
+                )
+
+            snapshot_by_path = {
+                entry.relative_path: entry
+                for entry in self.snapshot.entries
+            }
+            change_by_path = {
+                change.relative_path: change
+                for change in self.changes
+            }
+
+            for candidate in self.applied_changes:
+                if candidate.task_id != self.task_id:
+                    raise ValueError(
+                        "applied-change task_id must match mutation task_id"
+                    )
+
+                change = change_by_path[
+                    candidate.relative_path
+                ]
+
+                if change.deleted:
+                    raise ValueError(
+                        "text applied-change evidence cannot bind "
+                        "a deleted file change"
+                    )
+
+                if (
+                    change.created
+                    is candidate.before_existed
+                ):
+                    raise ValueError(
+                        "applied-change existence state does not "
+                        "match file change"
+                    )
+
+                if (
+                    candidate.before_digest
+                    != change.before_digest
+                    or candidate.after_digest
+                    != change.after_digest
+                ):
+                    raise ValueError(
+                        "applied-change digests do not match file change"
+                    )
+
+                if (
+                    candidate.before_size_bytes
+                    != change.before_size_bytes
+                    or candidate.after_size_bytes
+                    != change.after_size_bytes
+                ):
+                    raise ValueError(
+                        "applied-change sizes do not match file change"
+                    )
+
+                snapshot_entry = snapshot_by_path.get(
+                    candidate.relative_path
+                )
+
+                if snapshot_entry is None:
+                    raise ValueError(
+                        "applied-change path is missing from "
+                        "the mutation snapshot"
+                    )
+
+                if (
+                    candidate.before_existed
+                    != snapshot_entry.existed
+                    or candidate.before_digest
+                    != snapshot_entry.content_digest
+                    or candidate.before_size_bytes
+                    != snapshot_entry.size_bytes
+                ):
+                    raise ValueError(
+                        "applied-change before-state does not "
+                        "match mutation snapshot"
+                    )
 
         return self

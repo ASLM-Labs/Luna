@@ -9,6 +9,16 @@ from os import fstat
 from pathlib import Path
 from uuid import UUID
 
+from luna.applied_changes.models import (
+    AppliedChangeCandidate,
+    AppliedChangeDegradationReason,
+    AppliedChangeOperation,
+    AppliedChangeProjectionPolicy,
+    AppliedChangeState,
+)
+from luna.applied_changes.projector import (
+    project_text_change_bytes,
+)
 from luna.tools.paths import path_is_allowed
 from luna.workspace.coordination import WorkspaceTargetSerializer
 from luna.workspace.models import (
@@ -34,6 +44,63 @@ from luna.workspace.windows_publication import (
     TargetObservation,
     WindowsPublicationError,
 )
+
+_WORKSPACE_APPLIED_CHANGE_POLICY = (
+    AppliedChangeProjectionPolicy()
+)
+
+
+def _project_committed_text_change(
+    *,
+    task_id: UUID,
+    operation: AppliedChangeOperation,
+    relative_path: str,
+    before_content: bytes | None,
+    after_content: bytes,
+    before_digest: str | None,
+    after_digest: str,
+    before_size_bytes: int,
+    after_size_bytes: int,
+) -> AppliedChangeCandidate:
+    """Project auxiliary evidence without gaining mutation authority."""
+
+    try:
+        return project_text_change_bytes(
+            task_id=task_id,
+            operation=operation,
+            relative_path=relative_path,
+            before_content=before_content,
+            after_content=after_content,
+            before_digest=before_digest,
+            after_digest=after_digest,
+            before_size_bytes=before_size_bytes,
+            after_size_bytes=after_size_bytes,
+            policy=(
+                _WORKSPACE_APPLIED_CHANGE_POLICY
+            ),
+        )
+
+    except Exception:
+        # Rich applied-change evidence is fail-soft.
+        # Mutation correctness remains owned by the
+        # existing workspace publication/verification path.
+        return AppliedChangeCandidate(
+            task_id=task_id,
+            operation=operation,
+            relative_path=relative_path,
+            state=AppliedChangeState.DEGRADED,
+            before_existed=(
+                before_digest is not None
+            ),
+            before_digest=before_digest,
+            after_digest=after_digest,
+            before_size_bytes=before_size_bytes,
+            after_size_bytes=after_size_bytes,
+            degradation_reason=(
+                AppliedChangeDegradationReason
+                .PROJECTION_UNAVAILABLE
+            ),
+        )
 
 
 class WorkspaceMutationError(RuntimeError):
@@ -158,15 +225,20 @@ class WorkspaceMutator:
         *,
         accepted_basis: WorkspaceTargetBasis,
         target: Path,
-    ) -> None:
-        current_basis, _ = self._capture_target_basis(
-            relative_path=accepted_basis.relative_path,
-            target=target,
+    ) -> bytes | None:
+        current_basis, current_content = (
+            self._capture_target_basis(
+                relative_path=accepted_basis.relative_path,
+                target=target,
+            )
         )
+
         if current_basis != accepted_basis:
             raise WorkspaceMutationError(
                 "target basis changed before mutation publication"
             )
+
+        return current_content
 
     @staticmethod
     def _basis_from_bound_observation(
@@ -332,6 +404,7 @@ class WorkspaceMutator:
         authority: BoundPublicationParent,
         accepted_basis: WorkspaceTargetBasis,
         accepted_observation: TargetObservation,
+        operation: AppliedChangeOperation,
         content: str,
     ) -> WorkspaceMutationResult:
         snapshot = self._snapshot_from_bound_observation(
@@ -462,6 +535,16 @@ class WorkspaceMutator:
                     source=current_observation,
                 )
 
+                published_content = (
+                    published.observation.content
+                )
+
+                if published_content is None:
+                    raise WorkspaceMutationError(
+                        "verified published observation "
+                        "lost content evidence"
+                    )
+
                 change = FileChange(
                     relative_path=relative_path,
                     before_digest=(
@@ -476,11 +559,32 @@ class WorkspaceMutator:
                     created=not accepted_basis.existed,
                 )
 
+                candidate = (
+                    _project_committed_text_change(
+                        task_id=self.task_id,
+                        operation=operation,
+                        relative_path=relative_path,
+                        before_content=(
+                            current_observation.content
+                        ),
+                        after_content=published_content,
+                        before_digest=(
+                            accepted_basis.content_digest
+                        ),
+                        after_digest=after_digest,
+                        before_size_bytes=(
+                            accepted_basis.size_bytes
+                        ),
+                        after_size_bytes=len(encoded),
+                    )
+                )
+
                 result = WorkspaceMutationResult(
                     task_id=self.task_id,
                     snapshot=snapshot,
                     status=MutationStatus.COMMITTED,
                     changes=(change,),
+                    applied_changes=(candidate,),
                 )
 
                 self.store.commit_undo_receipt(
@@ -525,6 +629,7 @@ class WorkspaceMutator:
         relative_path: str,
         target: Path,
         accepted_basis: WorkspaceTargetBasis,
+        operation: AppliedChangeOperation,
         content: str,
     ) -> WorkspaceMutationResult:
         snapshot = self.store.create_snapshot(
@@ -539,9 +644,11 @@ class WorkspaceMutator:
         encoded = content.encode("utf-8")
         after_digest = sha256(encoded).hexdigest()
 
-        self._require_current_basis(
-            accepted_basis=accepted_basis,
-            target=target,
+        current_before_content = (
+            self._require_current_basis(
+                accepted_basis=accepted_basis,
+                target=target,
+            )
         )
 
         try:
@@ -577,11 +684,29 @@ class WorkspaceMutator:
             after_mode=after_mode,
             created=not accepted_basis.existed,
         )
+
+        candidate = _project_committed_text_change(
+            task_id=self.task_id,
+            operation=operation,
+            relative_path=relative_path,
+            before_content=current_before_content,
+            after_content=encoded,
+            before_digest=(
+                accepted_basis.content_digest
+            ),
+            after_digest=after_digest,
+            before_size_bytes=(
+                accepted_basis.size_bytes
+            ),
+            after_size_bytes=len(encoded),
+        )
+
         return WorkspaceMutationResult(
             task_id=self.task_id,
             snapshot=snapshot,
             status=MutationStatus.COMMITTED,
             changes=(change,),
+            applied_changes=(candidate,),
         )
 
     def write_text(
@@ -652,6 +777,10 @@ class WorkspaceMutator:
                             accepted_observation=(
                                 accepted_observation
                             ),
+                            operation=(
+                                AppliedChangeOperation
+                                .WRITE_TEXT
+                            ),
                             content=content,
                         )
 
@@ -693,6 +822,9 @@ class WorkspaceMutator:
                 relative_path=normalized,
                 target=target,
                 accepted_basis=accepted_basis,
+                operation=(
+                    AppliedChangeOperation.WRITE_TEXT
+                ),
                 content=content,
             )
 
@@ -785,6 +917,10 @@ class WorkspaceMutator:
                             accepted_observation=(
                                 accepted_observation
                             ),
+                            operation=(
+                                AppliedChangeOperation
+                                .REPLACE_TEXT
+                            ),
                             content=updated,
                         )
 
@@ -847,6 +983,10 @@ class WorkspaceMutator:
                 relative_path=normalized,
                 target=target,
                 accepted_basis=accepted_basis,
+                operation=(
+                    AppliedChangeOperation
+                    .REPLACE_TEXT
+                ),
                 content=updated,
             )
 

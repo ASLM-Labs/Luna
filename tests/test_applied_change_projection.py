@@ -12,6 +12,7 @@ from luna.applied_changes.models import (
 )
 from luna.applied_changes.projector import (
     project_text_change,
+    project_text_change_bytes,
 )
 
 
@@ -448,3 +449,184 @@ def test_projection_degrades_for_unencodable_text() -> None:
     )
 
     assert candidate.hunks == ()
+
+def test_byte_projection_matches_text_projection_for_valid_utf8() -> None:
+    before = "before\n"
+    after = "after\n"
+    before_bytes = before.encode("utf-8")
+    after_bytes = after.encode("utf-8")
+    task_id = uuid4()
+    policy = AppliedChangeProjectionPolicy(
+        context_lines=1
+    )
+
+    text_candidate = project_text_change(
+        task_id=task_id,
+        operation=(
+            AppliedChangeOperation
+            .REPLACE_TEXT
+        ),
+        relative_path="notes.txt",
+        before_text=before,
+        after_text=after,
+        before_digest=sha256(
+            before_bytes
+        ).hexdigest(),
+        after_digest=sha256(
+            after_bytes
+        ).hexdigest(),
+        before_size_bytes=len(
+            before_bytes
+        ),
+        after_size_bytes=len(
+            after_bytes
+        ),
+        policy=policy,
+    )
+
+    byte_candidate = (
+        project_text_change_bytes(
+            task_id=task_id,
+            operation=(
+                AppliedChangeOperation
+                .REPLACE_TEXT
+            ),
+            relative_path="notes.txt",
+            before_content=before_bytes,
+            after_content=after_bytes,
+            before_digest=sha256(
+                before_bytes
+            ).hexdigest(),
+            after_digest=sha256(
+                after_bytes
+            ).hexdigest(),
+            before_size_bytes=len(
+                before_bytes
+            ),
+            after_size_bytes=len(
+                after_bytes
+            ),
+            policy=policy,
+        )
+    )
+
+    assert byte_candidate == text_candidate
+
+
+def test_byte_projection_degrades_for_invalid_before_utf8() -> None:
+    before = b"\xff\xfe"
+    after = b"valid\n"
+
+    candidate = project_text_change_bytes(
+        task_id=uuid4(),
+        operation=(
+            AppliedChangeOperation
+            .WRITE_TEXT
+        ),
+        relative_path="notes.txt",
+        before_content=before,
+        after_content=after,
+        before_digest=sha256(
+            before
+        ).hexdigest(),
+        after_digest=sha256(
+            after
+        ).hexdigest(),
+        before_size_bytes=len(before),
+        after_size_bytes=len(after),
+        policy=(
+            AppliedChangeProjectionPolicy()
+        ),
+    )
+
+    assert (
+        candidate.state
+        is AppliedChangeState.DEGRADED
+    )
+
+    assert (
+        candidate.degradation_reason
+        is AppliedChangeDegradationReason
+        .TEXT_ENCODING_UNSUPPORTED
+    )
+
+    assert candidate.hunks == ()
+
+
+def test_byte_projection_degrades_for_invalid_after_utf8() -> None:
+    before = b"valid\n"
+    after = b"\xff"
+
+    candidate = project_text_change_bytes(
+        task_id=uuid4(),
+        operation=(
+            AppliedChangeOperation
+            .WRITE_TEXT
+        ),
+        relative_path="notes.txt",
+        before_content=before,
+        after_content=after,
+        before_digest=sha256(
+            before
+        ).hexdigest(),
+        after_digest=sha256(
+            after
+        ).hexdigest(),
+        before_size_bytes=len(before),
+        after_size_bytes=len(after),
+        policy=(
+            AppliedChangeProjectionPolicy()
+        ),
+    )
+
+    assert (
+        candidate.state
+        is AppliedChangeState.DEGRADED
+    )
+
+    assert (
+        candidate.degradation_reason
+        is AppliedChangeDegradationReason
+        .TEXT_ENCODING_UNSUPPORTED
+    )
+
+
+def test_byte_projection_checks_basis_before_encoding() -> None:
+    before = b"\xff"
+    accepted_before = b"different"
+    after = b"valid\n"
+
+    candidate = project_text_change_bytes(
+        task_id=uuid4(),
+        operation=(
+            AppliedChangeOperation
+            .WRITE_TEXT
+        ),
+        relative_path="notes.txt",
+        before_content=before,
+        after_content=after,
+        before_digest=sha256(
+            accepted_before
+        ).hexdigest(),
+        after_digest=sha256(
+            after
+        ).hexdigest(),
+        before_size_bytes=len(
+            accepted_before
+        ),
+        after_size_bytes=len(after),
+        policy=(
+            AppliedChangeProjectionPolicy()
+        ),
+    )
+
+    assert (
+        candidate.state
+        is AppliedChangeState.DEGRADED
+    )
+
+    assert (
+        candidate.degradation_reason
+        is AppliedChangeDegradationReason
+        .BEFORE_CONTENT_BASIS_MISMATCH
+    )
