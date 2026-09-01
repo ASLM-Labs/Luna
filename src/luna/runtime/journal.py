@@ -393,10 +393,30 @@ class SQLiteRuntimeJournal:
     def _observation_from_row(row: sqlite3.Row) -> RuntimeObservationRecord:
         payload = str(row["payload_json"])
         record = RuntimeObservationRecord.model_validate_json(payload)
+
         if _digest(record) != str(row["payload_sha256"]):
             raise RuntimeJournalError(
                 f"runtime observation digest mismatch: {row['observation_id']}"
             )
+
+        row_binding = {
+            "observation_id": str(row["observation_id"]),
+            "task_id": str(row["task_id"]),
+            "trace_id": str(row["trace_id"]),
+        }
+
+        record_binding = {
+            "observation_id": str(record.observation_id),
+            "task_id": str(record.task_id),
+            "trace_id": str(record.trace_id),
+        }
+
+        if row_binding != record_binding:
+            raise RuntimeJournalError(
+                "runtime observation row binding mismatch: "
+                f"{row['observation_id']}"
+            )
+
         return record
 
     def record_outcome(self, outcome: DispatchOutcome) -> RuntimeObservationRecord:
