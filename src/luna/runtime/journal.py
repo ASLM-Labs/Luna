@@ -11,6 +11,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -113,6 +114,19 @@ _TERMINAL_SIDE_EFFECT_STAGES = {
     SideEffectStage.CHECKPOINTED,
     SideEffectStage.ABORTED,
 }
+
+
+@dataclass(frozen=True)
+class SideEffectExecutionProvenance:
+    """Exact durable execution workspace provenance for one tool result."""
+
+    receipt_id: UUID
+    idempotency_key: str
+    task_id: UUID
+    request_id: UUID
+    result_id: UUID
+    execution_workspace_root: str
+    isolation_mode: str
 
 
 class SideEffectReceipt(LunaContractModel):
@@ -557,6 +571,58 @@ class SQLiteRuntimeJournal:
                 (str(task_id),),
             ).fetchall()
         return tuple(self._receipt_from_row(row) for row in rows)
+
+
+    def resolve_execution_provenance(
+        self,
+        *,
+        task_id: UUID,
+        request_id: UUID,
+        result_id: UUID,
+    ) -> SideEffectExecutionProvenance:
+        """Resolve one exact completed side-effect result to its durable workspace."""
+
+        matches: list[SideEffectReceipt] = []
+
+        for receipt in self.list_for_task(task_id):
+            outcome = receipt.outcome
+
+            if outcome is None:
+                continue
+            if receipt.request.request_id != request_id:
+                continue
+            if outcome.request.request_id != request_id:
+                continue
+            if outcome.result.request_id != request_id:
+                continue
+            if outcome.result.result_id != result_id:
+                continue
+
+            matches.append(receipt)
+
+        if len(matches) != 1:
+            raise RuntimeJournalError(
+                "side-effect execution provenance requires exactly one "
+                f"matching receipt; found {len(matches)}"
+            )
+
+        receipt = matches[0]
+        outcome = receipt.outcome
+
+        if outcome is None:  # pragma: no cover - guarded above
+            raise RuntimeJournalError(
+                "matched side-effect receipt has no dispatch outcome"
+            )
+
+        return SideEffectExecutionProvenance(
+            receipt_id=receipt.receipt_id,
+            idempotency_key=receipt.idempotency_key,
+            task_id=receipt.task_id,
+            request_id=receipt.request.request_id,
+            result_id=outcome.result.result_id,
+            execution_workspace_root=receipt.execution_workspace_root,
+            isolation_mode=receipt.isolation_mode,
+        )
 
     def latest_recoverable(self, task_id: UUID) -> SideEffectReceipt | None:
         with self._read_connection() as connection:

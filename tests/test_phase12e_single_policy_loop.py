@@ -405,6 +405,229 @@ def test_write_action_is_write_ahead_fenced_and_never_blindly_replayed(tmp_path)
     assert receipts[0].outcome.result.metadata["snapshot_id"]
 
 
+def test_runtime_journal_resolves_exact_side_effect_execution_provenance(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-exact",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+    assert receipt.outcome is not None
+
+    reopened = SQLiteRuntimeJournal(
+        tmp_path / "journal.sqlite3"
+    )
+
+    provenance = reopened.resolve_execution_provenance(
+        task_id=request.task_id,
+        request_id=receipt.request.request_id,
+        result_id=receipt.outcome.result.result_id,
+    )
+
+    assert provenance.receipt_id == receipt.receipt_id
+    assert (
+        provenance.idempotency_key
+        == receipt.idempotency_key
+    )
+    assert provenance.task_id == request.task_id
+    assert (
+        provenance.request_id
+        == receipt.request.request_id
+    )
+    assert (
+        provenance.result_id
+        == receipt.outcome.result.result_id
+    )
+    assert (
+        provenance.execution_workspace_root
+        == receipt.execution_workspace_root
+    )
+    assert (
+        provenance.isolation_mode
+        == receipt.isolation_mode
+    )
+
+
+def test_runtime_journal_execution_provenance_fails_closed_when_absent(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-absent",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    receipt = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)[0]
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match=r"exactly one matching receipt; found 0",
+    ):
+        runtime._deps.runtime_journal.resolve_execution_provenance(
+            task_id=request.task_id,
+            request_id=receipt.request.request_id,
+            result_id=uuid4(),
+        )
+
+
+def test_runtime_journal_execution_provenance_rejects_ambiguous_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-ambiguous",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    journal = runtime._deps.runtime_journal
+    receipt = journal.list_for_task(
+        request.task_id
+    )[0]
+
+    assert receipt.outcome is not None
+
+    monkeypatch.setattr(
+        journal,
+        "list_for_task",
+        lambda task_id: (
+            receipt,
+            receipt,
+        )
+        if task_id == request.task_id
+        else (),
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match=r"exactly one matching receipt; found 2",
+    ):
+        journal.resolve_execution_provenance(
+            task_id=request.task_id,
+            request_id=receipt.request.request_id,
+            result_id=receipt.outcome.result.result_id,
+        )
+
+
 @pytest.mark.parametrize(
     "column",
     (
