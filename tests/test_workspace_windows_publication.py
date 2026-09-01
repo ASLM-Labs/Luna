@@ -4,6 +4,7 @@ import ctypes
 import ctypes.wintypes as wt
 import os
 import subprocess
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -571,6 +572,74 @@ def test_existing_replacement_preserves_content_mode_and_dacl(
             after.dacl_protected
             == before.dacl_protected
         )
+
+
+def test_bounded_target_token_observation_accepts_exact_limit(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+
+    target = source / "module.py"
+    content = b"LUNA"
+    target.write_bytes(content)
+
+    with wp.BoundPublicationParent.bind(
+        str(tmp_path),
+        "src/module.py",
+    ) as authority:
+        state = authority.observe_target_with_token(
+            max_bytes=len(content),
+        )
+
+    assert state is not None
+    assert state.observation.content == content
+    assert state.token.size_bytes == len(content)
+    assert (
+        state.token.content_sha256
+        == sha256(content).hexdigest()
+    )
+
+
+def test_bounded_target_token_observation_rejects_oversize_without_mutation(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+
+    target = source / "module.py"
+    content = b"LUNA!"
+    target.write_bytes(content)
+
+    with wp.BoundPublicationParent.bind(
+        str(tmp_path),
+        "src/module.py",
+    ) as authority, pytest.raises(
+        wp.WindowsObservationLimitError,
+        match="exceeds bounded observation limit",
+    ):
+        authority.observe_target_with_token(
+            max_bytes=len(content) - 1,
+        )
+
+    assert target.read_bytes() == content
+
+
+def test_bounded_target_token_observation_reports_missing_without_claiming_state(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+
+    with wp.BoundPublicationParent.bind(
+        str(tmp_path),
+        "src/missing.py",
+    ) as authority:
+        state = authority.observe_target_with_token(
+            max_bytes=1,
+        )
+
+    assert state is None
 
 
 def test_new_file_uses_bound_parent_and_inherited_security(
