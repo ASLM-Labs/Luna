@@ -373,10 +373,32 @@ class SQLiteRuntimeJournal:
     def _receipt_from_row(row: sqlite3.Row) -> SideEffectReceipt:
         payload = str(row["payload_json"])
         receipt = SideEffectReceipt.model_validate_json(payload)
+
         if _digest(receipt) != str(row["payload_sha256"]):
             raise RuntimeJournalError(
                 f"side-effect receipt digest mismatch: {row['idempotency_key']}"
             )
+
+        row_binding = {
+            "idempotency_key": str(row["idempotency_key"]),
+            "task_id": str(row["task_id"]),
+            "semantic_fingerprint": str(row["semantic_fingerprint"]),
+            "stage": str(row["stage"]),
+        }
+
+        receipt_binding = {
+            "idempotency_key": receipt.idempotency_key,
+            "task_id": str(receipt.task_id),
+            "semantic_fingerprint": receipt.semantic_fingerprint,
+            "stage": receipt.stage.value,
+        }
+
+        if row_binding != receipt_binding:
+            raise RuntimeJournalError(
+                "side-effect receipt row binding mismatch: "
+                f"{row['idempotency_key']}"
+            )
+
         return receipt
 
     @staticmethod

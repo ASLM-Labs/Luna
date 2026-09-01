@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import subprocess
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -71,7 +72,12 @@ from luna.runtime.change_inspector import WorkspaceChangeInspector
 from luna.runtime.dependencies import RuntimeDependencies, RuntimeLoopDependencies
 from luna.runtime.environment import DeterministicFingerprintProvider
 from luna.runtime.isolation import GitWorktreeIsolationManager
-from luna.runtime.journal import RuntimeControlCommand, SideEffectStage, SQLiteRuntimeJournal
+from luna.runtime.journal import (
+    RuntimeControlCommand,
+    RuntimeJournalError,
+    SideEffectStage,
+    SQLiteRuntimeJournal,
+)
 from luna.runtime.knowledge_evolution import (
     KnowledgeEvolutionRuntimeHandoff,
     KnowledgeEvolutionRuntimeHandoffProvider,
@@ -397,6 +403,152 @@ def test_write_action_is_write_ahead_fenced_and_never_blindly_replayed(tmp_path)
     assert receipts[0].stage is SideEffectStage.CHECKPOINTED
     assert receipts[0].outcome is not None
     assert receipts[0].outcome.result.metadata["snapshot_id"]
+
+
+@pytest.mark.parametrize(
+    "column",
+    (
+        "idempotency_key",
+        "task_id",
+        "semantic_fingerprint",
+        "stage",
+    ),
+)
+def test_runtime_journal_rejects_side_effect_receipt_locator_row_binding_tamper(
+    tmp_path: Path,
+    column: str,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-row-binding",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+
+    journal_path = tmp_path / "journal.sqlite3"
+    fake_task_id = uuid4()
+
+    replacements = {
+        "idempotency_key": sha256(
+            b"tampered-side-effect-idempotency-key"
+        ).hexdigest(),
+        "task_id": str(fake_task_id),
+        "semantic_fingerprint": sha256(
+            b"tampered-side-effect-semantic-fingerprint"
+        ).hexdigest(),
+        "stage": SideEffectStage.STARTED.value,
+    }
+
+    statements = {
+        "idempotency_key": """
+            UPDATE side_effect_receipts
+            SET idempotency_key = ?
+            WHERE idempotency_key = ?
+        """,
+        "task_id": """
+            UPDATE side_effect_receipts
+            SET task_id = ?
+            WHERE idempotency_key = ?
+        """,
+        "semantic_fingerprint": """
+            UPDATE side_effect_receipts
+            SET semantic_fingerprint = ?
+            WHERE idempotency_key = ?
+        """,
+        "stage": """
+            UPDATE side_effect_receipts
+            SET stage = ?
+            WHERE idempotency_key = ?
+        """,
+    }
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        cursor = connection.execute(
+            statements[column],
+            (
+                replacements[column],
+                receipt.idempotency_key,
+            ),
+        )
+
+        assert cursor.rowcount == 1
+
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    assert not reopened.verify_integrity()
+
+    lookup_task_id = (
+        fake_task_id
+        if column == "task_id"
+        else request.task_id
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match="side-effect receipt row binding mismatch",
+    ):
+        reopened.list_for_task(
+            lookup_task_id
+        )
 
 
 def test_multiple_model_tool_calls_are_blocked_before_dispatch(tmp_path) -> None:
