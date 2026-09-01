@@ -163,6 +163,79 @@ class GitWorktreeIsolationManager:
             and source_revision == target_head.stdout.strip()
         )
 
+    def revalidate_historical_worktree(
+        self,
+        *,
+        source_workspace_root: str,
+        execution_workspace_root: str,
+        task_id: UUID,
+    ) -> str:
+        """Revalidate one historical task-owned detached Git worktree."""
+        root = self._repo_root(source_workspace_root)
+        expected_target = self._target(root, task_id).resolve()
+        execution_root = Path(execution_workspace_root).resolve()
+
+        if execution_root != expected_target:
+            raise WorkspaceIsolationError(
+                "historical execution workspace does not match "
+                "the deterministic task worktree"
+            )
+        if not expected_target.exists() or not expected_target.is_dir():
+            raise WorkspaceIsolationError(
+                "historical execution worktree is unavailable"
+            )
+
+        top = self._run(
+            [
+                self._git,
+                "-C",
+                str(expected_target),
+                "rev-parse",
+                "--show-toplevel",
+            ]
+        )
+        if (
+            top.returncode != 0
+            or not top.stdout.strip()
+            or Path(top.stdout.strip()).resolve() != expected_target
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution workspace is not "
+                "the deterministic Git worktree"
+            )
+
+        source_common_dir = self._git_common_dir(root)
+        target_common_dir = self._git_common_dir(expected_target)
+        if (
+            source_common_dir is None
+            or target_common_dir is None
+            or source_common_dir != target_common_dir
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree is not owned "
+                "by the source repository"
+            )
+
+        target_branch = self._run(
+            [
+                self._git,
+                "-C",
+                str(expected_target),
+                "rev-parse",
+                "--abbrev-ref",
+                "HEAD",
+            ]
+        )
+        if (
+            target_branch.returncode != 0
+            or target_branch.stdout.strip() != "HEAD"
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree must remain detached"
+            )
+
+        return str(expected_target)
+
     def worktree_available(self, task_contract: TaskContract) -> bool:
         try:
             root = self._repo_root(task_contract.scope.workspace_root)
