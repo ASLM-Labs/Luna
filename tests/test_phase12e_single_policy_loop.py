@@ -1232,6 +1232,25 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     assert receipts[0].stage is SideEffectStage.CHECKPOINTED
     assert receipts[0].isolation_mode == "WORKTREE"
     isolated_root = Path(receipts[0].execution_workspace_root)
+
+    isolated_revision = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(isolated_root),
+            "rev-parse",
+            "HEAD",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    assert receipts[0].execution_revision is not None
+    assert (
+        receipts[0].execution_revision
+        == isolated_revision
+    )
     assert isolated_root != repo.resolve()
     assert (repo / "note.txt").read_text(encoding="utf-8") == "original\n"
     assert (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated\n"
@@ -2535,3 +2554,279 @@ def test_ke_runtime_stale_owner_handoff_fails_closed_before_model_call(
 
 
 # KE_RUNTIME_HANDOFF_TESTS_END
+
+
+
+def test_runtime_journal_loads_legacy_receipt_and_migrates_on_rewrite(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-legacy-receipt",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(
+            request.task_id
+        )
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+    assert receipt.checkpoint_id is not None
+
+    checkpoint_id = (
+        receipt.checkpoint_id
+    )
+
+    journal_path = (
+        tmp_path
+        / "journal.sqlite3"
+    )
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                payload_json
+            FROM side_effect_receipts
+            WHERE idempotency_key = ?
+            """,
+            (
+                receipt.idempotency_key,
+            ),
+        ).fetchone()
+
+        assert row is not None
+
+        current_payload = json.loads(
+            str(row[0])
+        )
+
+        assert (
+            "execution_revision"
+            in current_payload
+        )
+
+        # Reconstruct the canonical shape of a receipt
+        # written before execution_revision existed.
+        legacy_payload = dict(
+            current_payload
+        )
+
+        legacy_payload.pop(
+            "execution_revision"
+        )
+
+        # Move the otherwise-valid terminal receipt back
+        # to OBSERVED so a normal journal transition can
+        # rewrite it without inventing state.
+        legacy_payload[
+            "stage"
+        ] = SideEffectStage.OBSERVED.value
+
+        legacy_payload[
+            "checkpoint_id"
+        ] = None
+
+        legacy_payload[
+            "checkpointed_at"
+        ] = None
+
+        legacy_json = json.dumps(
+            legacy_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+        legacy_digest = sha256(
+            legacy_json.encode(
+                "utf-8"
+            )
+        ).hexdigest()
+
+        cursor = connection.execute(
+            """
+            UPDATE side_effect_receipts
+            SET
+                stage = ?,
+                payload_json = ?,
+                payload_sha256 = ?
+            WHERE idempotency_key = ?
+            """,
+            (
+                SideEffectStage.OBSERVED.value,
+                legacy_json,
+                legacy_digest,
+                receipt.idempotency_key,
+            ),
+        )
+
+        assert cursor.rowcount == 1
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    legacy = reopened.load(
+        receipt.idempotency_key
+    )
+
+    assert (
+        legacy.stage
+        is SideEffectStage.OBSERVED
+    )
+
+    assert (
+        legacy.execution_revision
+        is None
+    )
+
+    assert (
+        "execution_revision"
+        not in legacy.model_fields_set
+    )
+
+    # This transition must validate the old stored
+    # digest first, then serialize the current model
+    # shape with execution_revision explicitly present.
+    migrated = (
+        reopened.mark_checkpointed(
+            idempotency_key=(
+                receipt.idempotency_key
+            ),
+            checkpoint_id=(
+                checkpoint_id
+            ),
+        )
+    )
+
+    assert (
+        migrated.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+
+    assert (
+        migrated.execution_revision
+        is None
+    )
+
+    assert (
+        "execution_revision"
+        in migrated.model_fields_set
+    )
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                stage,
+                payload_json,
+                payload_sha256
+            FROM side_effect_receipts
+            WHERE idempotency_key = ?
+            """,
+            (
+                receipt.idempotency_key,
+            ),
+        ).fetchone()
+
+        assert row is not None
+
+        assert (
+            str(row[0])
+            == SideEffectStage.CHECKPOINTED.value
+        )
+
+        migrated_json = str(
+            row[1]
+        )
+
+        migrated_digest = str(
+            row[2]
+        )
+
+        migrated_payload = json.loads(
+            migrated_json
+        )
+
+        assert (
+            "execution_revision"
+            in migrated_payload
+        )
+
+        assert (
+            migrated_payload[
+                "execution_revision"
+            ]
+            is None
+        )
+
+        assert (
+            sha256(
+                migrated_json.encode(
+                    "utf-8"
+                )
+            ).hexdigest()
+            == migrated_digest
+        )
+
+    assert reopened.verify_integrity()

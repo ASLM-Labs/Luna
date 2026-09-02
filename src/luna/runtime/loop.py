@@ -1712,6 +1712,7 @@ class LunaRuntime:
                 pre_action_state=state,
                 execution_workspace_root=lease.workspace_root,
                 isolation_mode=lease.mode.value,
+                execution_revision=lease.execution_revision,
             )
             receipt = self._deps.runtime_journal.reserve(receipt)
             control = self._deps.runtime_journal.pending_control(request.task_id)

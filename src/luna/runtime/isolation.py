@@ -28,6 +28,7 @@ class IsolationLease:
     mode: IsolationMode
     workspace_root: str
     cleanup_required: bool = False
+    execution_revision: str | None = None
 
 
 class WorkspaceIsolationManager(Protocol):
@@ -125,6 +126,35 @@ class GitWorktreeIsolationManager:
             common_dir = root / common_dir
         return common_dir.resolve()
 
+    def _head_revision(
+        self,
+        root: Path,
+    ) -> str:
+        result = self._run(
+            [
+                self._git,
+                "-C",
+                str(root),
+                "rev-parse",
+                "HEAD",
+            ]
+        )
+        revision = result.stdout.strip().lower()
+
+        if (
+            result.returncode != 0
+            or len(revision) not in {40, 64}
+            or any(
+                character not in "0123456789abcdef"
+                for character in revision
+            )
+        ):
+            raise WorkspaceIsolationError(
+                "workspace Git HEAD revision is unavailable"
+            )
+
+        return revision
+
     def _reusable_target_matches_source(self, *, root: Path, target: Path) -> bool:
         top = self._run(
             [self._git, "-C", str(target), "rev-parse", "--show-toplevel"]
@@ -168,6 +198,7 @@ class GitWorktreeIsolationManager:
         *,
         source_workspace_root: str,
         execution_workspace_root: str,
+        execution_revision: str,
         task_id: UUID,
     ) -> str:
         """Revalidate one historical task-owned detached Git worktree."""
@@ -234,6 +265,14 @@ class GitWorktreeIsolationManager:
                 "historical execution worktree must remain detached"
             )
 
+        if (
+            self._head_revision(expected_target)
+            != execution_revision
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree revision changed"
+            )
+
         return str(expected_target)
 
     def worktree_available(self, task_contract: TaskContract) -> bool:
@@ -289,6 +328,7 @@ class GitWorktreeIsolationManager:
                 mode=IsolationMode.WORKTREE,
                 workspace_root=str(target.resolve()),
                 cleanup_required=True,
+                execution_revision=self._head_revision(target),
             )
 
         created = self._run(
@@ -302,6 +342,7 @@ class GitWorktreeIsolationManager:
             mode=IsolationMode.WORKTREE,
             workspace_root=str(target.resolve()),
             cleanup_required=True,
+            execution_revision=self._head_revision(target),
         )
 
     @staticmethod

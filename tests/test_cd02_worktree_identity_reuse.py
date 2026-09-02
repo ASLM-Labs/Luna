@@ -23,6 +23,25 @@ def _git(repo: Path, *args: str) -> None:
     )
 
 
+def _git_output(
+    repo: Path,
+    *args: str,
+) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _require_revision(
+    value: str | None,
+) -> str:
+    assert value is not None
+    return value
+
+
 def _init_repo(path: Path, marker: str) -> None:
     path.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -238,6 +257,12 @@ def test_w4c_historical_worktree_revalidation_accepts_owned_stale_worktree(
     try:
         historical_root = Path(lease.workspace_root).resolve()
 
+        assert lease.execution_revision == _git_output(
+            historical_root,
+            "rev-parse",
+            "HEAD",
+        )
+
         (source / "next.txt").write_text("NEXT\n", encoding="utf-8")
         _git(source, "add", "next.txt")
         _git(source, "commit", "-m", "advance source after isolation")
@@ -246,13 +271,49 @@ def test_w4c_historical_worktree_revalidation_accepts_owned_stale_worktree(
 
         (source / "dirty.txt").write_text("DIRTY\n", encoding="utf-8")
 
+        (historical_root / "marker.txt").write_text(
+            "CURRENT-DRIFT\n",
+            encoding="utf-8",
+        )
+
         validated = manager.revalidate_historical_worktree(
             source_workspace_root=str(source),
             execution_workspace_root=str(historical_root),
+            execution_revision=_require_revision(lease.execution_revision),
             task_id=task_id,
         )
 
         assert Path(validated).resolve() == historical_root
+
+        original_revision = _require_revision(
+            lease.execution_revision
+        )
+        _git(
+            historical_root,
+            "add",
+            "marker.txt",
+        )
+        _git(
+            historical_root,
+            "commit",
+            "-m",
+            "advance historical detached revision",
+        )
+        assert _git_output(
+            historical_root,
+            "rev-parse",
+            "HEAD",
+        ) != original_revision
+        with pytest.raises(
+            WorkspaceIsolationError,
+            match="revision changed",
+        ):
+            manager.revalidate_historical_worktree(
+                source_workspace_root=str(source),
+                execution_workspace_root=str(historical_root),
+                execution_revision=original_revision,
+                task_id=task_id,
+            )
     finally:
         manager.cleanup(
             task_contract=contract,
@@ -278,6 +339,7 @@ def test_w4c_historical_worktree_revalidation_rejects_wrong_execution_path(
         manager.revalidate_historical_worktree(
             source_workspace_root=str(source),
             execution_workspace_root=str(source),
+            execution_revision=_git_output(source, "rev-parse", "HEAD"),
             task_id=task_id,
         )
 
@@ -303,6 +365,7 @@ def test_w4c_historical_worktree_revalidation_rejects_unrelated_repo(
         manager.revalidate_historical_worktree(
             source_workspace_root=str(source),
             execution_workspace_root=str(target),
+            execution_revision=_git_output(target, "rev-parse", "HEAD"),
             task_id=task_id,
         )
 
@@ -357,6 +420,7 @@ def test_w4c_historical_worktree_revalidation_rejects_attached_branch(
             manager.revalidate_historical_worktree(
                 source_workspace_root=str(source),
                 execution_workspace_root=str(target),
+                execution_revision=_require_revision(lease.execution_revision),
                 task_id=task_id,
             )
     finally:

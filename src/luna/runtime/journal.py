@@ -149,6 +149,10 @@ class SideEffectReceipt(LunaContractModel):
     pre_action_state: TaskState
     execution_workspace_root: str = Field(min_length=1, max_length=4000)
     isolation_mode: str = Field(default="NONE", min_length=1, max_length=40)
+    execution_revision: str | None = Field(
+        default=None,
+        pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+    )
     stage: SideEffectStage = SideEffectStage.PREPARED
     outcome: DispatchOutcome | None = None
     post_action_state: TaskState | None = None
@@ -240,8 +244,23 @@ class SideEffectReceipt(LunaContractModel):
 
 
 def _canonical_json(model: LunaContractModel) -> str:
+    payload = model.model_dump(mode="json")
+
+    # Receipts written before execution_revision existed
+    # retain their original canonical digest until a normal
+    # journal transition rewrites them in the current shape.
+    if (
+        isinstance(model, SideEffectReceipt)
+        and "execution_revision"
+        not in model.model_fields_set
+    ):
+        payload.pop(
+            "execution_revision",
+            None,
+        )
+
     return json.dumps(
-        model.model_dump(mode="json"),
+        payload,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
