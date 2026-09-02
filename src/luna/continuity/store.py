@@ -857,7 +857,7 @@ class SQLiteContinuityStore:
         payload_sha256 = str(row["payload_sha256"])
         try:
             envelope = CheckpointEnvelope.model_validate_json(payload_json)
-            return StoredCheckpoint(
+            stored = StoredCheckpoint(
                 envelope=envelope,
                 payload_sha256=payload_sha256,
             )
@@ -865,6 +865,45 @@ class SQLiteContinuityStore:
             raise ContinuityIntegrityError(
                 f"invalid checkpoint {row['checkpoint_id']}: {exc}"
             ) from exc
+
+        row_binding = {
+            "checkpoint_id": str(row["checkpoint_id"]),
+            "task_id": str(row["task_id"]),
+            "state_revision": int(row["state_revision"]),
+            "terminal": int(row["terminal"]),
+            "runtime_revision": str(row["runtime_revision"]),
+            "workspace_fingerprint": str(row["workspace_fingerprint"]),
+            "environment_fingerprint": str(row["environment_fingerprint"]),
+            "previous_checkpoint_id": (
+                str(row["previous_checkpoint_id"])
+                if row["previous_checkpoint_id"] is not None
+                else None
+            ),
+            "created_at": str(row["created_at"]),
+        }
+        envelope_binding = {
+            "checkpoint_id": str(envelope.checkpoint.checkpoint_id),
+            "task_id": str(envelope.state.task_id),
+            "state_revision": envelope.state.revision,
+            "terminal": int(envelope.terminal),
+            "runtime_revision": envelope.runtime_revision,
+            "workspace_fingerprint": envelope.checkpoint.workspace_fingerprint,
+            "environment_fingerprint": envelope.checkpoint.environment_fingerprint,
+            "previous_checkpoint_id": (
+                str(envelope.previous_checkpoint_id)
+                if envelope.previous_checkpoint_id is not None
+                else None
+            ),
+            "created_at": envelope.checkpoint.created_at.isoformat(),
+        }
+
+        if row_binding != envelope_binding:
+            raise ContinuityIntegrityError(
+                "checkpoint row binding mismatch: "
+                f"{row['checkpoint_id']}"
+            )
+
+        return stored
 
     def load_checkpoint(self, checkpoint_id: UUID) -> StoredCheckpoint:
         with self._read_connection() as connection:

@@ -11,6 +11,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -115,6 +116,19 @@ _TERMINAL_SIDE_EFFECT_STAGES = {
 }
 
 
+@dataclass(frozen=True)
+class SideEffectExecutionProvenance:
+    """Exact durable execution workspace provenance for one tool result."""
+
+    receipt_id: UUID
+    idempotency_key: str
+    task_id: UUID
+    request_id: UUID
+    result_id: UUID
+    execution_workspace_root: str
+    isolation_mode: str
+
+
 class SideEffectReceipt(LunaContractModel):
     """Durable fence proving how far one side-effect action progressed."""
 
@@ -135,6 +149,10 @@ class SideEffectReceipt(LunaContractModel):
     pre_action_state: TaskState
     execution_workspace_root: str = Field(min_length=1, max_length=4000)
     isolation_mode: str = Field(default="NONE", min_length=1, max_length=40)
+    execution_revision: str | None = Field(
+        default=None,
+        pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+    )
     stage: SideEffectStage = SideEffectStage.PREPARED
     outcome: DispatchOutcome | None = None
     post_action_state: TaskState | None = None
@@ -226,8 +244,23 @@ class SideEffectReceipt(LunaContractModel):
 
 
 def _canonical_json(model: LunaContractModel) -> str:
+    payload = model.model_dump(mode="json")
+
+    # Receipts written before execution_revision existed
+    # retain their original canonical digest until a normal
+    # journal transition rewrites them in the current shape.
+    if (
+        isinstance(model, SideEffectReceipt)
+        and "execution_revision"
+        not in model.model_fields_set
+    ):
+        payload.pop(
+            "execution_revision",
+            None,
+        )
+
     return json.dumps(
-        model.model_dump(mode="json"),
+        payload,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -373,10 +406,32 @@ class SQLiteRuntimeJournal:
     def _receipt_from_row(row: sqlite3.Row) -> SideEffectReceipt:
         payload = str(row["payload_json"])
         receipt = SideEffectReceipt.model_validate_json(payload)
+
         if _digest(receipt) != str(row["payload_sha256"]):
             raise RuntimeJournalError(
                 f"side-effect receipt digest mismatch: {row['idempotency_key']}"
             )
+
+        row_binding = {
+            "idempotency_key": str(row["idempotency_key"]),
+            "task_id": str(row["task_id"]),
+            "semantic_fingerprint": str(row["semantic_fingerprint"]),
+            "stage": str(row["stage"]),
+        }
+
+        receipt_binding = {
+            "idempotency_key": receipt.idempotency_key,
+            "task_id": str(receipt.task_id),
+            "semantic_fingerprint": receipt.semantic_fingerprint,
+            "stage": receipt.stage.value,
+        }
+
+        if row_binding != receipt_binding:
+            raise RuntimeJournalError(
+                "side-effect receipt row binding mismatch: "
+                f"{row['idempotency_key']}"
+            )
+
         return receipt
 
     @staticmethod
@@ -393,10 +448,30 @@ class SQLiteRuntimeJournal:
     def _observation_from_row(row: sqlite3.Row) -> RuntimeObservationRecord:
         payload = str(row["payload_json"])
         record = RuntimeObservationRecord.model_validate_json(payload)
+
         if _digest(record) != str(row["payload_sha256"]):
             raise RuntimeJournalError(
                 f"runtime observation digest mismatch: {row['observation_id']}"
             )
+
+        row_binding = {
+            "observation_id": str(row["observation_id"]),
+            "task_id": str(row["task_id"]),
+            "trace_id": str(row["trace_id"]),
+        }
+
+        record_binding = {
+            "observation_id": str(record.observation_id),
+            "task_id": str(record.task_id),
+            "trace_id": str(record.trace_id),
+        }
+
+        if row_binding != record_binding:
+            raise RuntimeJournalError(
+                "runtime observation row binding mismatch: "
+                f"{row['observation_id']}"
+            )
+
         return record
 
     def record_outcome(self, outcome: DispatchOutcome) -> RuntimeObservationRecord:
@@ -515,6 +590,58 @@ class SQLiteRuntimeJournal:
                 (str(task_id),),
             ).fetchall()
         return tuple(self._receipt_from_row(row) for row in rows)
+
+
+    def resolve_execution_provenance(
+        self,
+        *,
+        task_id: UUID,
+        request_id: UUID,
+        result_id: UUID,
+    ) -> SideEffectExecutionProvenance:
+        """Resolve one exact completed side-effect result to its durable workspace."""
+
+        matches: list[SideEffectReceipt] = []
+
+        for receipt in self.list_for_task(task_id):
+            outcome = receipt.outcome
+
+            if outcome is None:
+                continue
+            if receipt.request.request_id != request_id:
+                continue
+            if outcome.request.request_id != request_id:
+                continue
+            if outcome.result.request_id != request_id:
+                continue
+            if outcome.result.result_id != result_id:
+                continue
+
+            matches.append(receipt)
+
+        if len(matches) != 1:
+            raise RuntimeJournalError(
+                "side-effect execution provenance requires exactly one "
+                f"matching receipt; found {len(matches)}"
+            )
+
+        receipt = matches[0]
+        outcome = receipt.outcome
+
+        if outcome is None:  # pragma: no cover - guarded above
+            raise RuntimeJournalError(
+                "matched side-effect receipt has no dispatch outcome"
+            )
+
+        return SideEffectExecutionProvenance(
+            receipt_id=receipt.receipt_id,
+            idempotency_key=receipt.idempotency_key,
+            task_id=receipt.task_id,
+            request_id=receipt.request.request_id,
+            result_id=outcome.result.result_id,
+            execution_workspace_root=receipt.execution_workspace_root,
+            isolation_mode=receipt.isolation_mode,
+        )
 
     def latest_recoverable(self, task_id: UUID) -> SideEffectReceipt | None:
         with self._read_connection() as connection:

@@ -762,7 +762,7 @@ class RuntimeBehaviorExecutor:
             receipt is not None
             and isolated_root != repo.resolve()
             and (isolated_root / "note.txt").is_file()
-            and (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated"
+            and (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated\n"
         )
         saw_observation = bool(
             second_turn

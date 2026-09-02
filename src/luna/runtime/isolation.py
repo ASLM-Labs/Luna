@@ -28,6 +28,7 @@ class IsolationLease:
     mode: IsolationMode
     workspace_root: str
     cleanup_required: bool = False
+    execution_revision: str | None = None
 
 
 class WorkspaceIsolationManager(Protocol):
@@ -125,6 +126,35 @@ class GitWorktreeIsolationManager:
             common_dir = root / common_dir
         return common_dir.resolve()
 
+    def _head_revision(
+        self,
+        root: Path,
+    ) -> str:
+        result = self._run(
+            [
+                self._git,
+                "-C",
+                str(root),
+                "rev-parse",
+                "HEAD",
+            ]
+        )
+        revision = result.stdout.strip().lower()
+
+        if (
+            result.returncode != 0
+            or len(revision) not in {40, 64}
+            or any(
+                character not in "0123456789abcdef"
+                for character in revision
+            )
+        ):
+            raise WorkspaceIsolationError(
+                "workspace Git HEAD revision is unavailable"
+            )
+
+        return revision
+
     def _reusable_target_matches_source(self, *, root: Path, target: Path) -> bool:
         top = self._run(
             [self._git, "-C", str(target), "rev-parse", "--show-toplevel"]
@@ -162,6 +192,88 @@ class GitWorktreeIsolationManager:
             and bool(source_revision)
             and source_revision == target_head.stdout.strip()
         )
+
+    def revalidate_historical_worktree(
+        self,
+        *,
+        source_workspace_root: str,
+        execution_workspace_root: str,
+        execution_revision: str,
+        task_id: UUID,
+    ) -> str:
+        """Revalidate one historical task-owned detached Git worktree."""
+        root = self._repo_root(source_workspace_root)
+        expected_target = self._target(root, task_id).resolve()
+        execution_root = Path(execution_workspace_root).resolve()
+
+        if execution_root != expected_target:
+            raise WorkspaceIsolationError(
+                "historical execution workspace does not match "
+                "the deterministic task worktree"
+            )
+        if not expected_target.exists() or not expected_target.is_dir():
+            raise WorkspaceIsolationError(
+                "historical execution worktree is unavailable"
+            )
+
+        top = self._run(
+            [
+                self._git,
+                "-C",
+                str(expected_target),
+                "rev-parse",
+                "--show-toplevel",
+            ]
+        )
+        if (
+            top.returncode != 0
+            or not top.stdout.strip()
+            or Path(top.stdout.strip()).resolve() != expected_target
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution workspace is not "
+                "the deterministic Git worktree"
+            )
+
+        source_common_dir = self._git_common_dir(root)
+        target_common_dir = self._git_common_dir(expected_target)
+        if (
+            source_common_dir is None
+            or target_common_dir is None
+            or source_common_dir != target_common_dir
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree is not owned "
+                "by the source repository"
+            )
+
+        target_branch = self._run(
+            [
+                self._git,
+                "-C",
+                str(expected_target),
+                "rev-parse",
+                "--abbrev-ref",
+                "HEAD",
+            ]
+        )
+        if (
+            target_branch.returncode != 0
+            or target_branch.stdout.strip() != "HEAD"
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree must remain detached"
+            )
+
+        if (
+            self._head_revision(expected_target)
+            != execution_revision
+        ):
+            raise WorkspaceIsolationError(
+                "historical execution worktree revision changed"
+            )
+
+        return str(expected_target)
 
     def worktree_available(self, task_contract: TaskContract) -> bool:
         try:
@@ -216,6 +328,7 @@ class GitWorktreeIsolationManager:
                 mode=IsolationMode.WORKTREE,
                 workspace_root=str(target.resolve()),
                 cleanup_required=True,
+                execution_revision=self._head_revision(target),
             )
 
         created = self._run(
@@ -229,6 +342,7 @@ class GitWorktreeIsolationManager:
             mode=IsolationMode.WORKTREE,
             workspace_root=str(target.resolve()),
             cleanup_required=True,
+            execution_revision=self._head_revision(target),
         )
 
     @staticmethod

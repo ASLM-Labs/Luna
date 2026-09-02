@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import subprocess
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -71,7 +72,12 @@ from luna.runtime.change_inspector import WorkspaceChangeInspector
 from luna.runtime.dependencies import RuntimeDependencies, RuntimeLoopDependencies
 from luna.runtime.environment import DeterministicFingerprintProvider
 from luna.runtime.isolation import GitWorktreeIsolationManager
-from luna.runtime.journal import RuntimeControlCommand, SideEffectStage, SQLiteRuntimeJournal
+from luna.runtime.journal import (
+    RuntimeControlCommand,
+    RuntimeJournalError,
+    SideEffectStage,
+    SQLiteRuntimeJournal,
+)
 from luna.runtime.knowledge_evolution import (
     KnowledgeEvolutionRuntimeHandoff,
     KnowledgeEvolutionRuntimeHandoffProvider,
@@ -397,6 +403,375 @@ def test_write_action_is_write_ahead_fenced_and_never_blindly_replayed(tmp_path)
     assert receipts[0].stage is SideEffectStage.CHECKPOINTED
     assert receipts[0].outcome is not None
     assert receipts[0].outcome.result.metadata["snapshot_id"]
+
+
+def test_runtime_journal_resolves_exact_side_effect_execution_provenance(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-exact",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+    assert receipt.outcome is not None
+
+    reopened = SQLiteRuntimeJournal(
+        tmp_path / "journal.sqlite3"
+    )
+
+    provenance = reopened.resolve_execution_provenance(
+        task_id=request.task_id,
+        request_id=receipt.request.request_id,
+        result_id=receipt.outcome.result.result_id,
+    )
+
+    assert provenance.receipt_id == receipt.receipt_id
+    assert (
+        provenance.idempotency_key
+        == receipt.idempotency_key
+    )
+    assert provenance.task_id == request.task_id
+    assert (
+        provenance.request_id
+        == receipt.request.request_id
+    )
+    assert (
+        provenance.result_id
+        == receipt.outcome.result.result_id
+    )
+    assert (
+        provenance.execution_workspace_root
+        == receipt.execution_workspace_root
+    )
+    assert (
+        provenance.isolation_mode
+        == receipt.isolation_mode
+    )
+
+
+def test_runtime_journal_execution_provenance_fails_closed_when_absent(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-absent",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    receipt = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)[0]
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match=r"exactly one matching receipt; found 0",
+    ):
+        runtime._deps.runtime_journal.resolve_execution_provenance(
+            task_id=request.task_id,
+            request_id=receipt.request.request_id,
+            result_id=uuid4(),
+        )
+
+
+def test_runtime_journal_execution_provenance_rejects_ambiguous_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one provenance-bound file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-provenance-ambiguous",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    journal = runtime._deps.runtime_journal
+    receipt = journal.list_for_task(
+        request.task_id
+    )[0]
+
+    assert receipt.outcome is not None
+
+    monkeypatch.setattr(
+        journal,
+        "list_for_task",
+        lambda task_id: (
+            receipt,
+            receipt,
+        )
+        if task_id == request.task_id
+        else (),
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match=r"exactly one matching receipt; found 2",
+    ):
+        journal.resolve_execution_provenance(
+            task_id=request.task_id,
+            request_id=receipt.request.request_id,
+            result_id=receipt.outcome.result.result_id,
+        )
+
+
+@pytest.mark.parametrize(
+    "column",
+    (
+        "idempotency_key",
+        "task_id",
+        "semantic_fingerprint",
+        "stage",
+    ),
+)
+def test_runtime_journal_rejects_side_effect_receipt_locator_row_binding_tamper(
+    tmp_path: Path,
+    column: str,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-row-binding",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=("filesystem.write_text",),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=("filesystem.write_text",),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+
+    journal_path = tmp_path / "journal.sqlite3"
+    fake_task_id = uuid4()
+
+    replacements = {
+        "idempotency_key": sha256(
+            b"tampered-side-effect-idempotency-key"
+        ).hexdigest(),
+        "task_id": str(fake_task_id),
+        "semantic_fingerprint": sha256(
+            b"tampered-side-effect-semantic-fingerprint"
+        ).hexdigest(),
+        "stage": SideEffectStage.STARTED.value,
+    }
+
+    statements = {
+        "idempotency_key": """
+            UPDATE side_effect_receipts
+            SET idempotency_key = ?
+            WHERE idempotency_key = ?
+        """,
+        "task_id": """
+            UPDATE side_effect_receipts
+            SET task_id = ?
+            WHERE idempotency_key = ?
+        """,
+        "semantic_fingerprint": """
+            UPDATE side_effect_receipts
+            SET semantic_fingerprint = ?
+            WHERE idempotency_key = ?
+        """,
+        "stage": """
+            UPDATE side_effect_receipts
+            SET stage = ?
+            WHERE idempotency_key = ?
+        """,
+    }
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        cursor = connection.execute(
+            statements[column],
+            (
+                replacements[column],
+                receipt.idempotency_key,
+            ),
+        )
+
+        assert cursor.rowcount == 1
+
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    assert not reopened.verify_integrity()
+
+    lookup_task_id = (
+        fake_task_id
+        if column == "task_id"
+        else request.task_id
+    )
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match="side-effect receipt row binding mismatch",
+    ):
+        reopened.list_for_task(
+            lookup_task_id
+        )
 
 
 def test_multiple_model_tool_calls_are_blocked_before_dispatch(tmp_path) -> None:
@@ -857,9 +1232,28 @@ def test_high_risk_worktree_stays_effective_and_observation_reaches_next_turn(
     assert receipts[0].stage is SideEffectStage.CHECKPOINTED
     assert receipts[0].isolation_mode == "WORKTREE"
     isolated_root = Path(receipts[0].execution_workspace_root)
+
+    isolated_revision = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(isolated_root),
+            "rev-parse",
+            "HEAD",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    assert receipts[0].execution_revision is not None
+    assert (
+        receipts[0].execution_revision
+        == isolated_revision
+    )
     assert isolated_root != repo.resolve()
     assert (repo / "note.txt").read_text(encoding="utf-8") == "original\n"
-    assert (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated"
+    assert (isolated_root / "note.txt").read_text(encoding="utf-8") == "isolated\n"
     assert len(observations) == 2
     assert observations[-1].outcome.request.tool_name == "filesystem.read_text"
     assert observations[-1].outcome.result.stdout_excerpt == "isolated"
@@ -2160,3 +2554,279 @@ def test_ke_runtime_stale_owner_handoff_fails_closed_before_model_call(
 
 
 # KE_RUNTIME_HANDOFF_TESTS_END
+
+
+
+def test_runtime_journal_loads_legacy_receipt_and_migrates_on_rewrite(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Create one bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="write-legacy-receipt",
+                            tool_name="filesystem.write_text",
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(
+            request.task_id
+        )
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+    assert receipt.checkpoint_id is not None
+
+    checkpoint_id = (
+        receipt.checkpoint_id
+    )
+
+    journal_path = (
+        tmp_path
+        / "journal.sqlite3"
+    )
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                payload_json
+            FROM side_effect_receipts
+            WHERE idempotency_key = ?
+            """,
+            (
+                receipt.idempotency_key,
+            ),
+        ).fetchone()
+
+        assert row is not None
+
+        current_payload = json.loads(
+            str(row[0])
+        )
+
+        assert (
+            "execution_revision"
+            in current_payload
+        )
+
+        # Reconstruct the canonical shape of a receipt
+        # written before execution_revision existed.
+        legacy_payload = dict(
+            current_payload
+        )
+
+        legacy_payload.pop(
+            "execution_revision"
+        )
+
+        # Move the otherwise-valid terminal receipt back
+        # to OBSERVED so a normal journal transition can
+        # rewrite it without inventing state.
+        legacy_payload[
+            "stage"
+        ] = SideEffectStage.OBSERVED.value
+
+        legacy_payload[
+            "checkpoint_id"
+        ] = None
+
+        legacy_payload[
+            "checkpointed_at"
+        ] = None
+
+        legacy_json = json.dumps(
+            legacy_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+        legacy_digest = sha256(
+            legacy_json.encode(
+                "utf-8"
+            )
+        ).hexdigest()
+
+        cursor = connection.execute(
+            """
+            UPDATE side_effect_receipts
+            SET
+                stage = ?,
+                payload_json = ?,
+                payload_sha256 = ?
+            WHERE idempotency_key = ?
+            """,
+            (
+                SideEffectStage.OBSERVED.value,
+                legacy_json,
+                legacy_digest,
+                receipt.idempotency_key,
+            ),
+        )
+
+        assert cursor.rowcount == 1
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    legacy = reopened.load(
+        receipt.idempotency_key
+    )
+
+    assert (
+        legacy.stage
+        is SideEffectStage.OBSERVED
+    )
+
+    assert (
+        legacy.execution_revision
+        is None
+    )
+
+    assert (
+        "execution_revision"
+        not in legacy.model_fields_set
+    )
+
+    # This transition must validate the old stored
+    # digest first, then serialize the current model
+    # shape with execution_revision explicitly present.
+    migrated = (
+        reopened.mark_checkpointed(
+            idempotency_key=(
+                receipt.idempotency_key
+            ),
+            checkpoint_id=(
+                checkpoint_id
+            ),
+        )
+    )
+
+    assert (
+        migrated.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+
+    assert (
+        migrated.execution_revision
+        is None
+    )
+
+    assert (
+        "execution_revision"
+        in migrated.model_fields_set
+    )
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                stage,
+                payload_json,
+                payload_sha256
+            FROM side_effect_receipts
+            WHERE idempotency_key = ?
+            """,
+            (
+                receipt.idempotency_key,
+            ),
+        ).fetchone()
+
+        assert row is not None
+
+        assert (
+            str(row[0])
+            == SideEffectStage.CHECKPOINTED.value
+        )
+
+        migrated_json = str(
+            row[1]
+        )
+
+        migrated_digest = str(
+            row[2]
+        )
+
+        migrated_payload = json.loads(
+            migrated_json
+        )
+
+        assert (
+            "execution_revision"
+            in migrated_payload
+        )
+
+        assert (
+            migrated_payload[
+                "execution_revision"
+            ]
+            is None
+        )
+
+        assert (
+            sha256(
+                migrated_json.encode(
+                    "utf-8"
+                )
+            ).hexdigest()
+            == migrated_digest
+        )
+
+    assert reopened.verify_integrity()

@@ -19,6 +19,16 @@ class WindowsPublicationError(RuntimeError):
     """Raised when a Windows publication invariant cannot be satisfied."""
 
 
+class WindowsObservationLimitError(WindowsPublicationError):
+    """Raised when a bound observation exceeds its explicit byte ceiling."""
+
+    def __init__(self, *, max_bytes: int) -> None:
+        self.max_bytes = max_bytes
+        super().__init__(
+            f"target exceeds bounded observation limit of {max_bytes} bytes"
+        )
+
+
 class PublicationState(StrEnum):
     """Mechanically observed state of one native publication attempt."""
 
@@ -498,6 +508,52 @@ def _read_all(handle: int) -> bytes:
         chunks.append(buffer.raw[: count.value])
 
 
+def _read_all_bounded(
+    handle: int,
+    *,
+    max_bytes: int,
+) -> bytes:
+    """Read through one bound handle without exceeding max_bytes + one probe byte."""
+
+    if max_bytes < 1:
+        raise ValueError(
+            "bounded Windows observation max_bytes must be positive"
+        )
+
+    chunks: list[bytes] = []
+    total = 0
+
+    while True:
+        # One additional byte is sufficient to distinguish exact-limit EOF
+        # from a file whose content exceeds the observation budget.
+        probe_remaining = max_bytes - total + 1
+        buffer = ctypes.create_string_buffer(
+            min(64 * 1024, probe_remaining)
+        )
+        count = _DWORD()
+
+        if not _api().read_file(
+            _HANDLE(handle),
+            buffer,
+            len(buffer),
+            ctypes.byref(count),
+            None,
+        ):
+            raise _last_error("ReadFile")
+
+        if count.value == 0:
+            return b"".join(chunks)
+
+        chunk = buffer.raw[: count.value]
+        chunks.append(chunk)
+        total += len(chunk)
+
+        if total > max_bytes:
+            raise WindowsObservationLimitError(
+                max_bytes=max_bytes
+            )
+
+
 def _write_all(handle: int, content: bytes) -> None:
     offset = 0
     while offset < len(content):
@@ -725,6 +781,8 @@ def _basic_state_key(
 
 def _observe_handle_with_token(
     handle: int,
+    *,
+    max_bytes: int | None = None,
 ) -> WindowsTargetState:
     basic_before = _file_basic_info(
         handle
@@ -737,7 +795,14 @@ def _observe_handle_with_token(
     )
 
     _seek_start(handle)
-    content = _read_all(handle)
+    content = (
+        _read_all(handle)
+        if max_bytes is None
+        else _read_all_bounded(
+            handle,
+            max_bytes=max_bytes,
+        )
+    )
 
     basic_after = _file_basic_info(
         handle
@@ -1968,6 +2033,43 @@ class BoundPublicationParent:
                 ),
             )
 
+        finally:
+            _close(handle)
+
+    def observe_target_with_token(
+        self,
+        *,
+        max_bytes: int,
+    ) -> WindowsTargetState | None:
+        """Observe one current target through the bound namespace with a byte ceiling."""
+
+        if max_bytes < 1:
+            raise ValueError(
+                "bounded Windows observation max_bytes must be positive"
+            )
+
+        status, handle = _open_file(
+            self.parent_handle,
+            self.leaf_name,
+        )
+
+        if (
+            _u32(status)
+            == _STATUS_OBJECT_NAME_NOT_FOUND
+        ):
+            return None
+
+        if status < 0 or handle is None:
+            raise WindowsPublicationError(
+                f"NtOpenFile(target) failed with "
+                f"{_status_text(status)}"
+            )
+
+        try:
+            return _observe_handle_with_token(
+                handle,
+                max_bytes=max_bytes,
+            )
         finally:
             _close(handle)
 

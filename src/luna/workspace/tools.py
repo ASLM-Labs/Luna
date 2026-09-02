@@ -84,6 +84,7 @@ class WriteTextTool:
         return ToolExecutionOutput(
             stdout="workspace text write committed",
             changed_files=(change.relative_path,),
+            applied_changes=result.applied_changes,
             metadata={
                 "snapshot_id": str(result.snapshot.snapshot_id),
                 "before_sha256": change.before_digest or "ABSENT",
@@ -117,6 +118,7 @@ class ReplaceTextTool:
         return ToolExecutionOutput(
             stdout="workspace text replacement committed",
             changed_files=(change.relative_path,),
+            applied_changes=result.applied_changes,
             metadata={
                 "snapshot_id": str(result.snapshot.snapshot_id),
                 "before_sha256": change.before_digest or "ABSENT",

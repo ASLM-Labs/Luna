@@ -7,9 +7,15 @@ from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
 from pathlib import PurePosixPath
+from typing import Annotated
 from uuid import UUID, uuid4
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from luna.autonomy import (
     AutonomyGrantSource,
@@ -22,7 +28,22 @@ from luna.contracts.enums import RiskLevel
 from luna.contracts.observation import Observation
 
 type ToolScalar = str | int | float | bool | None
-type ToolArgumentValue = ToolScalar | list[str]
+
+type ToolArgumentString = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=False,
+    ),
+]
+
+type ToolArgumentValue = (
+    ToolArgumentString
+    | int
+    | float
+    | bool
+    | list[ToolArgumentString]
+    | None
+)
 
 
 class ToolCapability(StrEnum):
