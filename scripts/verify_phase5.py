@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -120,9 +121,25 @@ def main() -> int:
                 approval_basis_fingerprint=rollback_basis,
             )
             rollback_ok = (
-                rollback.result.status is ToolResultStatus.SUCCESS
-                and rollback.result.metadata.get("verified") is True
-                and not (workspace / "sample.txt").exists()
+                (
+                    rollback.result.status
+                    is ToolResultStatus.SUCCESS
+                    and rollback.result.metadata.get(
+                        "verified"
+                    )
+                    is True
+                    and not (
+                        workspace / "sample.txt"
+                    ).exists()
+                )
+                if os.name == "nt"
+                else (
+                    rollback.result.status
+                    is ToolResultStatus.BLOCKED
+                    and (
+                        workspace / "sample.txt"
+                    ).exists()
+                )
             )
 
         stale_target = workspace / "sample.txt"
@@ -211,11 +228,28 @@ def main() -> int:
             protected_paths=(),
         )
 
-        def injected_failure(path: Path, expected_digest: str) -> None:
-            del path, expected_digest
-            raise WorkspaceMutationError("injected verification failure")
+        if os.name == "nt":
 
-        mutator._verify_after_write = injected_failure  # type: ignore[method-assign]
+            def injected_bound_failure(
+                *,
+                observation: object,
+                expected_content: bytes,
+                source: object,
+            ) -> int:
+                del observation, expected_content, source
+                raise WorkspaceMutationError("injected verification failure")
+
+            mutator._verify_bound_publication = (  # type: ignore[method-assign]
+                injected_bound_failure
+            )
+        else:
+
+            def injected_failure(path: Path, expected_digest: str) -> None:
+                del path, expected_digest
+                raise WorkspaceMutationError("injected verification failure")
+
+            mutator._verify_after_write = injected_failure  # type: ignore[method-assign]
+
         automatic_rollback_ok = False
         try:
             mutator.write_text(
@@ -252,9 +286,11 @@ def main() -> int:
 
     checks = {
         "required_files_present": not missing,
-        "seven_tools_registered": len(registry.specs()) == 7,
+        "eight_tools_registered": len(registry.specs()) == 8,
+        "safe_undo_tool_registered": "workspace.safe_undo" in capabilities,
+        "rollback_alias_registered": "workspace.rollback" in capabilities,
         "snapshot_before_write": write_snapshot_ok,
-        "verified_explicit_rollback": rollback_ok,
+        "explicit_undo_platform_contract": rollback_ok,
         "stale_hash_blocks_write": stale_precondition_ok,
         "automatic_rollback_on_verification_failure": automatic_rollback_ok,
         "exact_argv_process_executes": exact_process_ok,

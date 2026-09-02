@@ -170,19 +170,49 @@ class ToolSelector:
                 checks=tuple(checks),
             )
 
-        if len(compatible) != 1:
+        default_compatible = tuple(
+            route
+            for route in compatible
+            if route.default_for_shape
+        )
+
+        if not default_compatible:
+            return self._denial(
+                proposal=proposal,
+                family=family,
+                code=ActionDenialCode.NO_MATCHING_TOOL,
+                reason=(
+                    "matching routes have no default-selectable tool; "
+                    "proposal must name one registered preference"
+                ),
+                checks=(
+                    *checks,
+                    "default_candidate:FAIL",
+                ),
+            )
+
+        checks.append(
+            "default_candidate:PASS"
+        )
+
+        if len(default_compatible) != 1:
             return self._denial(
                 proposal=proposal,
                 family=family,
                 code=ActionDenialCode.AMBIGUOUS_TOOL,
                 reason=(
-                    "multiple compatible tools exist; proposal must name one "
-                    "registered preference"
+                    "multiple default-compatible tools exist; "
+                    "proposal must name one registered preference"
                 ),
-                checks=(*checks, "single_candidate:FAIL"),
+                checks=(
+                    *checks,
+                    "single_candidate:FAIL",
+                ),
             )
 
-        selected_route = compatible[0]
+        selected_route = (
+            default_compatible[0]
+        )
         registered = registered_snapshot[selected_route.tool_name]
         if self._registry.get(selected_route.tool_name) is not registered:
             return self._denial(
@@ -257,10 +287,18 @@ def build_phase12c_routes() -> tuple[ToolRoute, ...]:
             target_kinds=(ActionTargetKind.FILE,),
         ),
         ToolRoute(
+            tool_name="workspace.safe_undo",
+            family=ToolFamily.WORKSPACE,
+            action_kinds=(ActionKind.ROLLBACK,),
+            target_kinds=(ActionTargetKind.SNAPSHOT,),
+            default_for_shape=True,
+        ),
+        ToolRoute(
             tool_name="workspace.rollback",
             family=ToolFamily.WORKSPACE,
             action_kinds=(ActionKind.ROLLBACK,),
             target_kinds=(ActionTargetKind.SNAPSHOT,),
+            default_for_shape=False,
         ),
         ToolRoute(
             tool_name="process.run_argv",

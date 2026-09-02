@@ -221,7 +221,7 @@ class CoreAcceptanceExecutor:
             expected_sha256=None,
             create_if_missing=True,
         )
-        rollback = mutator.rollback(mutation.snapshot.snapshot_id)
+        rollback = mutator.safe_undo(mutation.snapshot.snapshot_id)
         return {
             "rollback_verified": rollback.verified,
             "file_absent_after_rollback": not (root / "rollback.txt").exists(),

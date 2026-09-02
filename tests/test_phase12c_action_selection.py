@@ -197,6 +197,90 @@ def test_stage_two_selects_unique_registered_file_reader() -> None:
     assert selected.spec.name == "filesystem.read_text"  # type: ignore[union-attr]
 
 
+def test_rollback_alias_is_explicit_only_and_safe_undo_is_default() -> None:
+    task = _task(write_allowed=True)
+    selector = ToolSelector(
+        build_phase5_registry(),
+        build_phase12c_routes(),
+    )
+
+    proposal = ActionProposal(
+        task_id=task.task_id,
+        trace_id=uuid4(),
+        kind=ActionKind.ROLLBACK,
+        target_kind=ActionTargetKind.SNAPSHOT,
+        summary="Conditionally undo one snapshot.",
+        arguments={
+            "snapshot_id": str(uuid4()),
+        },
+        required_capabilities=(
+            ToolCapability.WRITE,
+        ),
+        expectation_id=uuid4(),
+    )
+
+    selected = selector.select_tool(
+        proposal,
+        selector.select_family(
+            proposal
+        ),
+    )
+
+    assert not hasattr(
+        selected,
+        "code",
+    )
+    assert (
+        selected.spec.name  # type: ignore[union-attr]
+        == "workspace.safe_undo"
+    )
+
+    legacy = proposal.model_copy(
+        update={
+            "preferred_tool_name":
+                "workspace.rollback",
+        }
+    )
+
+    legacy_selected = selector.select_tool(
+        legacy,
+        selector.select_family(
+            legacy
+        ),
+    )
+
+    assert not hasattr(
+        legacy_selected,
+        "code",
+    )
+    assert (
+        legacy_selected.spec.name  # type: ignore[union-attr]
+        == "workspace.rollback"
+    )
+
+    canonical_route = (
+        selector.route_for_tool(
+            "workspace.safe_undo"
+        )
+    )
+    legacy_route = (
+        selector.route_for_tool(
+            "workspace.rollback"
+        )
+    )
+
+    assert canonical_route is not None
+    assert legacy_route is not None
+    assert (
+        canonical_route.default_for_shape
+        is True
+    )
+    assert (
+        legacy_route.default_for_shape
+        is False
+    )
+
+
 def test_unknown_preferred_tool_is_structured_denial() -> None:
     task = _task()
     registry = build_phase5_registry()
