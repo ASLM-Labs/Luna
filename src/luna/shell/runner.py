@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import ctypes
+import json
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -43,6 +47,269 @@ _BANNED_EXECUTABLES = {
     "zsh",
     "zsh.exe",
 }
+
+type ProcessStopProbe = Callable[[], bool]
+
+_WINDOWS_JOB_WRAPPER = r"""
+import json
+import subprocess
+import sys
+
+header = sys.stdin.buffer.read(8)
+if len(header) != 8:
+    raise SystemExit(126)
+size = int.from_bytes(header, "big")
+payload = sys.stdin.buffer.read(size)
+if len(payload) != size:
+    raise SystemExit(126)
+argv = json.loads(payload.decode("utf-8"))
+if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
+    raise SystemExit(126)
+
+creationflags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+child = subprocess.Popen(
+    argv,
+    stdin=subprocess.DEVNULL,
+    stdout=None,
+    stderr=None,
+    shell=False,
+    creationflags=creationflags,
+)
+raise SystemExit(child.wait())
+"""
+
+
+class _OwnedProcessTree:
+    """Internal process-tree ownership boundary retained beyond root exit."""
+
+    def is_alive(self) -> bool:
+        raise NotImplementedError
+
+    def terminate(self) -> None:
+        raise NotImplementedError
+
+    def wait_quiescent(self, *, timeout_seconds: float) -> bool:
+        deadline = time.perf_counter() + timeout_seconds
+        while self.is_alive():
+            if time.perf_counter() >= deadline:
+                return False
+            time.sleep(0.01)
+        return True
+
+    def close(self) -> None:
+        return None
+
+
+class _PosixProcessTree(_OwnedProcessTree):
+    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+        self._process = process
+        self._pgid = process.pid
+
+    def _linux_non_zombie_member_exists(self) -> bool | None:
+        proc = Path("/proc")
+        if not proc.is_dir():
+            return None
+        for entry in proc.iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                raw = (entry / "stat").read_text(encoding="utf-8")
+                tail = raw[raw.rfind(")") + 2 :].split()
+                state = tail[0]
+                process_group = int(tail[2])
+            except (OSError, ValueError, IndexError):
+                continue
+            if process_group == self._pgid and state != "Z":
+                return True
+        return False
+
+    @staticmethod
+    def _signal_process_group(
+        process_group_id: int,
+        signal_number: int,
+    ) -> None:
+        killpg = vars(os).get("killpg")
+        if not callable(killpg):
+            raise RuntimeError(
+                "POSIX process-group signaling is unavailable"
+            )
+        killpg(process_group_id, signal_number)
+
+    def is_alive(self) -> bool:
+        self._process.poll()
+        linux_alive = self._linux_non_zombie_member_exists()
+        if linux_alive is not None:
+            return linux_alive
+        try:
+            self._signal_process_group(
+                self._pgid,
+                0,
+            )
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def terminate(self) -> None:
+        try:
+            self._signal_process_group(
+                self._pgid,
+                signal.SIGTERM,
+            )
+        except ProcessLookupError:
+            return
+        if self.wait_quiescent(timeout_seconds=0.25):
+            return
+        try:
+            sigkill = vars(signal).get("SIGKILL")
+            if not isinstance(sigkill, int):
+                raise RuntimeError(
+                    "POSIX SIGKILL is unavailable"
+                )
+            self._signal_process_group(
+                self._pgid,
+                sigkill,
+            )
+        except ProcessLookupError:
+            return
+
+
+class _WindowsJob(_OwnedProcessTree):
+    """One Windows Job Object that owns the wrapper and all descendants."""
+
+    _JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1
+    _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+    _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+
+    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+        from ctypes import wintypes
+
+        class _BasicLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", wintypes.DWORD),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", wintypes.DWORD),
+                ("SchedulingClass", wintypes.DWORD),
+            ]
+
+        class _IoCounters(ctypes.Structure):
+            _fields_ = [
+                ("ReadOperationCount", ctypes.c_ulonglong),
+                ("WriteOperationCount", ctypes.c_ulonglong),
+                ("OtherOperationCount", ctypes.c_ulonglong),
+                ("ReadTransferCount", ctypes.c_ulonglong),
+                ("WriteTransferCount", ctypes.c_ulonglong),
+                ("OtherTransferCount", ctypes.c_ulonglong),
+            ]
+
+        class _ExtendedLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", _BasicLimitInformation),
+                ("IoInfo", _IoCounters),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        class _BasicAccountingInformation(ctypes.Structure):
+            _fields_ = [
+                ("TotalUserTime", ctypes.c_longlong),
+                ("TotalKernelTime", ctypes.c_longlong),
+                ("ThisPeriodTotalUserTime", ctypes.c_longlong),
+                ("ThisPeriodTotalKernelTime", ctypes.c_longlong),
+                ("TotalPageFaultCount", wintypes.DWORD),
+                ("TotalProcesses", wintypes.DWORD),
+                ("ActiveProcesses", wintypes.DWORD),
+                ("TotalTerminatedProcesses", wintypes.DWORD),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        kernel32.QueryInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+        ]
+        kernel32.QueryInformationJobObject.restype = wintypes.BOOL
+        kernel32.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        kernel32.TerminateJobObject.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        handle = kernel32.CreateJobObjectW(None, None)
+        if not handle:
+            raise OSError(ctypes.get_last_error(), "CreateJobObjectW failed")
+
+        self._kernel32 = kernel32
+        self._handle = handle
+        self._accounting_type = _BasicAccountingInformation
+
+        limits = _ExtendedLimitInformation()
+        limits.BasicLimitInformation.LimitFlags = self._JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not kernel32.SetInformationJobObject(
+            handle,
+            self._JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        ):
+            error = ctypes.get_last_error()
+            kernel32.CloseHandle(handle)
+            self._handle = None
+            raise OSError(error, "SetInformationJobObject failed")
+
+        process_handle = wintypes.HANDLE(int(process._handle))  # type: ignore[attr-defined]
+        if not kernel32.AssignProcessToJobObject(handle, process_handle):
+            error = ctypes.get_last_error()
+            kernel32.CloseHandle(handle)
+            self._handle = None
+            raise OSError(error, "AssignProcessToJobObject failed")
+
+    def is_alive(self) -> bool:
+        if self._handle is None:
+            return False
+        info = self._accounting_type()
+        if not self._kernel32.QueryInformationJobObject(
+            self._handle,
+            self._JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION,
+            ctypes.byref(info),
+            ctypes.sizeof(info),
+            None,
+        ):
+            raise OSError(ctypes.get_last_error(), "QueryInformationJobObject failed")
+        return bool(info.ActiveProcesses)
+
+    def terminate(self) -> None:
+        if self._handle is None:
+            return
+        if not self._kernel32.TerminateJobObject(self._handle, 1):
+            raise OSError(ctypes.get_last_error(), "TerminateJobObject failed")
+
+    def close(self) -> None:
+        if self._handle is None:
+            return
+        handle = self._handle
+        self._handle = None
+        if not self._kernel32.CloseHandle(handle):
+            raise OSError(ctypes.get_last_error(), "CloseHandle(job) failed")
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,30 +397,79 @@ def _read_pipe(
         stream.close()
 
 
-def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
-    if process.poll() is not None:
-        return
-    try:
-        if os.name == "nt":
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=False,
+def _start_owned_process(
+    *,
+    argv: tuple[str, ...],
+    cwd: Path,
+) -> tuple[subprocess.Popen[bytes], _OwnedProcessTree]:
+    """Start one root whose descendants remain owned after direct-root exit."""
+
+    if os.name != "nt":
+        try:
+            process = subprocess.Popen(
+                list(argv),
+                cwd=str(cwd),
+                env=_minimal_environment(),
                 stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 shell=False,
-                timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                start_new_session=True,
             )
-        else:
-            killpg = getattr(os, "killpg", None)
-            sigkill = getattr(signal, "SIGKILL", None)
-            if callable(killpg) and isinstance(sigkill, int):
-                killpg(process.pid, sigkill)
-            else:
-                process.kill()
-    except (OSError, subprocess.SubprocessError):
+        except OSError as exc:
+            raise SafeProcessError(f"process start failed: {exc}") from exc
+        return process, _PosixProcessTree(process)
+
+    # Windows cannot recover a process tree from a dead root PID. Launch a tiny
+    # trusted gate first, bind that gate to a kill-on-close Job Object, and only
+    # then release the validated user argv over stdin. The target and every
+    # non-breakaway descendant inherit Job membership.
+    try:
+        process = subprocess.Popen(
+            [sys.executable, "-c", _WINDOWS_JOB_WRAPPER],
+            cwd=str(cwd),
+            env=_minimal_environment(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    except OSError as exc:
+        raise SafeProcessError(f"process ownership gate start failed: {exc}") from exc
+
+    try:
+        tree = _WindowsJob(process)
+    except OSError as exc:
         process.kill()
+        process.wait()
+        raise SafeProcessError(f"process tree ownership setup failed: {exc}") from exc
+
+    assert process.stdin is not None
+    payload = json.dumps(list(argv), ensure_ascii=False).encode("utf-8")
+    try:
+        process.stdin.write(len(payload).to_bytes(8, "big"))
+        process.stdin.write(payload)
+        process.stdin.flush()
+        process.stdin.close()
+    except (BrokenPipeError, OSError) as exc:
+        try:
+            tree.terminate()
+            tree.wait_quiescent(timeout_seconds=5)
+        finally:
+            tree.close()
+        process.wait()
+        raise SafeProcessError(f"process ownership gate release failed: {exc}") from exc
+
+    return process, tree
+
+
+def _terminate_owned_tree(tree: _OwnedProcessTree) -> None:
+    """Terminate every still-owned descendant and prove bounded quiescence."""
+
+    tree.terminate()
+    if not tree.wait_quiescent(timeout_seconds=5):
+        raise RuntimeError("owned process tree failed to quiesce after termination")
 
 
 def run_bounded_argv(
@@ -162,8 +478,10 @@ def run_bounded_argv(
     working_directory: str,
     timeout_ms: int,
     max_output_chars: int,
+    stop_requested: ProcessStopProbe | None = None,
 ) -> ProcessExecution:
-    """Run exact argv with `shell=False`, no stdin, bounded output, and timeout kill."""
+    """Run exact argv with bounded output, whole-tree ownership, and cancellation."""
+
     validate_safe_argv(argv)
     cwd = Path(working_directory)
     if not cwd.is_dir():
@@ -172,25 +490,9 @@ def run_bounded_argv(
     encoded_argv = "\x00".join(argv).encode("utf-8")
     argv_digest = sha256(encoded_argv).hexdigest()
     byte_limit = max_output_chars * 4
-    creationflags = 0
-    if os.name == "nt":
-        creationflags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
 
     started = time.perf_counter()
-    try:
-        process = subprocess.Popen(
-            list(argv),
-            cwd=str(cwd),
-            env=_minimal_environment(),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=False,
-            creationflags=creationflags,
-            start_new_session=os.name != "nt",
-        )
-    except OSError as exc:
-        raise SafeProcessError(f"process start failed: {exc}") from exc
+    process, tree = _start_owned_process(argv=argv, cwd=cwd)
 
     assert process.stdout is not None
     assert process.stderr is not None
@@ -228,18 +530,30 @@ def run_bounded_argv(
 
     timed_out = False
     deadline = started + timeout_ms / 1000
-    while process.poll() is None:
-        if output_limit.is_set():
-            _terminate_process_tree(process)
-            break
-        if time.perf_counter() >= deadline:
-            timed_out = True
-            _terminate_process_tree(process)
-            break
-        time.sleep(0.01)
-    process.wait()
-    for reader in readers:
-        reader.join(timeout=1)
+    try:
+        while tree.is_alive():
+            if output_limit.is_set():
+                _terminate_owned_tree(tree)
+                break
+            if stop_requested is not None and stop_requested():
+                _terminate_owned_tree(tree)
+                break
+            if time.perf_counter() >= deadline:
+                timed_out = True
+                _terminate_owned_tree(tree)
+                break
+            time.sleep(0.01)
+
+        process.wait()
+
+        for reader in readers:
+            reader.join(timeout=1)
+        if any(reader.is_alive() for reader in readers):
+            raise RuntimeError("process output readers remained live after tree quiescence")
+    finally:
+        # KILL_ON_JOB_CLOSE gives Windows a final fail-safe if any exceptional
+        # path escapes after user code was released.
+        tree.close()
 
     duration_ms = max(0, int((time.perf_counter() - started) * 1000))
     stdout = bytes(stdout_buffer).decode("utf-8", errors="replace")

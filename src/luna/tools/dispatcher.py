@@ -470,6 +470,7 @@ class ToolDispatcher:
         task_contract: TaskContract,
         decision: PolicyDecision,
         cancellation_probe: CancellationProbe | None,
+        runtime_receipt_id: UUID | None,
     ) -> DispatchOutcome:
         lifecycle_owner = ExecutionLifecycleController.start(
             execution_id=request.request_id,
@@ -494,6 +495,7 @@ class ToolDispatcher:
             max_output_chars=decision.max_output_chars,
             working_directory=decision.working_directory,
             lifecycle=lifecycle,
+            runtime_receipt_id=runtime_receipt_id,
         )
         started = time.perf_counter()
         error_class: str | None = None
@@ -768,6 +770,7 @@ class ToolDispatcher:
         policy: ToolPolicy,
         cancellation_probe: CancellationProbe | None = None,
         approval_basis_fingerprint: str | None = None,
+        runtime_receipt_id: UUID | None = None,
     ) -> DispatchOutcome:
         registered, decision, denial_class, runtime_now = self._authorize(
             request=request,
@@ -799,4 +802,5 @@ class ToolDispatcher:
             task_contract=task_contract,
             decision=decision,
             cancellation_probe=cancellation_probe,
+            runtime_receipt_id=runtime_receipt_id,
         )

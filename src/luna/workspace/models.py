@@ -180,6 +180,7 @@ class SafeUndoReceiptState(StrEnum):
     """Durable lifecycle state for one conditional safe-undo receipt."""
 
     PREPARED = "PREPARED"
+    PUBLICATION_PREPARED = "PUBLICATION_PREPARED"
     COMMITTED = "COMMITTED"
     UNDONE = "UNDONE"
 
@@ -208,6 +209,77 @@ class WindowsAfterStateToken(LunaContractModel):
     dacl_protected: bool
 
 
+class WindowsPreparedPublicationIdentity(
+    LunaContractModel
+):
+    """Stable object/content/policy identity captured before publication."""
+
+    model_config = ConfigDict(frozen=True)
+
+    volume_serial_number: int = Field(ge=0)
+    file_id: str = Field(
+        pattern=r"^[0-9a-f]{32}$",
+    )
+    creation_time: int = Field(ge=0)
+    last_write_time: int = Field(ge=0)
+    content_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(ge=0)
+    mode: int = Field(ge=0)
+    dacl_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    dacl_protected: bool
+
+    @classmethod
+    def from_after_state_token(
+        cls,
+        token: WindowsAfterStateToken,
+    ) -> WindowsPreparedPublicationIdentity:
+        """Project only fields proven stable across native publication."""
+
+        return cls(
+            volume_serial_number=(
+                token.volume_serial_number
+            ),
+            file_id=token.file_id,
+            creation_time=token.creation_time,
+            last_write_time=(
+                token.last_write_time
+            ),
+            content_sha256=(
+                token.content_sha256
+            ),
+            size_bytes=token.size_bytes,
+            mode=token.mode,
+            dacl_sha256=token.dacl_sha256,
+            dacl_protected=(
+                token.dacl_protected
+            ),
+        )
+
+    def matches_after_state_token(
+        self,
+        token: WindowsAfterStateToken,
+    ) -> bool:
+        """Return observational stable-projection equality only."""
+
+        return self == type(self).from_after_state_token(
+            token
+        )
+
+
+class WorkspaceExecutionBinding(LunaContractModel):
+    """Exact runtime identities bound to one workspace side-effect attempt."""
+
+    model_config = ConfigDict(frozen=True)
+
+    request_id: UUID
+    runtime_receipt_id: UUID
+
+
 def _safe_undo_receipt_digest_payload(
     *,
     schema_version: str,
@@ -220,6 +292,10 @@ def _safe_undo_receipt_digest_payload(
     relative_path: str,
     expected_after_sha256: str,
     expected_after_size_bytes: int,
+    execution_binding: WorkspaceExecutionBinding | None,
+    prepared_publication_identity: (
+        WindowsPreparedPublicationIdentity | None
+    ),
     after_token: WindowsAfterStateToken | None,
 ) -> bytes:
     payload = {
@@ -240,6 +316,22 @@ def _safe_undo_receipt_digest_payload(
         ),
     }
 
+    # Preserve the exact v1 digest payload. New identity material
+    # participates in the digest only for receipt_version == 2.
+    if receipt_version == 2:
+        payload["execution_binding"] = (
+            None
+            if execution_binding is None
+            else execution_binding.model_dump(mode="json")
+        )
+        payload["prepared_publication_identity"] = (
+            None
+            if prepared_publication_identity is None
+            else prepared_publication_identity.model_dump(
+                mode="json"
+            )
+        )
+
     return json.dumps(
         payload,
         ensure_ascii=False,
@@ -253,7 +345,7 @@ class SafeUndoReceipt(LunaContractModel):
 
     model_config = ConfigDict(frozen=True)
 
-    receipt_version: Literal[1] = 1
+    receipt_version: Literal[1, 2] = 1
     state: SafeUndoReceiptState
 
     snapshot_id: UUID
@@ -278,6 +370,10 @@ class SafeUndoReceipt(LunaContractModel):
         ge=0,
     )
 
+    execution_binding: WorkspaceExecutionBinding | None = None
+    prepared_publication_identity: (
+        WindowsPreparedPublicationIdentity | None
+    ) = None
     after_token: WindowsAfterStateToken | None = None
 
     receipt_digest: str = Field(
@@ -288,20 +384,110 @@ class SafeUndoReceipt(LunaContractModel):
     def validate_receipt(
         self,
     ) -> SafeUndoReceipt:
-        if (
-            self.state
-            is SafeUndoReceiptState.PREPARED
-        ):
-            if self.after_token is not None:
+        if self.receipt_version == 1:
+            if self.execution_binding is not None:
                 raise ValueError(
-                    "PREPARED safe-undo receipt "
-                    "cannot carry an after token"
+                    "v1 safe-undo receipt cannot carry "
+                    "execution binding"
                 )
 
-        elif self.after_token is None:
+            if (
+                self.prepared_publication_identity
+                is not None
+            ):
+                raise ValueError(
+                    "v1 safe-undo receipt cannot carry "
+                    "prepared publication identity"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PUBLICATION_PREPARED
+            ):
+                raise ValueError(
+                    "v1 safe-undo receipt cannot enter "
+                    "PUBLICATION_PREPARED"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PREPARED
+            ):
+                if self.after_token is not None:
+                    raise ValueError(
+                        "PREPARED safe-undo receipt "
+                        "cannot carry an after token"
+                    )
+
+            elif self.after_token is None:
+                raise ValueError(
+                    "COMMITTED or UNDONE safe-undo "
+                    "receipt requires an after token"
+                )
+
+        else:
+            if self.execution_binding is None:
+                raise ValueError(
+                    "v2 safe-undo receipt requires "
+                    "an execution binding"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PREPARED
+            ):
+                if (
+                    self.prepared_publication_identity
+                    is not None
+                    or self.after_token is not None
+                ):
+                    raise ValueError(
+                        "v2 PREPARED safe-undo receipt "
+                        "cannot carry publication evidence"
+                    )
+
+            elif (
+                self.state
+                is SafeUndoReceiptState.PUBLICATION_PREPARED
+            ):
+                if (
+                    self.prepared_publication_identity
+                    is None
+                ):
+                    raise ValueError(
+                        "PUBLICATION_PREPARED safe-undo "
+                        "receipt requires prepared identity"
+                    )
+
+                if self.after_token is not None:
+                    raise ValueError(
+                        "PUBLICATION_PREPARED safe-undo "
+                        "receipt cannot carry an after token"
+                    )
+
+            else:
+                if (
+                    self.prepared_publication_identity
+                    is None
+                    or self.after_token is None
+                ):
+                    raise ValueError(
+                        "v2 COMMITTED or UNDONE receipt "
+                        "requires prepared and after evidence"
+                    )
+
+        if (
+            self.prepared_publication_identity is not None
+            and (
+                self.prepared_publication_identity.content_sha256
+                != self.expected_after_sha256
+                or self.prepared_publication_identity.size_bytes
+                != self.expected_after_size_bytes
+            )
+        ):
             raise ValueError(
-                "COMMITTED or UNDONE safe-undo "
-                "receipt requires an after token"
+                "prepared publication identity does not "
+                "match expected after-state semantics"
             )
 
         if (
@@ -316,6 +502,21 @@ class SafeUndoReceipt(LunaContractModel):
             raise ValueError(
                 "safe-undo after token does not "
                 "match expected after-state semantics"
+            )
+
+        if (
+            self.prepared_publication_identity is not None
+            and self.after_token is not None
+            and not (
+                self.prepared_publication_identity
+                .matches_after_state_token(
+                    self.after_token
+                )
+            )
+        ):
+            raise ValueError(
+                "published after token does not match "
+                "durable prepared publication identity"
             )
 
         expected = sha256(
@@ -336,6 +537,12 @@ class SafeUndoReceipt(LunaContractModel):
                 expected_after_size_bytes=(
                     self.expected_after_size_bytes
                 ),
+                execution_binding=(
+                    self.execution_binding
+                ),
+                prepared_publication_identity=(
+                    self.prepared_publication_identity
+                ),
                 after_token=self.after_token,
             )
         ).hexdigest()
@@ -352,6 +559,7 @@ class SafeUndoReceipt(LunaContractModel):
     def _build(
         cls,
         *,
+        receipt_version: Literal[1, 2],
         state: SafeUndoReceiptState,
         snapshot_id: UUID,
         snapshot_digest: str,
@@ -360,12 +568,16 @@ class SafeUndoReceipt(LunaContractModel):
         relative_path: str,
         expected_after_sha256: str,
         expected_after_size_bytes: int,
+        execution_binding: WorkspaceExecutionBinding | None,
+        prepared_publication_identity: (
+            WindowsPreparedPublicationIdentity | None
+        ),
         after_token: WindowsAfterStateToken | None,
     ) -> SafeUndoReceipt:
         digest = sha256(
             _safe_undo_receipt_digest_payload(
                 schema_version=SCHEMA_VERSION,
-                receipt_version=1,
+                receipt_version=receipt_version,
                 state=state,
                 snapshot_id=snapshot_id,
                 snapshot_digest=snapshot_digest,
@@ -380,11 +592,16 @@ class SafeUndoReceipt(LunaContractModel):
                 expected_after_size_bytes=(
                     expected_after_size_bytes
                 ),
+                execution_binding=execution_binding,
+                prepared_publication_identity=(
+                    prepared_publication_identity
+                ),
                 after_token=after_token,
             )
         ).hexdigest()
 
         return cls(
+            receipt_version=receipt_version,
             state=state,
             snapshot_id=snapshot_id,
             snapshot_digest=snapshot_digest,
@@ -398,6 +615,10 @@ class SafeUndoReceipt(LunaContractModel):
             ),
             expected_after_size_bytes=(
                 expected_after_size_bytes
+            ),
+            execution_binding=execution_binding,
+            prepared_publication_identity=(
+                prepared_publication_identity
             ),
             after_token=after_token,
             receipt_digest=digest,
@@ -414,8 +635,16 @@ class SafeUndoReceipt(LunaContractModel):
         relative_path: str,
         expected_after_sha256: str,
         expected_after_size_bytes: int,
+        execution_binding: WorkspaceExecutionBinding | None = None,
     ) -> SafeUndoReceipt:
+        receipt_version: Literal[1, 2] = (
+            2
+            if execution_binding is not None
+            else 1
+        )
+
         return cls._build(
+            receipt_version=receipt_version,
             state=SafeUndoReceiptState.PREPARED,
             snapshot_id=snapshot_id,
             snapshot_digest=snapshot_digest,
@@ -430,6 +659,51 @@ class SafeUndoReceipt(LunaContractModel):
             expected_after_size_bytes=(
                 expected_after_size_bytes
             ),
+            execution_binding=execution_binding,
+            prepared_publication_identity=None,
+            after_token=None,
+        )
+
+    def with_prepared_publication_identity(
+        self,
+        identity: WindowsPreparedPublicationIdentity,
+    ) -> SafeUndoReceipt:
+        if self.receipt_version != 2:
+            raise ValueError(
+                "prepared publication transition "
+                "requires a v2 safe-undo receipt"
+            )
+
+        if (
+            self.state
+            is not SafeUndoReceiptState.PREPARED
+        ):
+            raise ValueError(
+                "prepared publication transition "
+                "requires PREPARED state"
+            )
+
+        return type(self)._build(
+            receipt_version=2,
+            state=(
+                SafeUndoReceiptState
+                .PUBLICATION_PREPARED
+            ),
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=identity,
             after_token=None,
         )
 
@@ -437,16 +711,20 @@ class SafeUndoReceipt(LunaContractModel):
         self,
         after_token: WindowsAfterStateToken,
     ) -> SafeUndoReceipt:
-        if (
-            self.state
-            is not SafeUndoReceiptState.PREPARED
-        ):
+        required_state = (
+            SafeUndoReceiptState.PUBLICATION_PREPARED
+            if self.receipt_version == 2
+            else SafeUndoReceiptState.PREPARED
+        )
+
+        if self.state is not required_state:
             raise ValueError(
-                "safe-undo receipt commit "
-                "requires PREPARED state"
+                "safe-undo receipt commit requires "
+                f"{required_state.value} state"
             )
 
         return type(self)._build(
+            receipt_version=self.receipt_version,
             state=SafeUndoReceiptState.COMMITTED,
             snapshot_id=self.snapshot_id,
             snapshot_digest=self.snapshot_digest,
@@ -460,6 +738,10 @@ class SafeUndoReceipt(LunaContractModel):
             ),
             expected_after_size_bytes=(
                 self.expected_after_size_bytes
+            ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=(
+                self.prepared_publication_identity
             ),
             after_token=after_token,
         )
@@ -479,6 +761,7 @@ class SafeUndoReceipt(LunaContractModel):
         assert self.after_token is not None
 
         return type(self)._build(
+            receipt_version=self.receipt_version,
             state=SafeUndoReceiptState.UNDONE,
             snapshot_id=self.snapshot_id,
             snapshot_digest=self.snapshot_digest,
@@ -493,8 +776,142 @@ class SafeUndoReceipt(LunaContractModel):
             expected_after_size_bytes=(
                 self.expected_after_size_bytes
             ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=(
+                self.prepared_publication_identity
+            ),
             after_token=self.after_token,
         )
+
+
+class WorkspaceReconciliationTargetState(StrEnum):
+    """Observed target relation to one exact runtime-bound workspace receipt."""
+
+    NO_BOUND_RECEIPT = "NO_BOUND_RECEIPT"
+    BEFORE_MATCH = "BEFORE_MATCH"
+    AFTER_MATCH = "AFTER_MATCH"
+    DIVERGED = "DIVERGED"
+    UNOBSERVABLE = "UNOBSERVABLE"
+
+
+class WorkspaceExecutionReconciliation(LunaContractModel):
+    """Read-only cold observation for one exact runtime side-effect attempt."""
+
+    model_config = ConfigDict(frozen=True)
+
+    task_id: UUID
+    request_id: UUID
+    runtime_receipt_id: UUID
+
+    workspace_root_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    receipt_state: SafeUndoReceiptState | None = None
+
+    snapshot_id: UUID | None = None
+    snapshot_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    receipt_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    relative_path: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=4000,
+    )
+
+    target_state: WorkspaceReconciliationTargetState
+
+    observed_after_token: WindowsAfterStateToken | None = None
+
+    reason: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2000,
+    )
+
+    @model_validator(mode="after")
+    def validate_reconciliation(
+        self,
+    ) -> WorkspaceExecutionReconciliation:
+        bound_values = (
+            self.snapshot_id,
+            self.snapshot_digest,
+            self.receipt_digest,
+            self.relative_path,
+        )
+
+        if self.receipt_state is None:
+            if any(
+                value is not None
+                for value in bound_values
+            ):
+                raise ValueError(
+                    "unbound reconciliation cannot "
+                    "carry receipt evidence"
+                )
+
+            if (
+                self.target_state
+                is not WorkspaceReconciliationTargetState
+                .NO_BOUND_RECEIPT
+            ):
+                raise ValueError(
+                    "missing receipt requires "
+                    "NO_BOUND_RECEIPT target state"
+                )
+
+            if self.observed_after_token is not None:
+                raise ValueError(
+                    "unbound reconciliation cannot "
+                    "carry target token evidence"
+                )
+
+        else:
+            if any(
+                value is None
+                for value in bound_values
+            ):
+                raise ValueError(
+                    "bound reconciliation requires "
+                    "complete receipt evidence"
+                )
+
+            if (
+                self.target_state
+                is WorkspaceReconciliationTargetState
+                .NO_BOUND_RECEIPT
+            ):
+                raise ValueError(
+                    "bound reconciliation cannot report "
+                    "NO_BOUND_RECEIPT"
+                )
+
+        if (
+            self.target_state
+            is WorkspaceReconciliationTargetState.AFTER_MATCH
+            and self.observed_after_token is None
+        ):
+            raise ValueError(
+                "AFTER_MATCH reconciliation requires "
+                "an observed after-state token"
+            )
+
+        if (
+            self.target_state
+            is WorkspaceReconciliationTargetState.UNOBSERVABLE
+            and self.reason is None
+        ):
+            raise ValueError(
+                "UNOBSERVABLE reconciliation requires "
+                "an explicit reason"
+            )
+
+        return self
 
 
 class FileChange(LunaContractModel):

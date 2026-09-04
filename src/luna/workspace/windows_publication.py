@@ -12,7 +12,10 @@ from typing import Any, ClassVar
 from uuid import uuid4
 
 from luna.tools.paths import normalize_relative_path
-from luna.workspace.models import WindowsAfterStateToken
+from luna.workspace.models import (
+    WindowsAfterStateToken,
+    WindowsPreparedPublicationIdentity,
+)
 
 
 class WindowsPublicationError(RuntimeError):
@@ -893,6 +896,23 @@ def _observe_handle_with_token(
     )
 
 
+def _observe_prepared_publication_identity(
+    handle: int,
+) -> WindowsPreparedPublicationIdentity:
+    """Capture the stable identity of a finalized private stage."""
+
+    state = _observe_handle_with_token(
+        handle
+    )
+
+    return (
+        WindowsPreparedPublicationIdentity
+        .from_after_state_token(
+            state.token
+        )
+    )
+
+
 def _set_file_mode(
     handle: int,
     mode: int,
@@ -1689,6 +1709,9 @@ class StagedFile:
         self._expected_dacl_protected = expected_dacl_protected
         self._target_mode = target_mode
         self._content_written = False
+        self._prepared_publication_identity: (
+            WindowsPreparedPublicationIdentity | None
+        ) = None
         self._published_name: str | None = None
 
     def _require_handle(self) -> int:
@@ -1707,7 +1730,11 @@ class StagedFile:
 
         return self._publication
 
-    def _require_security_before_content(self) -> None:
+    def _require_expected_security(
+        self,
+        *,
+        phase: str,
+    ) -> None:
         if not self._verify_security:
             return
 
@@ -1729,7 +1756,7 @@ class StagedFile:
         ):
             raise WindowsPublicationError(
                 "private stage DACL changed before "
-                "content write"
+                f"{phase}"
             )
 
     def write_bytes(self, content: bytes) -> None:
@@ -1738,7 +1765,17 @@ class StagedFile:
                 "publication has already been attempted"
             )
 
-        self._require_security_before_content()
+        if (
+            self._prepared_publication_identity
+            is not None
+        ):
+            raise WindowsPublicationError(
+                "stage is already prepared for publication"
+            )
+
+        self._require_expected_security(
+            phase="content write"
+        )
 
         _write_all(
             self._require_handle(),
@@ -1746,6 +1783,63 @@ class StagedFile:
         )
 
         self._content_written = True
+
+    def prepare_for_publication(
+        self,
+    ) -> WindowsPreparedPublicationIdentity:
+        """Finalize and freeze the private stage before namespace publication."""
+
+        if self._publication is not None:
+            raise WindowsPublicationError(
+                "publication has already been attempted"
+            )
+
+        if (
+            self._prepared_publication_identity
+            is not None
+        ):
+            raise WindowsPublicationError(
+                "stage has already been prepared "
+                "for publication"
+            )
+
+        if not self._content_written:
+            raise WindowsPublicationError(
+                "stage content has not been written"
+            )
+
+        handle = self._require_handle()
+
+        if self._target_mode is not None:
+            _set_file_mode(
+                handle,
+                self._target_mode,
+            )
+
+            if (
+                _file_mode(handle)
+                != self._target_mode
+            ):
+                raise WindowsPublicationError(
+                    "private stage mode "
+                    "verification failed"
+                )
+
+        self._require_expected_security(
+            phase="publication preparation"
+        )
+
+        identity = (
+            _observe_prepared_publication_identity(
+                handle
+            )
+        )
+
+        self._prepared_publication_identity = (
+            identity
+        )
+
+        return identity
 
     def publish(
         self,
@@ -1763,18 +1857,13 @@ class StagedFile:
                 "stage content has not been written"
             )
 
+        if (
+            self._prepared_publication_identity
+            is None
+        ):
+            self.prepare_for_publication()
+
         handle = self._require_handle()
-
-        if self._target_mode is not None:
-            _set_file_mode(
-                handle,
-                self._target_mode,
-            )
-
-            if _file_mode(handle) != self._target_mode:
-                raise WindowsPublicationError(
-                    "private stage mode verification failed"
-                )
 
         self._publication = PublicationState.UNKNOWN
 

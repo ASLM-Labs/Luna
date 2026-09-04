@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 from datetime import UTC, datetime
@@ -97,6 +98,11 @@ from luna.tools.models import ToolArgumentValue
 from luna.tools.policy import PolicyDecision
 from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
 from luna.verification import CompletionGate
+from luna.workspace.models import (
+    SafeUndoReceiptState,
+    WorkspaceReconciliationTargetState,
+)
+from luna.workspace.store import WorkspaceSnapshotStore
 
 
 class _CrashAfterFenceDispatcher(ToolDispatcher):
@@ -105,6 +111,7 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
     def __init__(self) -> None:
         super().__init__(build_phase5_registry())
         self.call_count = 0
+        self.runtime_receipt_id: UUID | None = None
 
     def dispatch(
         self,
@@ -114,8 +121,16 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
         policy: ToolPolicy,
         cancellation_probe: CancellationProbe | None = None,
         approval_basis_fingerprint: str | None = None,
+        runtime_receipt_id: UUID | None = None,
     ) -> DispatchOutcome:
-        del request, task_contract, policy, cancellation_probe, approval_basis_fingerprint
+        self.runtime_receipt_id = runtime_receipt_id
+        del (
+            request,
+            task_contract,
+            policy,
+            cancellation_probe,
+            approval_basis_fingerprint,
+        )
         self.call_count += 1
         raise RuntimeError("synthetic crash after side-effect STARTED fence")
 
@@ -403,6 +418,545 @@ def test_write_action_is_write_ahead_fenced_and_never_blindly_replayed(tmp_path)
     assert receipts[0].stage is SideEffectStage.CHECKPOINTED
     assert receipts[0].outcome is not None
     assert receipts[0].outcome.result.metadata["snapshot_id"]
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason=(
+        "runtime-bound SafeUndoReceipt v2 uses "
+        "Windows publication evidence"
+    ),
+)
+def test_runtime_side_effect_identity_is_durable_in_workspace_receipt_v2(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text=(
+                        "Create one runtime-bound "
+                        "workspace file."
+                    ),
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id=(
+                                "write-runtime-workspace-"
+                                "binding"
+                            ),
+                            tool_name=(
+                                "filesystem.write_text"
+                            ),
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=(
+                        ModelFinishReason.TOOL_CALLS
+                    ),
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    runtime_receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(
+            request.task_id
+        )
+    )
+
+    assert len(runtime_receipts) == 1
+
+    runtime_receipt = runtime_receipts[0]
+
+    assert (
+        runtime_receipt.stage
+        is SideEffectStage.CHECKPOINTED
+    )
+
+    assert runtime_receipt.outcome is not None
+
+    assert (
+        runtime_receipt.outcome.request.request_id
+        == runtime_receipt.request.request_id
+    )
+
+    snapshot_value = (
+        runtime_receipt.outcome.result.metadata[
+            "snapshot_id"
+        ]
+    )
+
+    assert isinstance(
+        snapshot_value,
+        str,
+    )
+
+    snapshot_id = UUID(
+        snapshot_value
+    )
+
+    workspace_store = WorkspaceSnapshotStore(
+        runtime_receipt.execution_workspace_root
+    )
+
+    workspace_receipt = (
+        workspace_store.load_undo_receipt(
+            snapshot_id,
+            task_id=request.task_id,
+        )
+    )
+
+    assert workspace_receipt.receipt_version == 2
+
+    assert (
+        workspace_receipt.state
+        is SafeUndoReceiptState.COMMITTED
+    )
+
+    assert (
+        workspace_receipt.execution_binding
+        is not None
+    )
+
+    assert (
+        workspace_receipt
+        .execution_binding
+        .request_id
+        == runtime_receipt.request.request_id
+    )
+
+    assert (
+        workspace_receipt
+        .execution_binding
+        .runtime_receipt_id
+        == runtime_receipt.receipt_id
+    )
+
+    assert (
+        workspace_receipt
+        .prepared_publication_identity
+        is not None
+    )
+
+    assert (
+        workspace_receipt.after_token
+        is not None
+    )
+
+    assert (
+        workspace_receipt
+        .prepared_publication_identity
+        .matches_after_state_token(
+            workspace_receipt.after_token
+        )
+    )
+
+
+def test_runtime_journal_persists_workspace_reconciliation_separately_from_dispatch_observation(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text=(
+                        "Create one reconciliation-"
+                        "observable file."
+                    ),
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id=(
+                                "write-reconciliation-"
+                                "journal"
+                            ),
+                            tool_name=(
+                                "filesystem.write_text"
+                            ),
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=(
+                        ModelFinishReason.TOOL_CALLS
+                    ),
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    journal = (
+        runtime._deps.runtime_journal
+    )
+
+    runtime_receipts = (
+        journal.list_for_task(
+            request.task_id
+        )
+    )
+
+    assert len(runtime_receipts) == 1
+
+    runtime_receipt = runtime_receipts[0]
+
+    workspace_store = WorkspaceSnapshotStore(
+        runtime_receipt.execution_workspace_root
+    )
+
+    reconciliation = (
+        workspace_store
+        .reconcile_execution_undo_receipt(
+            task_id=request.task_id,
+            request_id=(
+                runtime_receipt
+                .request
+                .request_id
+            ),
+            runtime_receipt_id=(
+                runtime_receipt.receipt_id
+            ),
+        )
+    )
+
+    assert (
+        reconciliation.target_state
+        is WorkspaceReconciliationTargetState
+        .AFTER_MATCH
+    )
+
+    record = (
+        journal
+        .record_reconciliation_observation(
+            receipt=runtime_receipt,
+            reconciliation=reconciliation,
+        )
+    )
+
+    assert (
+        record.runtime_receipt_id
+        == runtime_receipt.receipt_id
+    )
+    assert (
+        record.request_id
+        == runtime_receipt.request.request_id
+    )
+    assert (
+        record.workspace
+        == reconciliation
+    )
+
+    dispatch_observations = (
+        journal.list_observations(
+            request.task_id
+        )
+    )
+
+    reconciliation_observations = (
+        journal.list_reconciliation_observations(
+            request.task_id
+        )
+    )
+
+    assert len(dispatch_observations) == 1
+    assert len(reconciliation_observations) == 1
+    assert (
+        reconciliation_observations[0]
+        == record
+    )
+
+    reopened = SQLiteRuntimeJournal(
+        tmp_path / "journal.sqlite3"
+    )
+
+    assert reopened.schema_version() == 4
+    assert reopened.verify_integrity()
+
+    assert (
+        reopened
+        .list_reconciliation_observations(
+            request.task_id
+        )
+        == (record,)
+    )
+
+
+
+
+def test_runtime_journal_migrates_v2_to_v4_without_losing_existing_control(
+    tmp_path: Path,
+) -> None:
+    journal_path = tmp_path / "journal.sqlite3"
+
+    initial = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    assert initial.schema_version() == 4
+
+    task_id = uuid4()
+
+    control = initial.request_control(
+        task_id=task_id,
+        command=RuntimeControlCommand.CANCEL,
+        reason="preserve across v2 to v4 migration",
+    )
+
+    # Reconstruct an on-disk v2 journal from the
+    # current v4 database while preserving v1/v2 data.
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        connection.execute(
+            """
+            DROP TABLE
+            runtime_reconciliation_observations
+            """
+        )
+        connection.execute(
+            """
+            DROP TABLE
+            provider_retry_schedules
+            """
+        )
+        connection.execute(
+            """
+            DELETE FROM journal_schema
+            WHERE version IN (3, 4)
+            """
+        )
+        connection.commit()
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT COALESCE(MAX(version), 0)
+            FROM journal_schema
+            """
+        ).fetchone()
+
+    assert row is not None
+    assert int(row[0]) == 2
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    assert reopened.schema_version() == 4
+
+    assert (
+        reopened.latest_control(task_id)
+        == control
+    )
+
+    assert (
+        reopened.list_reconciliation_observations(
+            task_id
+        )
+        == ()
+    )
+
+    assert reopened.verify_integrity()
+
+
+def test_runtime_reconciliation_observation_row_binding_tamper_is_rejected(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text=(
+                        "Create one reconciliation "
+                        "tamper target."
+                    ),
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id=(
+                                "write-reconciliation-"
+                                "tamper"
+                            ),
+                            tool_name=(
+                                "filesystem.write_text"
+                            ),
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=(
+                        ModelFinishReason.TOOL_CALLS
+                    ),
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+        ),
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.VERIFICATION_PENDING
+    )
+
+    journal = runtime._deps.runtime_journal
+
+    receipts = journal.list_for_task(
+        request.task_id
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    store = WorkspaceSnapshotStore(
+        receipt.execution_workspace_root
+    )
+
+    reconciliation = (
+        store.reconcile_execution_undo_receipt(
+            task_id=request.task_id,
+            request_id=(
+                receipt.request.request_id
+            ),
+            runtime_receipt_id=(
+                receipt.receipt_id
+            ),
+        )
+    )
+
+    record = (
+        journal.record_reconciliation_observation(
+            receipt=receipt,
+            reconciliation=reconciliation,
+        )
+    )
+
+    journal_path = tmp_path / "journal.sqlite3"
+
+    with sqlite3.connect(
+        journal_path
+    ) as connection:
+        cursor = connection.execute(
+            """
+            UPDATE runtime_reconciliation_observations
+            SET runtime_receipt_id = ?
+            WHERE observation_id = ?
+            """,
+            (
+                str(uuid4()),
+                str(record.observation_id),
+            ),
+        )
+
+        assert cursor.rowcount == 1
+
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(
+        journal_path
+    )
+
+    assert not reopened.verify_integrity()
+
+    with pytest.raises(
+        RuntimeJournalError,
+        match=(
+            "runtime reconciliation observation "
+            "row binding mismatch"
+        ),
+    ):
+        reopened.list_reconciliation_observations(
+            request.task_id
+        )
+
 
 
 def test_runtime_journal_resolves_exact_side_effect_execution_provenance(
@@ -967,6 +1521,10 @@ def test_resume_of_started_side_effect_never_replays_handler(tmp_path) -> None:
     assert len(receipts) == 1
     assert receipts[0].stage is SideEffectStage.STARTED
     assert crashing_dispatcher.call_count == 1
+    assert (
+        crashing_dispatcher.runtime_receipt_id
+        == receipts[0].receipt_id
+    )
     assert not (tmp_path / "note.txt").exists()
 
     resume_backend = ScriptedTestBackend(())
@@ -985,6 +1543,426 @@ def test_resume_of_started_side_effect_never_replays_handler(tmp_path) -> None:
     assert resume_backend.call_count == 0
     assert not (tmp_path / "note.txt").exists()
     assert "automatic replay is forbidden" in " ".join(outcome.reasons)
+
+    reconciliations = (
+        resumed_runtime._deps.runtime_journal
+        .list_reconciliation_observations(
+            request.task_id
+        )
+    )
+
+    assert len(reconciliations) == 1
+
+    reconciliation = reconciliations[0]
+
+    assert (
+        reconciliation.runtime_receipt_id
+        == receipts[0].receipt_id
+    )
+    assert (
+        reconciliation.request_id
+        == receipts[0].request.request_id
+    )
+    assert (
+        reconciliation.workspace.target_state
+        is WorkspaceReconciliationTargetState
+        .NO_BOUND_RECEIPT
+    )
+    assert (
+        reconciliation.workspace.receipt_state
+        is None
+    )
+
+    still_started = (
+        resumed_runtime._deps.runtime_journal
+        .load(receipts[0].idempotency_key)
+    )
+
+    assert (
+        still_started.stage
+        is SideEffectStage.STARTED
+    )
+    assert still_started.outcome is None
+
+
+def test_repeated_resume_of_same_started_receipt_reuses_identical_reconciliation_observation(
+    tmp_path: Path,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text=(
+                        "Create one bounded file for "
+                        "repeated resume reconciliation."
+                    ),
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id=(
+                                "repeat-started-"
+                                "reconciliation"
+                            ),
+                            tool_name=(
+                                "filesystem.write_text"
+                            ),
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=(
+                        ModelFinishReason.TOOL_CALLS
+                    ),
+                )
+            ),
+        )
+    )
+
+    crashing_dispatcher = (
+        _CrashAfterFenceDispatcher()
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        dispatcher=crashing_dispatcher,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    policy = _policy(
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "synthetic crash after side-effect "
+            "STARTED fence"
+        ),
+    ):
+        runtime.run(
+            request=request,
+            tool_policy=policy,
+        )
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.STARTED
+    )
+
+    resume_request = _request(
+        tmp_path,
+        task_id=request.task_id,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+        mode=RuntimeMode.RESUME,
+    )
+
+    first_runtime = _runtime(
+        tmp_path,
+        ScriptedTestBackend(()),
+    )
+
+    first = first_runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert (
+        first.stop_reason
+        is RuntimeStopReason.INTERRUPTED
+    )
+    assert first.usage.tool_calls == 0
+
+    first_records = (
+        first_runtime._deps.runtime_journal
+        .list_reconciliation_observations(
+            request.task_id
+        )
+    )
+
+    assert len(first_records) == 1
+
+    first_record = first_records[0]
+
+    assert (
+        first_record.workspace.target_state
+        is WorkspaceReconciliationTargetState
+        .NO_BOUND_RECEIPT
+    )
+
+    second_runtime = _runtime(
+        tmp_path,
+        ScriptedTestBackend(()),
+    )
+
+    second = second_runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert (
+        second.stop_reason
+        is RuntimeStopReason.INTERRUPTED
+    )
+    assert second.usage.tool_calls == 0
+
+    second_records = (
+        second_runtime._deps.runtime_journal
+        .list_reconciliation_observations(
+            request.task_id
+        )
+    )
+
+    assert second_records == (
+        first_record,
+    )
+
+    still_started = (
+        second_runtime._deps.runtime_journal
+        .load(receipt.idempotency_key)
+    )
+
+    assert (
+        still_started.stage
+        is SideEffectStage.STARTED
+    )
+
+    assert still_started.outcome is None
+
+    assert (
+        second_runtime._deps.runtime_journal
+        .list_observations(request.task_id)
+        == ()
+    )
+
+
+
+def test_resume_of_started_workspace_side_effect_records_after_match_without_replay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = ScriptedTestBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text=(
+                        "Create one bounded file before "
+                        "the synthetic runtime crash."
+                    ),
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id=(
+                                "write-crash-after-"
+                                "workspace-commit"
+                            ),
+                            tool_name=(
+                                "filesystem.write_text"
+                            ),
+                            arguments={
+                                "path": "note.txt",
+                                "content": "Luna",
+                                "create_if_missing": True,
+                            },
+                        ),
+                    ),
+                    finish_reason=(
+                        ModelFinishReason.TOOL_CALLS
+                    ),
+                )
+            ),
+        )
+    )
+
+    runtime = _runtime(
+        tmp_path,
+        backend,
+    )
+
+    request = _request(
+        tmp_path,
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    policy = _policy(
+        allowed_tools=(
+            "filesystem.write_text",
+        ),
+        write=True,
+    )
+
+    def crash_before_runtime_completion(
+        *,
+        idempotency_key: str,
+        outcome: DispatchOutcome,
+    ):
+        del idempotency_key, outcome
+        raise RuntimeError(
+            "synthetic crash after workspace commit "
+            "before runtime completion"
+        )
+
+    monkeypatch.setattr(
+        runtime._deps.runtime_journal,
+        "mark_completed",
+        crash_before_runtime_completion,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "synthetic crash after workspace commit "
+            "before runtime completion"
+        ),
+    ):
+        runtime.run(
+            request=request,
+            tool_policy=policy,
+        )
+
+    assert (
+        tmp_path / "note.txt"
+    ).read_text(
+        encoding="utf-8"
+    ) == "Luna"
+
+    receipts = (
+        runtime._deps.runtime_journal
+        .list_for_task(request.task_id)
+    )
+
+    assert len(receipts) == 1
+
+    receipt = receipts[0]
+
+    assert (
+        receipt.stage
+        is SideEffectStage.STARTED
+    )
+    assert receipt.outcome is None
+
+    replay_probe = (
+        _CrashAfterFenceDispatcher()
+    )
+
+    resumed_runtime = _runtime(
+        tmp_path,
+        ScriptedTestBackend(()),
+        dispatcher=replay_probe,
+    )
+
+    outcome = resumed_runtime.resume(
+        request=_request(
+            tmp_path,
+            task_id=request.task_id,
+            allowed_tools=(
+                "filesystem.write_text",
+            ),
+            write=True,
+            mode=RuntimeMode.RESUME,
+        ),
+        tool_policy=policy,
+    )
+
+    assert (
+        outcome.stop_reason
+        is RuntimeStopReason.INTERRUPTED
+    )
+
+    assert replay_probe.call_count == 0
+    assert outcome.usage.tool_calls == 0
+
+    assert (
+        tmp_path / "note.txt"
+    ).read_text(
+        encoding="utf-8"
+    ) == "Luna"
+
+    assert (
+        "automatic replay is forbidden"
+        in " ".join(outcome.reasons)
+    )
+
+    reconciliations = (
+        resumed_runtime._deps.runtime_journal
+        .list_reconciliation_observations(
+            request.task_id
+        )
+    )
+
+    assert len(reconciliations) == 1
+
+    reconciliation = reconciliations[0]
+
+    assert (
+        reconciliation.runtime_receipt_id
+        == receipt.receipt_id
+    )
+    assert (
+        reconciliation.request_id
+        == receipt.request.request_id
+    )
+
+    assert (
+        reconciliation.workspace.receipt_state
+        is SafeUndoReceiptState.COMMITTED
+    )
+
+    assert (
+        reconciliation.workspace.target_state
+        is WorkspaceReconciliationTargetState
+        .AFTER_MATCH
+    )
+
+    assert (
+        reconciliation.workspace
+        .observed_after_token
+        is not None
+    )
+
+    still_started = (
+        resumed_runtime._deps.runtime_journal
+        .load(receipt.idempotency_key)
+    )
+
+    assert (
+        still_started.stage
+        is SideEffectStage.STARTED
+    )
+    assert still_started.outcome is None
+
+    assert (
+        resumed_runtime._deps.runtime_journal
+        .list_observations(request.task_id)
+        == ()
+    )
+
 
 
 def test_cancellation_after_side_effect_started_is_fenced_without_replay(tmp_path) -> None:

@@ -34,6 +34,7 @@ class RunArgvTool:
                 working_directory=context.working_directory,
                 timeout_ms=context.timeout_ms,
                 max_output_chars=context.max_output_chars,
+                stop_requested=lambda: context.lifecycle.cancellation_requested,
             )
         except SafeProcessError as exc:
             raise ToolExecutionDenied(str(exc)) from exc

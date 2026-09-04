@@ -9,6 +9,7 @@ authoritative loop.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
@@ -58,7 +59,11 @@ from luna.decision_state import (
     KnowledgeDecisionStateIntegrationResult,
 )
 from luna.knowledge_evolution import project_knowledge_reevaluation_advisory
-from luna.modeling import ProviderRetryCoordinator, ProviderRetryEvidence
+from luna.modeling import (
+    ModelRequest,
+    ProviderRetryCoordinator,
+    ProviderRetryEvidence,
+)
 from luna.planning import (
     AttemptBasis,
     AttemptRecord,
@@ -73,8 +78,11 @@ from luna.runtime.dependencies import RuntimeLoopDependencies
 from luna.runtime.fingerprints import build_task_fingerprint
 from luna.runtime.isolation import IsolationLease, WorkspaceIsolationError
 from luna.runtime.journal import (
+    ProviderRetryScheduleRecord,
+    ProviderRetryScheduleStage,
     RuntimeControlCommand,
     RuntimeControlRecord,
+    RuntimeJournalError,
     SideEffectReceipt,
     SideEffectStage,
 )
@@ -103,6 +111,7 @@ from luna.tools import (
     ToolVisibilityProjection,
 )
 from luna.verification import VerificationPolicy, VerificationStrategySelector
+from luna.workspace.store import SnapshotStoreError, WorkspaceSnapshotStore
 
 _SIDE_EFFECT_CAPABILITIES = {
     ToolCapability.WRITE,
@@ -560,6 +569,20 @@ class LunaRuntime:
         self._validate_policy_boundary(request=request, policy=tool_policy)
         started_at = utc_now()
         usage = _UsageCounter(request.runtime_budget, monotonic())
+
+        recoverable_provider_retry = (
+            self._deps.runtime_journal
+            .latest_recoverable_provider_retry(
+                request.task_id
+            )
+        )
+        if recoverable_provider_retry is not None:
+            return self._recover_provider_retry_on_resume(
+                request=request,
+                schedule=recoverable_provider_retry,
+                usage=usage,
+                started_at=started_at,
+            )
 
         # C2B-G1: a RuntimeRequest carries the complete current readiness-policy
         # snapshot. On RESUME, reconcile that snapshot against the exact policy
@@ -1077,6 +1100,7 @@ class LunaRuntime:
             provider_history: tuple[AttemptRecord, ...] = ()
             provider_basis: AttemptBasis | None = None
             provider_retry_terminal_reason: str | None = None
+            provider_retry_schedule: ProviderRetryScheduleRecord | None = None
             cancelled_during_backoff = False
             provider_attempt = 0
             scope_payload = json.dumps(
@@ -1107,11 +1131,40 @@ class LunaRuntime:
                         max_input_estimated_tokens=(
                             request.runtime_budget.max_model_request_estimated_tokens
                         ),
+                        before_backend_call=(
+                            self._provider_retry_start_callback(
+                                provider_retry_schedule
+                            )
+                            if provider_retry_schedule is not None
+                            else None
+                        ),
                         knowledge_evolution_integration=(
                             knowledge_evolution_integration
                         ),
                     )
                 except ModelRequestWindowBlocked as exc:
+                    if provider_retry_schedule is not None:
+                        try:
+                            self._deps.runtime_journal.cancel_provider_retry(
+                                schedule_id=provider_retry_schedule.schedule_id,
+                                reason=(
+                                    "scheduled provider retry model request "
+                                    "was blocked before backend start"
+                                ),
+                            )
+                        except RuntimeJournalError as journal_exc:
+                            return self._integrity_stop(
+                                request=request,
+                                state=state,
+                                usage=usage,
+                                reason=(
+                                    "provider retry schedule cancellation "
+                                    f"failed: {journal_exc}"
+                                ),
+                                started_at=started_at,
+                            )
+                        provider_retry_schedule = None
+
                     projection = exc.projection
                     reason = (
                         projection.block_reason.value
@@ -1131,10 +1184,40 @@ class LunaRuntime:
                         next_step="increase model request window or reduce model-visible input",
                         started_at=started_at,
                     )
+                except RuntimeJournalError as exc:
+                    return self._integrity_stop(
+                        request=request,
+                        state=state,
+                        usage=usage,
+                        reason=(
+                            "provider retry execution fence failed before "
+                            f"backend call: {exc}"
+                        ),
+                        started_at=started_at,
+                    )
+
                 usage.model_calls += 1
                 usage.steps += 1
                 usage.model_input_tokens += turn.usage.input_tokens
                 usage.model_output_tokens += turn.usage.output_tokens
+
+                if provider_retry_schedule is not None:
+                    try:
+                        self._deps.runtime_journal.resolve_provider_retry(
+                            provider_retry_schedule.schedule_id
+                        )
+                    except RuntimeJournalError as exc:
+                        return self._integrity_stop(
+                            request=request,
+                            state=state,
+                            usage=usage,
+                            reason=(
+                                "provider retry resolution fence failed "
+                                f"after backend return: {exc}"
+                            ),
+                            started_at=started_at,
+                        )
+                    provider_retry_schedule = None
 
                 if turn.status is not PolicyTurnStatus.BACKEND_FAILURE:
                     break
@@ -1202,16 +1285,60 @@ class LunaRuntime:
                         "provider retry delay exceeds remaining runtime elapsed budget"
                     )
                     break
+                try:
+                    provider_retry_schedule = (
+                        self._deps.runtime_journal.schedule_provider_retry(
+                            task_id=request.task_id,
+                            trace_id=request.trace_id,
+                            step_id=active_step.step_id,
+                            failed_attempt=retry_plan.failed_attempt,
+                            candidate_basis=retry_plan.candidate_basis,
+                            evidence=retry_plan.evidence,
+                            pre_retry_state=state,
+                        )
+                    )
+                except RuntimeJournalError as exc:
+                    return self._integrity_stop(
+                        request=request,
+                        state=state,
+                        usage=usage,
+                        reason=(
+                            "provider retry could not be durably scheduled "
+                            f"before wait: {exc}"
+                        ),
+                        started_at=started_at,
+                    )
+
                 usage.provider_retry_evidence.append(retry_plan.evidence)
+
                 cancellation = self._provider_retry.wait(
                     retry_plan.evidence.delay_seconds,
                     cancellation_probe=lambda: self._pending_cancellation_reason(
                         request.task_id
                     ),
                 )
+
                 if cancellation is not None:
+                    try:
+                        self._deps.runtime_journal.cancel_provider_retry(
+                            schedule_id=provider_retry_schedule.schedule_id,
+                            reason=cancellation,
+                        )
+                    except RuntimeJournalError as exc:
+                        return self._integrity_stop(
+                            request=request,
+                            state=state,
+                            usage=usage,
+                            reason=(
+                                "provider retry cancellation fence failed "
+                                f"during backoff: {exc}"
+                            ),
+                            started_at=started_at,
+                        )
+                    provider_retry_schedule = None
                     cancelled_during_backoff = True
                     break
+
                 budget_stop = self._budget_stop(
                     request=request,
                     state=state,
@@ -1219,7 +1346,28 @@ class LunaRuntime:
                     started_at=started_at,
                 )
                 if budget_stop is not None:
+                    try:
+                        self._deps.runtime_journal.cancel_provider_retry(
+                            schedule_id=provider_retry_schedule.schedule_id,
+                            reason=(
+                                "runtime budget exhausted before scheduled "
+                                "provider retry started"
+                            ),
+                        )
+                    except RuntimeJournalError as exc:
+                        return self._integrity_stop(
+                            request=request,
+                            state=state,
+                            usage=usage,
+                            reason=(
+                                "provider retry budget-stop cancellation "
+                                f"fence failed: {exc}"
+                            ),
+                            started_at=started_at,
+                        )
+                    provider_retry_schedule = None
                     return budget_stop
+
                 provider_basis = retry_plan.candidate_basis
 
             if cancelled_during_backoff:
@@ -1755,6 +1903,11 @@ class LunaRuntime:
             policy=tool_policy,
             cancellation_probe=lambda: self._pending_cancellation_reason(request.task_id),
             approval_basis_fingerprint=approval_basis_fingerprint,
+            runtime_receipt_id=(
+                receipt.receipt_id
+                if receipt is not None
+                else None
+            ),
         )
         usage.tool_calls += 1
         if ToolCapability.NETWORK in proposal.required_capabilities:
@@ -2044,6 +2197,132 @@ class LunaRuntime:
             )
         return decision.resumed_state
 
+    def _recover_provider_retry_on_resume(
+        self,
+        *,
+        request: RuntimeRequest,
+        schedule: ProviderRetryScheduleRecord,
+        usage: _UsageCounter,
+        started_at: datetime,
+    ) -> RuntimeOutcome:
+        """Expose a cold retry fence without fabricating provider replay."""
+
+        state = schedule.pre_retry_state
+        if state is None:
+            raise RuntimeJournalError(
+                "recoverable provider retry lacks durable pre-retry state"
+            )
+
+        if state.task_id != request.task_id:
+            raise RuntimeJournalError(
+                "recoverable provider retry state does not match resume task"
+            )
+
+        if schedule.stage is ProviderRetryScheduleStage.SCHEDULED:
+            control = self._deps.runtime_journal.pending_control(
+                request.task_id
+            )
+
+            if (
+                control is not None
+                and control.command is RuntimeControlCommand.CANCEL
+            ):
+                self._deps.runtime_journal.cancel_provider_retry(
+                    schedule_id=schedule.schedule_id,
+                    reason=control.reason,
+                )
+                self._deps.runtime_journal.acknowledge_control(
+                    control.control_id
+                )
+                return self._outcome(
+                    request=request,
+                    state=state,
+                    usage=usage.snapshot(),
+                    stop_reason=RuntimeStopReason.CANCELLED,
+                    reasons=(
+                        control.reason,
+                        "durably scheduled provider retry was cancelled "
+                        "before provider start",
+                    ),
+                    started_at=started_at,
+                )
+
+            if (
+                control is not None
+                and control.command is RuntimeControlCommand.SUSPEND
+            ):
+                self._deps.runtime_journal.acknowledge_control(
+                    control.control_id
+                )
+                return self._outcome(
+                    request=request,
+                    state=state,
+                    usage=usage.snapshot(),
+                    stop_reason=RuntimeStopReason.SUSPENDED,
+                    reasons=(
+                        control.reason,
+                        "provider retry remains durably scheduled "
+                        "and has not started",
+                    ),
+                    started_at=started_at,
+                )
+
+            return self._outcome(
+                request=request,
+                state=state,
+                usage=usage.snapshot(),
+                stop_reason=RuntimeStopReason.INTERRUPTED,
+                reasons=(
+                    "provider retry was durably scheduled before "
+                    "interruption; automatic provider replay is forbidden",
+                    (
+                        "provider_retry_schedule:"
+                        f"{schedule.schedule_id}; "
+                        f"next_attempt={schedule.evidence.next_attempt}; "
+                        f"eligible_at={schedule.eligible_at.isoformat()}"
+                    ),
+                    "cold resume does not reconstruct retry execution "
+                    "authority from schedule existence alone",
+                ),
+                started_at=started_at,
+            )
+
+        if schedule.stage is ProviderRetryScheduleStage.STARTED:
+            if (
+                schedule.started_model_request_id is None
+                or schedule.started_model_request_fingerprint is None
+            ):
+                raise RuntimeJournalError(
+                    "started provider retry lacks exact model request identity"
+                )
+
+            return self._outcome(
+                request=request,
+                state=state,
+                usage=usage.snapshot(),
+                stop_reason=RuntimeStopReason.INTERRUPTED,
+                reasons=(
+                    "provider retry may have reached the model backend "
+                    "before interruption; automatic provider replay "
+                    "is forbidden",
+                    (
+                        "provider_retry_schedule:"
+                        f"{schedule.schedule_id}; "
+                        "model_request_id="
+                        f"{schedule.started_model_request_id}; "
+                        "model_request_fingerprint="
+                        f"{schedule.started_model_request_fingerprint}"
+                    ),
+                    "durable STARTED is ambiguity evidence, not "
+                    "duplicate provider-call authority",
+                ),
+                started_at=started_at,
+            )
+
+        raise RuntimeJournalError(
+            "only SCHEDULED or STARTED provider retries are recoverable"
+        )
+
     def _reconcile_receipt(
         self,
         *,
@@ -2054,14 +2333,109 @@ class LunaRuntime:
         started_at: datetime,
     ) -> RuntimeOutcome | None:
         if receipt.stage is SideEffectStage.STARTED:
+            try:
+                workspace_store = WorkspaceSnapshotStore(
+                    receipt.execution_workspace_root
+                )
+
+                workspace_reconciliation = (
+                    workspace_store
+                    .reconcile_execution_undo_receipt(
+                        task_id=receipt.task_id,
+                        request_id=(
+                            receipt.request.request_id
+                        ),
+                        runtime_receipt_id=(
+                            receipt.receipt_id
+                        ),
+                    )
+                )
+
+                reconciliation_record = (
+                    self._deps.runtime_journal
+                    .record_reconciliation_observation(
+                        receipt=receipt,
+                        reconciliation=(
+                            workspace_reconciliation
+                        ),
+                    )
+                )
+
+                current = (
+                    self._deps.runtime_journal.load(
+                        receipt.idempotency_key
+                    )
+                )
+
+                if (
+                    current.stage
+                    is not SideEffectStage.STARTED
+                ):
+                    return self._outcome(
+                        request=request,
+                        state=receipt.pre_action_state,
+                        usage=usage.snapshot(),
+                        stop_reason=(
+                            RuntimeStopReason
+                            .INTEGRITY_FAILURE
+                        ),
+                        reasons=(
+                            "cold reconciliation observed "
+                            "a concurrent side-effect stage "
+                            "transition",
+                            "automatic replay is forbidden",
+                        ),
+                        started_at=started_at,
+                    )
+
+            except (
+                RuntimeJournalError,
+                SnapshotStoreError,
+                ValueError,
+            ) as exc:
+                return self._outcome(
+                    request=request,
+                    state=receipt.pre_action_state,
+                    usage=usage.snapshot(),
+                    stop_reason=(
+                        RuntimeStopReason
+                        .INTEGRITY_FAILURE
+                    ),
+                    reasons=(
+                        "cold workspace reconciliation "
+                        f"failed: {exc}",
+                        "automatic replay is forbidden",
+                    ),
+                    started_at=started_at,
+                )
+
+            receipt_state = (
+                "NONE"
+                if workspace_reconciliation
+                .receipt_state is None
+                else workspace_reconciliation
+                .receipt_state.value
+            )
+
+            reconciliation_reason = (
+                "cold workspace reconciliation "
+                f"observation:"
+                f"{reconciliation_record.observation_id}; "
+                f"receipt={receipt_state}; "
+                "target="
+                f"{workspace_reconciliation.target_state.value}"
+            )
+
             return self._outcome(
                 request=request,
                 state=receipt.pre_action_state,
                 usage=usage.snapshot(),
                 stop_reason=RuntimeStopReason.INTERRUPTED,
                 reasons=(
-                    "side-effect handler may have started before interruption; "
-                    "automatic replay is forbidden",
+                    "side-effect handler may have started "
+                    "before interruption; automatic replay "
+                    "is forbidden",
+                    reconciliation_reason,
                 ),
                 started_at=started_at,
             )
@@ -2516,6 +2890,21 @@ class LunaRuntime:
             verification_strategy=verification,
             scope_fingerprint=sha256(scope_payload.encode("utf-8")).hexdigest(),
         )
+
+    def _provider_retry_start_callback(
+        self,
+        schedule: ProviderRetryScheduleRecord,
+    ) -> Callable[[ModelRequest], None]:
+        """Fence the exact retry immediately before provider execution."""
+
+        def start(model_request: ModelRequest) -> None:
+            self._deps.runtime_journal.mark_provider_retry_started(
+                schedule_id=schedule.schedule_id,
+                model_request_id=model_request.request_id,
+                model_request_fingerprint=model_request.fingerprint(),
+            )
+
+        return start
 
     def _phase12f_or_pending(
         self,

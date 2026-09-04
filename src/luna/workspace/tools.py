@@ -39,6 +39,8 @@ def _mutator(context: ToolExecutionContext) -> WorkspaceMutator:
     return WorkspaceMutator(
         workspace_root=scope.workspace_root,
         task_id=context.task_contract.task_id,
+        request_id=context.lifecycle.execution_id,
+        runtime_receipt_id=context.runtime_receipt_id,
         allowed_paths=scope.allowed_paths,
         protected_paths=scope.protected_paths,
     )

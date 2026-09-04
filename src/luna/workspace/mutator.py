@@ -28,6 +28,8 @@ from luna.workspace.models import (
     RollbackStatus,
     SafeUndoReceiptState,
     SnapshotEntry,
+    WindowsPreparedPublicationIdentity,
+    WorkspaceExecutionBinding,
     WorkspaceMutationResult,
     WorkspaceSnapshot,
     WorkspaceTargetBasis,
@@ -126,8 +128,20 @@ class WorkspaceMutator:
         task_id: UUID,
         allowed_paths: tuple[str, ...],
         protected_paths: tuple[str, ...],
+        request_id: UUID | None = None,
+        runtime_receipt_id: UUID | None = None,
     ) -> None:
         self.task_id = task_id
+        if (
+            runtime_receipt_id is not None
+            and request_id is None
+        ):
+            raise WorkspaceMutationError(
+                "runtime_receipt_id requires request_id"
+            )
+
+        self.request_id = request_id
+        self.runtime_receipt_id = runtime_receipt_id
         self.allowed_paths = allowed_paths
         self.protected_paths = protected_paths
         self.store = WorkspaceSnapshotStore(workspace_root)
@@ -421,19 +435,46 @@ class WorkspaceMutator:
             accepted_basis=accepted_basis,
         )
 
-        try:
-            self.store.prepare_undo_receipt(
-                snapshot=snapshot,
-                relative_path=relative_path,
-                expected_after_sha256=after_digest,
-                expected_after_size_bytes=len(encoded),
+        execution_binding = (
+            WorkspaceExecutionBinding(
+                request_id=self.request_id,
+                runtime_receipt_id=(
+                    self.runtime_receipt_id
+                ),
             )
+            if (
+                self.request_id is not None
+                and self.runtime_receipt_id is not None
+            )
+            else None
+        )
+
+        try:
+            if execution_binding is None:
+                self.store.prepare_undo_receipt(
+                    snapshot=snapshot,
+                    relative_path=relative_path,
+                    expected_after_sha256=after_digest,
+                    expected_after_size_bytes=len(encoded),
+                )
+            else:
+                self.store.prepare_undo_receipt(
+                    snapshot=snapshot,
+                    relative_path=relative_path,
+                    expected_after_sha256=after_digest,
+                    expected_after_size_bytes=len(encoded),
+                    execution_binding=execution_binding,
+                )
 
         except Exception as exc:
             raise WorkspaceMutationError(
                 "safe-undo receipt preparation failed: "
                 f"{exc}"
             ) from exc
+
+        durable_prepared_identity: (
+            WindowsPreparedPublicationIdentity | None
+        ) = None
 
         stage = authority.create_stage(
             source=(
@@ -460,6 +501,52 @@ class WorkspaceMutator:
                 raise WorkspaceMutationError(
                     f"mutation staging failed: {exc}"
                 ) from exc
+
+            if execution_binding is not None:
+                try:
+                    prepared_identity = (
+                        stage.prepare_for_publication()
+                    )
+
+                    publication_receipt = (
+                        self.store
+                        .mark_undo_receipt_publication_prepared(
+                            snapshot_id=(
+                                snapshot.snapshot_id
+                            ),
+                            task_id=self.task_id,
+                            prepared_publication_identity=(
+                                prepared_identity
+                            ),
+                        )
+                    )
+
+                    durable_prepared_identity = (
+                        publication_receipt
+                        .prepared_publication_identity
+                    )
+
+                    if durable_prepared_identity is None:
+                        raise WorkspaceMutationError(
+                            "durable publication-prepared "
+                            "receipt lost prepared identity"
+                        )
+
+                except Exception as exc:
+                    try:
+                        stage.discard()
+                    except Exception as cleanup_exc:
+                        raise WorkspaceMutationError(
+                            "mutation publication preparation "
+                            "failed and private stage cleanup "
+                            f"failed: {cleanup_exc}"
+                        ) from exc
+
+                    raise WorkspaceMutationError(
+                        "mutation publication preparation "
+                        "failed before native publication: "
+                        f"{exc}"
+                    ) from exc
 
             try:
                 publication = stage.publish(
@@ -528,6 +615,20 @@ class WorkspaceMutator:
                 published = (
                     stage.observe_published_with_token()
                 )
+
+                if (
+                    durable_prepared_identity is not None
+                    and not (
+                        durable_prepared_identity
+                        .matches_after_state_token(
+                            published.token
+                        )
+                    )
+                ):
+                    raise WorkspaceMutationError(
+                        "published target does not match "
+                        "durable prepared publication identity"
+                    )
 
                 after_mode = self._verify_bound_publication(
                     observation=published.observation,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from enum import StrEnum
 from hashlib import sha256
 from uuid import UUID
@@ -758,6 +759,7 @@ class ModelPolicyAgent:
         max_output_tokens: int,
         tool_visibility: ToolVisibilityProjection | None = None,
         max_input_estimated_tokens: int = 16000,
+        before_backend_call: Callable[[ModelRequest], None] | None = None,
         knowledge_evolution_integration: (
             KnowledgeDecisionStateIntegrationResult | None
         ) = None,
@@ -775,6 +777,10 @@ class ModelPolicyAgent:
             max_input_estimated_tokens=max_input_estimated_tokens,
             knowledge_evolution_integration=knowledge_evolution_integration,
         )
+
+        if before_backend_call is not None:
+            before_backend_call(request)
+
         try:
             response = self._backend.generate(request)
         except ModelBackendError as exc:

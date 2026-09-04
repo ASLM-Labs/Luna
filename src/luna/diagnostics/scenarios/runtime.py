@@ -539,7 +539,7 @@ def run_phase12e() -> SmokeReport:
             "single_policy_agent_loop": True,
             "durable_control": acknowledged.acknowledged_at is not None,
             "journal_integrity": journal.verify_integrity(),
-            "journal_schema_version": JOURNAL_SCHEMA_VERSION,
+            "journal_schema_version": journal.schema_version(),
             "observation_continuity": "durable_data_only",
             "side_effect_replay": "write_ahead_fenced",
             "completion_handoff": RuntimeStopReason.VERIFICATION_PENDING.value,
@@ -552,7 +552,8 @@ def run_phase12e() -> SmokeReport:
                     payload["single_policy_agent_loop"],
                     payload["durable_control"],
                     payload["journal_integrity"],
-                    payload["journal_schema_version"] == 2,
+                    payload["journal_schema_version"]
+                    == JOURNAL_SCHEMA_VERSION,
                     payload["observation_continuity"] == "durable_data_only",
                     payload["side_effect_replay"] == "write_ahead_fenced",
                     payload["completion_handoff"] == "VERIFICATION_PENDING",

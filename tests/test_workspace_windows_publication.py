@@ -494,6 +494,174 @@ def _remove_junction(
         os.rmdir(path)
 
 
+
+@pytest.mark.parametrize(
+    "existed",
+    [False, True],
+)
+def test_explicit_prepared_publication_identity_survives_native_publish(
+    tmp_path: Path,
+    existed: bool,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+
+    target = source / "module.py"
+
+    if existed:
+        target.write_bytes(
+            b"BEFORE"
+        )
+
+    with wp.BoundPublicationParent.bind(
+        str(tmp_path),
+        "src/module.py",
+    ) as authority:
+        before = (
+            authority.observe_target()
+        )
+
+        assert (
+            before.existed
+            is existed
+        )
+
+        stage = authority.create_stage(
+            source=(
+                before
+                if before.existed
+                else None
+            )
+        )
+
+        try:
+            stage.write_bytes(
+                b"AFTER"
+            )
+
+            prepared = (
+                stage.prepare_for_publication()
+            )
+
+            assert (
+                stage.publication_state
+                is None
+            )
+
+            assert (
+                prepared.content_sha256
+                == sha256(
+                    b"AFTER"
+                ).hexdigest()
+            )
+            assert prepared.size_bytes == 5
+
+            assert (
+                "change_time"
+                not in prepared.model_dump(
+                    mode="json"
+                )
+            )
+
+            if existed:
+                assert (
+                    target.read_bytes()
+                    == b"BEFORE"
+                )
+            else:
+                assert not target.exists()
+
+            with pytest.raises(
+                wp.WindowsPublicationError,
+                match=(
+                    "already been prepared"
+                ),
+            ):
+                stage.prepare_for_publication()
+
+            with pytest.raises(
+                wp.WindowsPublicationError,
+                match=(
+                    "already prepared"
+                ),
+            ):
+                stage.write_bytes(
+                    b"MUTATED"
+                )
+
+            result = stage.publish(
+                authority.leaf_name,
+                replace=existed,
+            )
+
+            assert (
+                result.state
+                is wp.PublicationState.PUBLISHED
+            )
+
+            published = (
+                stage.observe_published_with_token()
+            )
+
+            assert (
+                prepared.matches_after_state_token(
+                    published.token
+                )
+            )
+
+            assert (
+                published.observation.content
+                == b"AFTER"
+            )
+
+        finally:
+            stage.close()
+
+    assert (
+        target.read_bytes()
+        == b"AFTER"
+    )
+
+
+def test_prepared_private_stage_can_be_discarded_before_publication(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+
+    target = source / "module.py"
+
+    with wp.BoundPublicationParent.bind(
+        str(tmp_path),
+        "src/module.py",
+    ) as authority:
+        stage = authority.create_stage()
+
+        stage.write_bytes(
+            b"AFTER"
+        )
+
+        prepared = (
+            stage.prepare_for_publication()
+        )
+
+        assert prepared.size_bytes == 5
+        assert (
+            stage.publication_state
+            is None
+        )
+        assert not target.exists()
+
+        stage.discard()
+
+    assert not target.exists()
+    assert not list(
+        source.glob(
+            ".luna-stage-*"
+        )
+    )
+
+
 def test_existing_replacement_preserves_content_mode_and_dacl(
     tmp_path: Path,
 ) -> None:

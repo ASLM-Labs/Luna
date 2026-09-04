@@ -521,7 +521,7 @@ def test_phase12e_smoke_command(
     assert payload["single_policy_agent_loop"] is True
     assert payload["durable_control"] is True
     assert payload["journal_integrity"] is True
-    assert payload["journal_schema_version"] == 2
+    assert payload["journal_schema_version"] == 4
     assert payload["observation_continuity"] == "durable_data_only"
     assert payload["side_effect_replay"] == "write_ahead_fenced"
     assert payload["completion_handoff"] == "VERIFICATION_PENDING"

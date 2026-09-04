@@ -4,6 +4,8 @@ from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from luna.applied_changes.models import (
     AppliedChangeOperation,
     AppliedChangeState,
@@ -24,9 +26,14 @@ from luna.tools.lifecycle import (
 from luna.tools.registry import (
     ToolExecutionContext,
 )
+from luna.workspace.mutator import (
+    WorkspaceMutationError,
+    WorkspaceMutator,
+)
 from luna.workspace.tools import (
     ReplaceTextTool,
     WriteTextTool,
+    _mutator,
 )
 
 
@@ -76,6 +83,54 @@ def _context(
         working_directory=None,
         lifecycle=controller.lifecycle,
     )
+
+
+def test_workspace_mutator_handoff_preserves_execution_identity(
+    tmp_path: Path,
+) -> None:
+    contract = _contract(tmp_path)
+    request_id = uuid4()
+    runtime_receipt_id = uuid4()
+
+    controller = ExecutionLifecycleController.start(
+        execution_id=request_id,
+        timeout_ms=1000,
+    )
+
+    context = ToolExecutionContext(
+        task_contract=contract,
+        timeout_ms=1000,
+        max_output_chars=16000,
+        working_directory=None,
+        lifecycle=controller.lifecycle,
+        runtime_receipt_id=runtime_receipt_id,
+    )
+
+    mutator = _mutator(context)
+
+    assert mutator.task_id == contract.task_id
+    assert mutator.request_id == request_id
+    assert (
+        mutator.runtime_receipt_id
+        == runtime_receipt_id
+    )
+
+
+def test_workspace_mutator_rejects_runtime_receipt_without_request_identity(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        WorkspaceMutationError,
+        match="runtime_receipt_id requires request_id",
+    ):
+        WorkspaceMutator(
+            workspace_root=str(tmp_path),
+            task_id=uuid4(),
+            allowed_paths=("note.txt",),
+            protected_paths=(),
+            runtime_receipt_id=uuid4(),
+        )
+
 
 
 def test_write_tool_hands_off_committed_applied_change(

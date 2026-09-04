@@ -103,8 +103,16 @@ class _CrashAfterFenceDispatcher(ToolDispatcher):
         policy: ToolPolicy,
         cancellation_probe: CancellationProbe | None = None,
         approval_basis_fingerprint: str | None = None,
+        runtime_receipt_id: UUID | None = None,
     ) -> DispatchOutcome:
-        del request, task_contract, policy, cancellation_probe, approval_basis_fingerprint
+        del (
+            request,
+            task_contract,
+            policy,
+            cancellation_probe,
+            approval_basis_fingerprint,
+            runtime_receipt_id,
+        )
         self.call_count += 1
         raise RuntimeError("synthetic crash after side-effect STARTED fence")
 
