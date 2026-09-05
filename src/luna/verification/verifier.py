@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -89,6 +90,23 @@ def _recognized_rules(requirement: str) -> tuple[_EvidenceRule, ...]:
         rules.append(_EvidenceRule.ANY_DIRECT)
 
     return tuple(dict.fromkeys(rules))
+
+
+_OR_PATTERN = re.compile(r"\bor\b", flags=re.IGNORECASE)
+
+
+def _recognized_rule_clauses(
+    requirement: str,
+) -> tuple[tuple[_EvidenceRule, ...], ...]:
+    """Split only explicit standalone OR alternatives.
+
+    Rules inside one clause retain the existing conjunctive semantics.
+    Empty or unmapped clauses remain visible so verification fails closed.
+    """
+    return tuple(
+        _recognized_rules(clause.strip())
+        for clause in _OR_PATTERN.split(requirement)
+    )
 
 
 def _evidence_matches_rule(evidence: Evidence, rule: _EvidenceRule) -> bool:
@@ -501,10 +519,21 @@ class DeterministicVerifier:
         strength_by_id: dict[UUID, EvidenceStrengthAssessment],
     ) -> EvidenceRequirementAssessment:
         del policy
-        rules = _recognized_rules(requirement)
-        qualifying = tuple(
-            item for item in evidence if self._qualifies(item, strength_by_id)
+
+        clauses = _recognized_rule_clauses(requirement)
+        rules = tuple(
+            dict.fromkeys(
+                rule
+                for clause in clauses
+                for rule in clause
+            )
         )
+        qualifying = tuple(
+            item
+            for item in evidence
+            if self._qualifies(item, strength_by_id)
+        )
+
         if not rules:
             return EvidenceRequirementAssessment(
                 requirement=requirement,
@@ -514,35 +543,127 @@ class DeterministicVerifier:
                 ),
             )
 
-        matched: list[UUID] = []
-        missing: list[str] = []
-        for rule in rules:
-            rule_matches = [
-                item.evidence_id
-                for item in qualifying
-                if _evidence_matches_rule(item, rule)
-            ]
-            if rule_matches:
-                matched.extend(rule_matches)
-            else:
-                missing.append(rule.value)
+        # Preserve historical conjunctive semantics when there is no
+        # explicit standalone OR alternative.
+        if len(clauses) == 1:
+            matched: list[UUID] = []
+            missing: list[str] = []
 
-        if missing:
+            for rule in rules:
+                rule_matches = [
+                    item.evidence_id
+                    for item in qualifying
+                    if _evidence_matches_rule(item, rule)
+                ]
+                if rule_matches:
+                    matched.extend(rule_matches)
+                else:
+                    missing.append(rule.value)
+
+            if missing:
+                return EvidenceRequirementAssessment(
+                    requirement=requirement,
+                    status=ClaimStatus.UNVERIFIED,
+                    matched_evidence_ids=_dedupe_ids(matched),
+                    recognized_rules=tuple(
+                        rule.value for rule in rules
+                    ),
+                    reasons=(
+                        "missing strong qualifying evidence for: "
+                        + ", ".join(missing),
+                    ),
+                )
+
+            return EvidenceRequirementAssessment(
+                requirement=requirement,
+                status=ClaimStatus.PASS,
+                matched_evidence_ids=_dedupe_ids(matched),
+                recognized_rules=tuple(
+                    rule.value for rule in rules
+                ),
+                reasons=(
+                    "all deterministic evidence requirements are satisfied",
+                ),
+            )
+
+        # An explicit OR branch with no deterministic mapping is not
+        # silently discarded. The requirement fails closed.
+        unmapped_alternatives = tuple(
+            index + 1
+            for index, clause in enumerate(clauses)
+            if not clause
+        )
+        if unmapped_alternatives:
             return EvidenceRequirementAssessment(
                 requirement=requirement,
                 status=ClaimStatus.UNVERIFIED,
-                matched_evidence_ids=_dedupe_ids(matched),
-                recognized_rules=tuple(rule.value for rule in rules),
+                recognized_rules=tuple(
+                    rule.value for rule in rules
+                ),
                 reasons=(
-                    "missing strong qualifying evidence for: " + ", ".join(missing),
+                    "evidence requirement contains unmapped OR "
+                    "alternative(s): "
+                    + ", ".join(
+                        str(index)
+                        for index in unmapped_alternatives
+                    ),
                 ),
             )
+
+        partial_matches: list[UUID] = []
+        satisfied_matches: list[UUID] = []
+
+        for clause in clauses:
+            clause_matches: list[UUID] = []
+            clause_complete = True
+
+            # Rules inside one clause retain AND semantics.
+            for rule in clause:
+                rule_matches = [
+                    item.evidence_id
+                    for item in qualifying
+                    if _evidence_matches_rule(item, rule)
+                ]
+
+                if not rule_matches:
+                    clause_complete = False
+
+                clause_matches.extend(rule_matches)
+
+            partial_matches.extend(clause_matches)
+
+            # Clauses themselves use OR semantics.
+            if clause_complete:
+                satisfied_matches.extend(clause_matches)
+
+        if satisfied_matches:
+            return EvidenceRequirementAssessment(
+                requirement=requirement,
+                status=ClaimStatus.PASS,
+                matched_evidence_ids=_dedupe_ids(
+                    satisfied_matches
+                ),
+                recognized_rules=tuple(
+                    rule.value for rule in rules
+                ),
+                reasons=(
+                    "at least one deterministic evidence alternative "
+                    "is satisfied",
+                ),
+            )
+
         return EvidenceRequirementAssessment(
             requirement=requirement,
-            status=ClaimStatus.PASS,
-            matched_evidence_ids=_dedupe_ids(matched),
-            recognized_rules=tuple(rule.value for rule in rules),
-            reasons=("all deterministic evidence requirements are satisfied",),
+            status=ClaimStatus.UNVERIFIED,
+            matched_evidence_ids=_dedupe_ids(
+                partial_matches
+            ),
+            recognized_rules=tuple(
+                rule.value for rule in rules
+            ),
+            reasons=(
+                "no deterministic evidence alternative is fully satisfied",
+            ),
         )
 
     @staticmethod

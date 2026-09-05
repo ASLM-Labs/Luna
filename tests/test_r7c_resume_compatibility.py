@@ -207,7 +207,7 @@ def test_provider_builds_extended_vector_only_when_all_versions_supplied(
 def test_runtime_journal_reports_applied_schema_version(tmp_path: Path) -> None:
     journal = SQLiteRuntimeJournal(tmp_path / "journal.sqlite3")
 
-    assert journal.schema_version() == 2
+    assert journal.schema_version() == 4
 
 
 def test_vector_has_only_resume_compatibility_facts() -> None:

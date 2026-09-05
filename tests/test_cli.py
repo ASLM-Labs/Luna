@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -273,6 +274,7 @@ def test_list_tools(capsys: pytest.CaptureFixture[str]) -> None:
     assert "core.echo" in output
     assert "filesystem.read_text" in output
     assert "filesystem.write_text" in output
+    assert "workspace.safe_undo" in output
     assert "workspace.rollback" in output
     assert "process.run_argv" in output
 
@@ -295,9 +297,14 @@ def test_workspace_smoke_writes_and_rolls_back(
 
     assert exit_code == 0
     assert payload["write_status"] == "SUCCESS"
-    assert payload["rollback_status"] == "SUCCESS"
-    assert payload["file_exists_after_rollback"] is False
-    assert payload["rollback_verified"] is True
+    if os.name == "nt":
+        assert payload["rollback_status"] == "SUCCESS"
+        assert payload["file_exists_after_rollback"] is False
+        assert payload["rollback_verified"] is True
+    else:
+        assert payload["rollback_status"] == "BLOCKED"
+        assert payload["file_exists_after_rollback"] is True
+        assert payload["rollback_verified"] is False
 
 
 def test_process_smoke_uses_shell_false(capsys: pytest.CaptureFixture[str]) -> None:
@@ -514,7 +521,7 @@ def test_phase12e_smoke_command(
     assert payload["single_policy_agent_loop"] is True
     assert payload["durable_control"] is True
     assert payload["journal_integrity"] is True
-    assert payload["journal_schema_version"] == 2
+    assert payload["journal_schema_version"] == 4
     assert payload["observation_continuity"] == "durable_data_only"
     assert payload["side_effect_replay"] == "write_ahead_fenced"
     assert payload["completion_handoff"] == "VERIFICATION_PENDING"

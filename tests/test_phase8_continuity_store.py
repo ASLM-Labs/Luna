@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -106,6 +106,98 @@ def test_checkpoint_payload_tampering_is_detected(tmp_path: Path) -> None:
     with pytest.raises(ContinuityIntegrityError):
         store.load_checkpoint(stored.envelope.checkpoint.checkpoint_id)
     assert not store.verify_integrity().valid
+
+
+@pytest.mark.parametrize(
+    "column",
+    (
+        "checkpoint_id",
+        "task_id",
+        "state_revision",
+        "terminal",
+        "runtime_revision",
+        "workspace_fingerprint",
+        "environment_fingerprint",
+        "previous_checkpoint_id",
+        "created_at",
+    ),
+)
+def test_checkpoint_row_binding_tampering_is_detected(
+    tmp_path: Path,
+    column: str,
+) -> None:
+    state = _state()
+    database = tmp_path / "runtime.sqlite3"
+    store = SQLiteContinuityStore(database)
+    stored = ContinuityService(store).create_checkpoint(
+        state=state,
+        workspace_fingerprint="workspace",
+        environment_fingerprint="environment",
+        runtime_revision="rev-8",
+        next_step="Run second step.",
+    )
+    envelope = stored.envelope
+    checkpoint_id = envelope.checkpoint.checkpoint_id
+
+    tampered_values: dict[str, object] = {
+        "checkpoint_id": str(uuid4()),
+        "task_id": str(uuid4()),
+        "state_revision": envelope.state.revision + 1000,
+        "terminal": 0 if envelope.terminal else 1,
+        "runtime_revision": "tampered-runtime-revision",
+        "workspace_fingerprint": "tampered-workspace-fingerprint",
+        "environment_fingerprint": "tampered-environment-fingerprint",
+        "previous_checkpoint_id": str(uuid4()),
+        "created_at": "2000-01-01T00:00:00+00:00",
+    }
+
+    connection = sqlite3.connect(database)
+    try:
+        before = connection.execute(
+            """
+            SELECT payload_json, payload_sha256
+            FROM checkpoints
+            WHERE checkpoint_id = ?
+            """,
+            (str(checkpoint_id),),
+        ).fetchone()
+        assert before is not None
+
+        cursor = connection.execute(
+            f"UPDATE checkpoints SET {column} = ? WHERE checkpoint_id = ?",
+            (tampered_values[column], str(checkpoint_id)),
+        )
+        assert cursor.rowcount == 1
+        connection.commit()
+
+        if column == "checkpoint_id":
+            query_checkpoint_id = UUID(str(tampered_values[column]))
+        else:
+            query_checkpoint_id = checkpoint_id
+
+        after = connection.execute(
+            """
+            SELECT payload_json, payload_sha256
+            FROM checkpoints
+            WHERE checkpoint_id = ?
+            """,
+            (str(query_checkpoint_id),),
+        ).fetchone()
+        assert after is not None
+        assert after == before
+    finally:
+        connection.close()
+
+    with pytest.raises(
+        ContinuityIntegrityError,
+        match="checkpoint row binding mismatch",
+    ):
+        store.load_checkpoint(query_checkpoint_id)
+
+    integrity = store.verify_integrity()
+    assert integrity.valid is False
+    assert integrity.first_error is not None
+    assert "checkpoint row binding mismatch" in integrity.first_error
 
 
 def test_stale_revision_cannot_write_new_checkpoint(tmp_path: Path) -> None:

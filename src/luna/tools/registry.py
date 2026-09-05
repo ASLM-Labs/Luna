@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import RLock
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+from uuid import UUID
 
 from luna.contracts.task import TaskContract
 from luna.tools.lifecycle import ExecutionLifecycle
 from luna.tools.models import ToolArgumentValue, ToolScalar, ToolSpec
+
+if TYPE_CHECKING:
+    from luna.applied_changes.models import AppliedChangeCandidate
 
 
 class ToolExecutionDenied(RuntimeError):
@@ -24,6 +28,7 @@ class ToolExecutionContext:
     max_output_chars: int
     working_directory: str | None
     lifecycle: ExecutionLifecycle
+    runtime_receipt_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +39,7 @@ class ToolExecutionOutput:
     stdout: str = ""
     stderr: str = ""
     changed_files: tuple[str, ...] = ()
+    applied_changes: tuple[AppliedChangeCandidate, ...] = ()
     metadata: dict[str, ToolScalar] = field(default_factory=dict)
 
 

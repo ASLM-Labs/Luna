@@ -18,8 +18,19 @@ from luna.tools.paths import (
 from luna.workspace.models import (
     RollbackResult,
     RollbackStatus,
+    SafeUndoReceipt,
     SnapshotEntry,
+    WindowsAfterStateToken,
+    WindowsPreparedPublicationIdentity,
+    WorkspaceExecutionBinding,
+    WorkspaceExecutionReconciliation,
+    WorkspaceReconciliationTargetState,
     WorkspaceSnapshot,
+)
+from luna.workspace.windows_publication import (
+    BoundPublicationParent,
+    WindowsObservationLimitError,
+    WindowsPublicationError,
 )
 
 
@@ -94,6 +105,775 @@ class WorkspaceSnapshotStore:
             raise SnapshotStoreError("invalid snapshot identifier")
         return directory
 
+    def _undo_receipt_path(
+        self,
+        snapshot_id: UUID,
+    ) -> Path:
+        return (
+            self._snapshot_directory(snapshot_id)
+            / "undo.json"
+        )
+
+    def _validate_undo_receipt_binding(
+        self,
+        *,
+        receipt: SafeUndoReceipt,
+        snapshot: WorkspaceSnapshot,
+        task_id: UUID,
+    ) -> None:
+        if receipt.snapshot_id != snapshot.snapshot_id:
+            raise SnapshotStoreError(
+                "safe-undo receipt snapshot_id mismatch"
+            )
+
+        if (
+            receipt.snapshot_digest
+            != snapshot.snapshot_digest
+        ):
+            raise SnapshotStoreError(
+                "safe-undo receipt snapshot digest mismatch"
+            )
+
+        if receipt.task_id != snapshot.task_id:
+            raise SnapshotStoreError(
+                "safe-undo receipt task binding mismatch"
+            )
+
+        if receipt.task_id != task_id:
+            raise SnapshotStoreError(
+                "safe-undo receipt task_id does not "
+                "match requesting task"
+            )
+
+        if (
+            receipt.workspace_root_digest
+            != self.workspace_root_digest
+        ):
+            raise SnapshotStoreError(
+                "safe-undo receipt belongs to "
+                "a different workspace"
+            )
+
+        normalized = self._validate_target_path(
+            receipt.relative_path
+        )
+
+        if normalized != receipt.relative_path:
+            raise SnapshotStoreError(
+                "safe-undo receipt path is not normalized"
+            )
+
+        if (
+            len(snapshot.entries) != 1
+            or snapshot.entries[0].relative_path
+            != normalized
+        ):
+            raise SnapshotStoreError(
+                "safe-undo receipt path does not "
+                "match snapshot target"
+            )
+
+    def _persist_undo_receipt(
+        self,
+        *,
+        receipt: SafeUndoReceipt,
+    ) -> SafeUndoReceipt:
+        path = self._undo_receipt_path(
+            receipt.snapshot_id
+        )
+
+        if path.is_symlink():
+            raise SnapshotStoreError(
+                "safe-undo receipt cannot be a symlink"
+            )
+
+        try:
+            atomic_write_bytes(
+                path,
+                (
+                    receipt.to_json().encode("utf-8")
+                    + b"\n"
+                ),
+                mode=0o600,
+            )
+        except Exception as exc:
+            raise SnapshotStoreError(
+                "safe-undo receipt persistence failed: "
+                f"{exc}"
+            ) from exc
+
+        persisted = self.load_undo_receipt(
+            receipt.snapshot_id,
+            task_id=receipt.task_id,
+        )
+
+        if persisted != receipt:
+            raise SnapshotStoreError(
+                "persisted safe-undo receipt "
+                "does not match requested state"
+            )
+
+        return persisted
+
+    def prepare_undo_receipt(
+        self,
+        *,
+        snapshot: WorkspaceSnapshot,
+        relative_path: str,
+        expected_after_sha256: str,
+        expected_after_size_bytes: int,
+        execution_binding: WorkspaceExecutionBinding | None = None,
+    ) -> SafeUndoReceipt:
+        persisted_snapshot = self.load_snapshot(
+            snapshot.snapshot_id
+        )
+
+        if persisted_snapshot != snapshot:
+            raise SnapshotStoreError(
+                "safe-undo receipt requires the exact "
+                "persisted snapshot"
+            )
+
+        normalized = self._validate_target_path(
+            relative_path
+        )
+
+        if (
+            len(snapshot.entries) != 1
+            or snapshot.entries[0].relative_path
+            != normalized
+        ):
+            raise SnapshotStoreError(
+                "safe-undo receipt path does not "
+                "match snapshot target"
+            )
+
+        path = self._undo_receipt_path(
+            snapshot.snapshot_id
+        )
+
+        if path.exists() or path.is_symlink():
+            raise SnapshotStoreError(
+                "safe-undo receipt already exists"
+            )
+
+        try:
+            receipt = SafeUndoReceipt.build_prepared(
+                snapshot_id=snapshot.snapshot_id,
+                snapshot_digest=(
+                    snapshot.snapshot_digest
+                ),
+                task_id=snapshot.task_id,
+                workspace_root_digest=(
+                    self.workspace_root_digest
+                ),
+                relative_path=normalized,
+                expected_after_sha256=(
+                    expected_after_sha256
+                ),
+                expected_after_size_bytes=(
+                    expected_after_size_bytes
+                ),
+                execution_binding=execution_binding,
+            )
+        except ValueError as exc:
+            raise SnapshotStoreError(
+                f"safe-undo receipt is invalid: {exc}"
+            ) from exc
+
+        self._validate_undo_receipt_binding(
+            receipt=receipt,
+            snapshot=snapshot,
+            task_id=snapshot.task_id,
+        )
+
+        return self._persist_undo_receipt(
+            receipt=receipt
+        )
+
+    def load_undo_receipt(
+        self,
+        snapshot_id: UUID,
+        *,
+        task_id: UUID,
+    ) -> SafeUndoReceipt:
+        path = self._undo_receipt_path(
+            snapshot_id
+        )
+
+        if path.is_symlink() or not path.is_file():
+            raise SnapshotStoreError(
+                "safe-undo receipt does not exist "
+                "as a regular file"
+            )
+
+        try:
+            receipt = SafeUndoReceipt.from_json(
+                path.read_bytes()
+            )
+        except Exception as exc:
+            raise SnapshotStoreError(
+                f"safe-undo receipt is invalid: {exc}"
+            ) from exc
+
+        snapshot = self.load_snapshot(
+            snapshot_id
+        )
+
+        self._validate_undo_receipt_binding(
+            receipt=receipt,
+            snapshot=snapshot,
+            task_id=task_id,
+        )
+
+        return receipt
+
+    def resolve_execution_undo_receipt(
+        self,
+        *,
+        task_id: UUID,
+        request_id: UUID,
+        runtime_receipt_id: UUID,
+    ) -> SafeUndoReceipt | None:
+        """Resolve exactly one v2 receipt by durable runtime execution identity."""
+
+        if not self.snapshot_root.exists():
+            return None
+
+        try:
+            receipt_paths = tuple(
+                sorted(
+                    self.snapshot_root.glob(
+                        "*/undo.json"
+                    ),
+                    key=lambda item: str(item),
+                )
+            )
+        except OSError as exc:
+            raise SnapshotStoreError(
+                "safe-undo receipt enumeration failed: "
+                f"{exc}"
+            ) from exc
+
+        matches: list[SafeUndoReceipt] = []
+
+        for path in receipt_paths:
+            if (
+                path.is_symlink()
+                or path.parent.is_symlink()
+                or not path.is_file()
+            ):
+                raise SnapshotStoreError(
+                    "safe-undo receipt enumeration "
+                    "encountered a non-regular path"
+                )
+
+            try:
+                candidate = SafeUndoReceipt.from_json(
+                    path.read_bytes()
+                )
+            except Exception as exc:
+                raise SnapshotStoreError(
+                    "safe-undo receipt is invalid during "
+                    f"execution reconciliation: {exc}"
+                ) from exc
+
+            expected_path = self._undo_receipt_path(
+                candidate.snapshot_id
+            )
+
+            if path != expected_path:
+                raise SnapshotStoreError(
+                    "safe-undo receipt snapshot path "
+                    "binding is invalid"
+                )
+
+            binding = candidate.execution_binding
+
+            if (
+                candidate.receipt_version != 2
+                or binding is None
+            ):
+                continue
+
+            if candidate.task_id != task_id:
+                continue
+
+            if (
+                binding.request_id != request_id
+                or binding.runtime_receipt_id
+                != runtime_receipt_id
+            ):
+                continue
+
+            validated = self.load_undo_receipt(
+                candidate.snapshot_id,
+                task_id=task_id,
+            )
+
+            if validated != candidate:
+                raise SnapshotStoreError(
+                    "execution reconciliation receipt "
+                    "changed during validation"
+                )
+
+            matches.append(
+                validated
+            )
+
+        if len(matches) > 1:
+            raise SnapshotStoreError(
+                "exact execution binding resolved "
+                f"multiple safe-undo receipts: "
+                f"{len(matches)}"
+            )
+
+        if not matches:
+            return None
+
+        return matches[0]
+
+    def reconcile_execution_undo_receipt(
+        self,
+        *,
+        task_id: UUID,
+        request_id: UUID,
+        runtime_receipt_id: UUID,
+    ) -> WorkspaceExecutionReconciliation:
+        """Observe one exact runtime-bound workspace attempt without authority."""
+
+        receipt = self.resolve_execution_undo_receipt(
+            task_id=task_id,
+            request_id=request_id,
+            runtime_receipt_id=runtime_receipt_id,
+        )
+
+        if receipt is None:
+            return WorkspaceExecutionReconciliation(
+                task_id=task_id,
+                request_id=request_id,
+                runtime_receipt_id=runtime_receipt_id,
+                workspace_root_digest=(
+                    self.workspace_root_digest
+                ),
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .NO_BOUND_RECEIPT
+                ),
+                reason=(
+                    "no v2 safe-undo receipt matches "
+                    "the exact execution binding"
+                ),
+            )
+
+        binding = receipt.execution_binding
+
+        if binding is None:
+            raise SnapshotStoreError(
+                "resolved v2 safe-undo receipt "
+                "lost execution binding"
+            )
+
+        if (
+            binding.request_id != request_id
+            or binding.runtime_receipt_id
+            != runtime_receipt_id
+        ):
+            raise SnapshotStoreError(
+                "resolved safe-undo receipt execution "
+                "binding changed unexpectedly"
+            )
+
+        snapshot = self.load_snapshot(
+            receipt.snapshot_id
+        )
+
+        if (
+            snapshot.task_id != task_id
+            or len(snapshot.entries) != 1
+            or snapshot.entries[0].relative_path
+            != receipt.relative_path
+        ):
+            raise SnapshotStoreError(
+                "reconciliation snapshot binding "
+                "is invalid"
+            )
+
+        entry = snapshot.entries[0]
+
+        def result(
+            *,
+            target_state: WorkspaceReconciliationTargetState,
+            observed_after_token: (
+                WindowsAfterStateToken | None
+            ) = None,
+            reason: str | None = None,
+        ) -> WorkspaceExecutionReconciliation:
+            return WorkspaceExecutionReconciliation(
+                task_id=task_id,
+                request_id=request_id,
+                runtime_receipt_id=runtime_receipt_id,
+                workspace_root_digest=(
+                    self.workspace_root_digest
+                ),
+                receipt_state=receipt.state,
+                snapshot_id=receipt.snapshot_id,
+                snapshot_digest=(
+                    receipt.snapshot_digest
+                ),
+                receipt_digest=(
+                    receipt.receipt_digest
+                ),
+                relative_path=(
+                    receipt.relative_path
+                ),
+                target_state=target_state,
+                observed_after_token=(
+                    observed_after_token
+                ),
+                reason=reason,
+            )
+
+        if os.name != "nt":
+            return result(
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .UNOBSERVABLE
+                ),
+                reason=(
+                    "runtime-bound target reconciliation "
+                    "requires Windows bound publication "
+                    "observation"
+                ),
+            )
+
+        observation_limit = max(
+            1,
+            entry.size_bytes,
+            receipt.expected_after_size_bytes,
+        )
+
+        try:
+            with BoundPublicationParent.bind(
+                str(self.workspace_root),
+                receipt.relative_path,
+            ) as authority:
+                observed = (
+                    authority
+                    .observe_target_with_token(
+                        max_bytes=observation_limit
+                    )
+                )
+
+        except WindowsObservationLimitError:
+            return result(
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .DIVERGED
+                ),
+                reason=(
+                    "current target exceeds both known "
+                    "before/after observation size bounds"
+                ),
+            )
+
+        except (WindowsPublicationError, OSError) as exc:
+            return result(
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .UNOBSERVABLE
+                ),
+                reason=(
+                    "bound target observation failed: "
+                    f"{exc}"
+                ),
+            )
+
+        prepared_identity = (
+            receipt.prepared_publication_identity
+        )
+
+        if (
+            observed is not None
+            and prepared_identity is not None
+            and prepared_identity
+            .matches_after_state_token(
+                observed.token
+            )
+        ):
+            return result(
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .AFTER_MATCH
+                ),
+                observed_after_token=(
+                    observed.token
+                ),
+            )
+
+        before_matches = False
+
+        if entry.existed:
+            if (
+                entry.content_digest is None
+                or entry.mode is None
+            ):
+                raise SnapshotStoreError(
+                    "existing reconciliation snapshot "
+                    "lacks before-state evidence"
+                )
+
+            before_matches = (
+                observed is not None
+                and observed.token.content_sha256
+                == entry.content_digest
+                and observed.token.size_bytes
+                == entry.size_bytes
+                and observed.token.mode
+                == entry.mode
+            )
+
+        else:
+            before_matches = observed is None
+
+        if before_matches:
+            return result(
+                target_state=(
+                    WorkspaceReconciliationTargetState
+                    .BEFORE_MATCH
+                ),
+                observed_after_token=(
+                    None
+                    if observed is None
+                    else observed.token
+                ),
+            )
+
+        return result(
+            target_state=(
+                WorkspaceReconciliationTargetState
+                .DIVERGED
+            ),
+            observed_after_token=(
+                None
+                if observed is None
+                else observed.token
+            ),
+        )
+
+    def mark_undo_receipt_publication_prepared(
+        self,
+        *,
+        snapshot_id: UUID,
+        task_id: UUID,
+        prepared_publication_identity: (
+            WindowsPreparedPublicationIdentity
+        ),
+    ) -> SafeUndoReceipt:
+        receipt = self.load_undo_receipt(
+            snapshot_id,
+            task_id=task_id,
+        )
+
+        try:
+            publication_prepared = (
+                receipt.with_prepared_publication_identity(
+                    prepared_publication_identity
+                )
+            )
+        except ValueError as exc:
+            raise SnapshotStoreError(
+                "safe-undo receipt publication "
+                f"preparation refused: {exc}"
+            ) from exc
+
+        return self._persist_undo_receipt(
+            receipt=publication_prepared
+        )
+
+    def commit_undo_receipt(
+        self,
+        *,
+        snapshot_id: UUID,
+        task_id: UUID,
+        after_token: WindowsAfterStateToken,
+    ) -> SafeUndoReceipt:
+        receipt = self.load_undo_receipt(
+            snapshot_id,
+            task_id=task_id,
+        )
+
+        try:
+            committed = (
+                receipt.with_committed_after_state(
+                    after_token
+                )
+            )
+        except ValueError as exc:
+            raise SnapshotStoreError(
+                f"safe-undo receipt commit refused: {exc}"
+            ) from exc
+
+        return self._persist_undo_receipt(
+            receipt=committed
+        )
+
+    def mark_undo_receipt_undone(
+        self,
+        *,
+        snapshot_id: UUID,
+        task_id: UUID,
+    ) -> SafeUndoReceipt:
+        receipt = self.load_undo_receipt(
+            snapshot_id,
+            task_id=task_id,
+        )
+
+        try:
+            undone = receipt.with_undone_state()
+        except ValueError as exc:
+            raise SnapshotStoreError(
+                "safe-undo receipt completion "
+                f"refused: {exc}"
+            ) from exc
+
+        return self._persist_undo_receipt(
+            receipt=undone
+        )
+
+    def _persist_snapshot(
+        self,
+        *,
+        task_id: UUID,
+        entries: tuple[SnapshotEntry, ...],
+        blobs: dict[str, bytes],
+    ) -> WorkspaceSnapshot:
+        """Persist already-captured snapshot state without target path I/O."""
+
+        for digest, content in blobs.items():
+            if digest_bytes(content) != digest:
+                raise SnapshotStoreError(
+                    "captured snapshot blob digest does not match content"
+                )
+
+        for entry in entries:
+            if not entry.existed:
+                continue
+
+            assert entry.content_digest is not None
+
+            blob_content = blobs.get(
+                entry.content_digest
+            )
+
+            if blob_content is None:
+                raise SnapshotStoreError(
+                    "existing captured snapshot entry lacks its content blob"
+                )
+
+            if len(blob_content) != entry.size_bytes:
+                raise SnapshotStoreError(
+                    "captured snapshot entry size does not match content"
+                )
+
+        snapshot = WorkspaceSnapshot.build(
+            task_id=task_id,
+            workspace_root_digest=self.workspace_root_digest,
+            entries=entries,
+        )
+
+        directory = self._snapshot_directory(
+            snapshot.snapshot_id
+        )
+        blobs_directory = directory / "blobs"
+
+        try:
+            blobs_directory.mkdir(
+                parents=True,
+                exist_ok=False,
+            )
+
+            for digest, content in blobs.items():
+                atomic_write_bytes(
+                    blobs_directory / digest,
+                    content,
+                    mode=0o600,
+                )
+
+            atomic_write_bytes(
+                directory / "manifest.json",
+                snapshot.to_json().encode("utf-8"),
+                mode=0o600,
+            )
+
+        except Exception as exc:
+            if directory.exists():
+                import shutil
+
+                shutil.rmtree(
+                    directory,
+                    ignore_errors=True,
+                )
+
+            raise SnapshotStoreError(
+                f"snapshot persistence failed: {exc}"
+            ) from exc
+
+        return snapshot
+
+    def _create_snapshot_from_captured_state(
+        self,
+        *,
+        task_id: UUID,
+        relative_path: str,
+        existed: bool,
+        content: bytes | None,
+        mode: int | None,
+    ) -> WorkspaceSnapshot:
+        """Persist one authority-bound state without re-reading its path."""
+
+        normalized = self._validate_target_path(
+            relative_path
+        )
+
+        if existed:
+            if content is None or mode is None:
+                raise SnapshotStoreError(
+                    "existing captured state requires content and mode"
+                )
+
+            digest = digest_bytes(content)
+
+            entry = SnapshotEntry(
+                relative_path=normalized,
+                existed=True,
+                content_digest=digest,
+                size_bytes=len(content),
+                mode=mode,
+            )
+
+            return self._persist_snapshot(
+                task_id=task_id,
+                entries=(entry,),
+                blobs={digest: content},
+            )
+
+        if content is not None or mode is not None:
+            raise SnapshotStoreError(
+                "absent captured state cannot carry content or mode"
+            )
+
+        entry = SnapshotEntry(
+            relative_path=normalized,
+            existed=False,
+        )
+
+        return self._persist_snapshot(
+            task_id=task_id,
+            entries=(entry,),
+            blobs={},
+        )
+
     def create_snapshot(
         self,
         *,
@@ -133,30 +913,11 @@ class WorkspaceSnapshotStore:
                     )
                 )
 
-        snapshot = WorkspaceSnapshot.build(
+        return self._persist_snapshot(
             task_id=task_id,
-            workspace_root_digest=self.workspace_root_digest,
             entries=tuple(entries),
+            blobs=blobs,
         )
-        directory = self._snapshot_directory(snapshot.snapshot_id)
-        blobs_directory = directory / "blobs"
-        try:
-            blobs_directory.mkdir(parents=True, exist_ok=False)
-            for digest, content in blobs.items():
-                blob_path = blobs_directory / digest
-                atomic_write_bytes(blob_path, content, mode=0o600)
-            atomic_write_bytes(
-                directory / "manifest.json",
-                snapshot.to_json().encode("utf-8"),
-                mode=0o600,
-            )
-        except Exception as exc:
-            if directory.exists():
-                import shutil
-
-                shutil.rmtree(directory, ignore_errors=True)
-            raise SnapshotStoreError(f"snapshot persistence failed: {exc}") from exc
-        return snapshot
 
     def load_snapshot(self, snapshot_id: UUID) -> WorkspaceSnapshot:
         manifest_path = self._snapshot_directory(snapshot_id) / "manifest.json"

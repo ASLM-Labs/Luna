@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 from threading import Event, Thread
 from urllib.error import HTTPError
-from uuid import uuid4
+from uuid import UUID, uuid4
+
+import pytest
 
 from luna.conformance.runtime_executor import _build_runtime, _policy, _request
 from luna.modeling import (
@@ -20,7 +23,16 @@ from luna.modeling import (
     ProviderRetryCoordinator,
 )
 from luna.planning import RetryReason
-from luna.runtime import RuntimeBudget, RuntimeOutcome, RuntimeStopReason
+from luna.runtime import (
+    ProviderRetryScheduleStage,
+    RuntimeBudget,
+    RuntimeControlCommand,
+    RuntimeJournalConflictError,
+    RuntimeMode,
+    RuntimeOutcome,
+    RuntimeStopReason,
+    SQLiteRuntimeJournal,
+)
 
 
 class SequencedProviderBackend:
@@ -35,6 +47,7 @@ class SequencedProviderBackend:
         self._tool_name = tool_name
         self._arguments = arguments or {"path": "note.txt"}
         self.calls = 0
+        self.requests: list[ModelRequest] = []
         self.first_call = Event()
 
     @property
@@ -42,6 +55,7 @@ class SequencedProviderBackend:
         return "t2-sequenced-provider"
 
     def generate(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
         self.calls += 1
         self.first_call.set()
         if self.calls <= len(self._failures):
@@ -118,7 +132,7 @@ def test_rate_limit_retry_after_is_evidence_bound_then_succeeds(tmp_path: Path) 
         ((ModelBackendErrorCode.RATE_LIMITED, True, 0.01),)
     )
 
-    outcome, _ = _run_case(tmp_path, backend)
+    outcome, harness = _run_case(tmp_path, backend)
 
     assert backend.calls == 2
     assert outcome.usage.model_calls == 2
@@ -129,6 +143,24 @@ def test_rate_limit_retry_after_is_evidence_bound_then_succeeds(tmp_path: Path) 
     assert evidence.delay_seconds == 0.01
     assert evidence.retry_reason is RetryReason.CHANGED_BASIS
     assert "evidence" in evidence.changed_dimensions
+
+    schedules = (
+        harness.runtime._deps.runtime_journal
+        .list_provider_retry_schedules(outcome.task_id)
+    )
+    assert len(schedules) == 1
+
+    schedule = schedules[0]
+    assert schedule.stage is ProviderRetryScheduleStage.RESOLVED
+    assert schedule.evidence == evidence
+    assert schedule.started_model_request_id == backend.requests[1].request_id
+    assert (
+        schedule.started_model_request_fingerprint
+        == backend.requests[1].fingerprint()
+        == evidence.request_fingerprint
+    )
+    assert schedule.started_at is not None
+    assert schedule.resolved_at is not None
 
 
 def test_transient_timeout_uses_exponential_backoff_then_succeeds(tmp_path: Path) -> None:
@@ -206,6 +238,15 @@ def test_cancellation_during_backoff_stops_before_another_provider_call(
     assert result[0].stop_reason is RuntimeStopReason.CANCELLED
     assert result[0].usage.model_calls == 1
     assert result[0].usage.tool_calls == 0
+
+    schedules = (
+        harness.runtime._deps.runtime_journal
+        .list_provider_retry_schedules(request.task_id)
+    )
+    assert len(schedules) == 1
+    assert schedules[0].stage is ProviderRetryScheduleStage.CANCELLED
+    assert schedules[0].started_model_request_id is None
+    assert schedules[0].started_model_request_fingerprint is None
 
 
 def test_max_attempts_exhaust_to_deterministic_provider_failure(tmp_path: Path) -> None:
@@ -350,3 +391,482 @@ def test_local_adapter_preserves_valid_retry_after_without_raw_header() -> None:
         assert "Retry-After" not in str(exc)
     else:
         raise AssertionError("429 transport must raise ModelBackendError")
+
+
+def _journal_retry_plan(
+    *,
+    delay_seconds: float = 0.0,
+) -> tuple[UUID, UUID, UUID, object]:
+    coordinator = ProviderRetryCoordinator()
+    task_id = uuid4()
+    trace_id = uuid4()
+    step_id = uuid4()
+    basis = coordinator.initial_basis(
+        backend_id="durable-provider",
+        request_fingerprint="a" * 64,
+        scope_fingerprint="b" * 64,
+        assumption_revision=0,
+    )
+    plan = coordinator.plan(
+        task_id=task_id,
+        step_id=step_id,
+        attempt_number=1,
+        code=ModelBackendErrorCode.RATE_LIMITED,
+        backend_id="durable-provider",
+        request_fingerprint="a" * 64,
+        retry_after_seconds=delay_seconds,
+        failure_ref=uuid4(),
+        current_basis=basis,
+        history=(),
+    )
+    assert plan.evidence is not None
+    return task_id, trace_id, step_id, plan
+
+
+def test_provider_retry_schedule_is_durable_before_wait(
+    tmp_path: Path,
+) -> None:
+    task_id, trace_id, step_id, plan = _journal_retry_plan(
+        delay_seconds=60.0
+    )
+    journal_path = tmp_path / "journal.sqlite3"
+    journal = SQLiteRuntimeJournal(journal_path)
+
+    scheduled = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+
+    assert scheduled.stage is ProviderRetryScheduleStage.SCHEDULED
+    assert scheduled.eligible_at > scheduled.scheduled_at
+    assert journal.latest_recoverable_provider_retry(task_id) == scheduled
+
+    repeated = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+    assert repeated == scheduled
+
+    reopened = SQLiteRuntimeJournal(journal_path)
+    assert reopened.schema_version() == 4
+    assert reopened.list_provider_retry_schedules(task_id) == (scheduled,)
+    assert reopened.latest_recoverable_provider_retry(task_id) == scheduled
+    assert reopened.verify_integrity()
+
+
+def test_provider_retry_schedule_start_and_resolution_are_fenced(
+    tmp_path: Path,
+) -> None:
+    task_id, trace_id, step_id, plan = _journal_retry_plan()
+    journal = SQLiteRuntimeJournal(tmp_path / "journal.sqlite3")
+
+    scheduled = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+
+    started_request_id = uuid4()
+    started = journal.mark_provider_retry_started(
+        schedule_id=scheduled.schedule_id,
+        model_request_id=started_request_id,
+        model_request_fingerprint=plan.evidence.request_fingerprint,
+    )
+    assert started.stage is ProviderRetryScheduleStage.STARTED
+    assert started.started_at is not None
+    assert started.started_model_request_id == started_request_id
+    assert (
+        journal.mark_provider_retry_started(
+            schedule_id=scheduled.schedule_id,
+            model_request_id=started_request_id,
+            model_request_fingerprint=plan.evidence.request_fingerprint,
+        )
+        == started
+    )
+
+    resolved = journal.resolve_provider_retry(scheduled.schedule_id)
+    assert resolved.stage is ProviderRetryScheduleStage.RESOLVED
+    assert resolved.resolved_at is not None
+    assert journal.resolve_provider_retry(scheduled.schedule_id) == resolved
+    assert journal.latest_recoverable_provider_retry(task_id) is None
+
+    with pytest.raises(
+        RuntimeJournalConflictError,
+        match="cancelled only before it starts",
+    ):
+        journal.cancel_provider_retry(
+            schedule_id=scheduled.schedule_id,
+            reason="too late",
+        )
+
+    assert journal.verify_integrity()
+
+
+def test_provider_retry_schedule_can_cancel_only_before_start(
+    tmp_path: Path,
+) -> None:
+    task_id, trace_id, step_id, plan = _journal_retry_plan(
+        delay_seconds=60.0
+    )
+    journal = SQLiteRuntimeJournal(tmp_path / "journal.sqlite3")
+
+    scheduled = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+
+    cancelled = journal.cancel_provider_retry(
+        schedule_id=scheduled.schedule_id,
+        reason="owner cancelled provider backoff",
+    )
+    assert cancelled.stage is ProviderRetryScheduleStage.CANCELLED
+    assert cancelled.cancelled_at is not None
+    assert journal.latest_recoverable_provider_retry(task_id) is None
+
+    assert (
+        journal.cancel_provider_retry(
+            schedule_id=scheduled.schedule_id,
+            reason="owner cancelled provider backoff",
+        )
+        == cancelled
+    )
+
+    with pytest.raises(
+        RuntimeJournalConflictError,
+        match="start only from SCHEDULED",
+    ):
+        journal.mark_provider_retry_started(
+            schedule_id=scheduled.schedule_id,
+            model_request_id=uuid4(),
+            model_request_fingerprint=plan.evidence.request_fingerprint,
+        )
+
+
+def test_provider_retry_schedule_row_binding_tamper_is_rejected(
+    tmp_path: Path,
+) -> None:
+    task_id, trace_id, step_id, plan = _journal_retry_plan(
+        delay_seconds=60.0
+    )
+    journal_path = tmp_path / "journal.sqlite3"
+    journal = SQLiteRuntimeJournal(journal_path)
+
+    scheduled = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+    assert journal.verify_integrity()
+
+    with sqlite3.connect(journal_path) as connection:
+        connection.execute(
+            """
+            UPDATE provider_retry_schedules
+            SET stage = 'STARTED'
+            WHERE schedule_id = ?
+            """,
+            (str(scheduled.schedule_id),),
+        )
+        connection.commit()
+
+    assert not journal.verify_integrity()
+
+
+def test_runtime_journal_migrates_v3_to_v4_without_losing_control(
+    tmp_path: Path,
+) -> None:
+    journal_path = tmp_path / "journal.sqlite3"
+    initial = SQLiteRuntimeJournal(journal_path)
+    assert initial.schema_version() == 4
+
+    task_id = uuid4()
+    control = initial.request_control(
+        task_id=task_id,
+        command=RuntimeControlCommand.CANCEL,
+        reason="preserve across v3 to v4 migration",
+    )
+
+    with sqlite3.connect(journal_path) as connection:
+        connection.execute("DROP TABLE provider_retry_schedules")
+        connection.execute(
+            """
+            DELETE FROM journal_schema
+            WHERE version = 4
+            """
+        )
+        connection.commit()
+
+    reopened = SQLiteRuntimeJournal(journal_path)
+
+    assert reopened.schema_version() == 4
+    assert reopened.latest_control(task_id) == control
+    assert reopened.list_provider_retry_schedules(task_id) == ()
+    assert reopened.verify_integrity()
+
+
+def test_provider_retry_start_binds_changed_safe_boundary_request_fingerprint(
+    tmp_path: Path,
+) -> None:
+    task_id, trace_id, step_id, plan = _journal_retry_plan()
+    journal = SQLiteRuntimeJournal(tmp_path / "journal.sqlite3")
+
+    scheduled = journal.schedule_provider_retry(
+        task_id=task_id,
+        trace_id=trace_id,
+        step_id=step_id,
+        failed_attempt=plan.failed_attempt,
+        candidate_basis=plan.candidate_basis,
+        evidence=plan.evidence,
+    )
+
+    started_request_id = uuid4()
+    started_request_fingerprint = "f" * 64
+
+    assert (
+        started_request_fingerprint
+        != plan.evidence.request_fingerprint
+    )
+
+    started = journal.mark_provider_retry_started(
+        schedule_id=scheduled.schedule_id,
+        model_request_id=started_request_id,
+        model_request_fingerprint=started_request_fingerprint,
+    )
+
+    assert started.stage is ProviderRetryScheduleStage.STARTED
+    assert (
+        started.evidence.request_fingerprint
+        == plan.evidence.request_fingerprint
+    )
+    assert started.started_model_request_id == started_request_id
+    assert (
+        started.started_model_request_fingerprint
+        == started_request_fingerprint
+    )
+    assert (
+        journal.load_provider_retry_schedule(
+            scheduled.schedule_id
+        )
+        == started
+    )
+
+
+class _SyntheticProviderCrash(BaseException):
+    """Synthetic process-loss boundary that bypasses Exception handlers."""
+
+
+class _CrashOnSecondProviderBackend(SequencedProviderBackend):
+    """Crash after retry STARTED is durable and backend execution begins."""
+
+    def generate(self, request: ModelRequest) -> ModelResponse:
+        if self.calls == 1:
+            self.requests.append(request)
+            self.calls += 1
+            raise _SyntheticProviderCrash(
+                "synthetic crash inside started provider retry"
+            )
+        return super().generate(request)
+
+
+def test_cold_resume_of_scheduled_provider_retry_never_replays_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "note.txt").write_text("before", encoding="utf-8")
+
+    state_root = tmp_path / "state"
+    backend = SequencedProviderBackend(
+        ((ModelBackendErrorCode.RATE_LIMITED, True, 5.0),)
+    )
+    harness = _build_runtime(
+        workspace=workspace,
+        state_root=state_root,
+        backend=backend,
+    )
+    request = _request(
+        workspace,
+        allowed_tools=("filesystem.read_text",),
+    )
+    policy = _policy(
+        allowed_tools=("filesystem.read_text",)
+    )
+
+    def crash_wait(
+        delay_seconds: float,
+        *,
+        cancellation_probe: object,
+    ) -> None:
+        del delay_seconds, cancellation_probe
+        raise _SyntheticProviderCrash(
+            "synthetic crash after retry schedule persistence"
+        )
+
+    monkeypatch.setattr(
+        harness.runtime._provider_retry,
+        "wait",
+        crash_wait,
+    )
+
+    with pytest.raises(
+        _SyntheticProviderCrash,
+        match="after retry schedule persistence",
+    ):
+        harness.runtime.run(
+            request=request,
+            tool_policy=policy,
+        )
+
+    scheduled = (
+        harness.runtime._deps.runtime_journal
+        .latest_recoverable_provider_retry(
+            request.task_id
+        )
+    )
+    assert scheduled is not None
+    assert scheduled.stage is ProviderRetryScheduleStage.SCHEDULED
+    assert scheduled.pre_retry_state is not None
+    assert backend.calls == 1
+
+    resume_backend = SequencedProviderBackend(())
+    resumed_harness = _build_runtime(
+        workspace=workspace,
+        state_root=state_root,
+        backend=resume_backend,
+    )
+    resume_request = _request(
+        workspace,
+        task_id=request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+
+    resumed = resumed_harness.runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    assert resumed.stop_reason is RuntimeStopReason.INTERRUPTED
+    assert resumed.usage.model_calls == 0
+    assert resumed.usage.tool_calls == 0
+    assert resume_backend.calls == 0
+    assert (
+        "automatic provider replay is forbidden"
+        in " ".join(resumed.reasons)
+    )
+
+    still_scheduled = (
+        resumed_harness.runtime._deps.runtime_journal
+        .latest_recoverable_provider_retry(
+            request.task_id
+        )
+    )
+    assert still_scheduled == scheduled
+
+
+def test_cold_resume_of_started_provider_retry_never_replays_backend(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "note.txt").write_text("before", encoding="utf-8")
+
+    state_root = tmp_path / "state"
+    backend = _CrashOnSecondProviderBackend(
+        ((ModelBackendErrorCode.RATE_LIMITED, True, 0.0),)
+    )
+    harness = _build_runtime(
+        workspace=workspace,
+        state_root=state_root,
+        backend=backend,
+    )
+    request = _request(
+        workspace,
+        allowed_tools=("filesystem.read_text",),
+    )
+    policy = _policy(
+        allowed_tools=("filesystem.read_text",)
+    )
+
+    with pytest.raises(
+        _SyntheticProviderCrash,
+        match="inside started provider retry",
+    ):
+        harness.runtime.run(
+            request=request,
+            tool_policy=policy,
+        )
+
+    started = (
+        harness.runtime._deps.runtime_journal
+        .latest_recoverable_provider_retry(
+            request.task_id
+        )
+    )
+    assert started is not None
+    assert started.stage is ProviderRetryScheduleStage.STARTED
+    assert started.pre_retry_state is not None
+    assert started.started_model_request_id is not None
+    assert started.started_model_request_fingerprint is not None
+    assert backend.calls == 2
+
+    resume_backend = SequencedProviderBackend(())
+    resumed_harness = _build_runtime(
+        workspace=workspace,
+        state_root=state_root,
+        backend=resume_backend,
+    )
+    resume_request = _request(
+        workspace,
+        task_id=request.task_id,
+        allowed_tools=("filesystem.read_text",),
+        mode=RuntimeMode.RESUME,
+    )
+
+    first = resumed_harness.runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+    second = resumed_harness.runtime.resume(
+        request=resume_request,
+        tool_policy=policy,
+    )
+
+    for resumed in (first, second):
+        assert resumed.stop_reason is RuntimeStopReason.INTERRUPTED
+        assert resumed.usage.model_calls == 0
+        assert resumed.usage.tool_calls == 0
+        assert (
+            "automatic provider replay is forbidden"
+            in " ".join(resumed.reasons)
+        )
+
+    assert resume_backend.calls == 0
+
+    still_started = (
+        resumed_harness.runtime._deps.runtime_journal
+        .latest_recoverable_provider_retry(
+            request.task_id
+        )
+    )
+    assert still_started == started
+    assert still_started.stage is ProviderRetryScheduleStage.STARTED

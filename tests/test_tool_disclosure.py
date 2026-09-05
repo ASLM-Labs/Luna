@@ -16,7 +16,10 @@ from luna.modeling import (
     ModelResponse,
     ModelToolCall,
 )
-from luna.runtime import RuntimeOutcome
+from luna.runtime import (
+    ProviderRetryScheduleStage,
+    RuntimeOutcome,
+)
 from luna.tools import (
     ToolDisclosureDecisionStatus,
     ToolDisclosureDenialCode,
@@ -164,6 +167,33 @@ def test_deferred_schema_appears_only_on_next_safe_model_request(
     assert outcomes[0].usage.model_calls == 2
     assert outcomes[0].usage.tool_calls == 1
     assert len(outcomes[0].usage.provider_retry_evidence) == 1
+
+    retry_evidence = outcomes[0].usage.provider_retry_evidence[0]
+    schedules = (
+        harness.runtime._deps.runtime_journal
+        .list_provider_retry_schedules(request.task_id)
+    )
+    assert len(schedules) == 1
+
+    schedule = schedules[0]
+    assert schedule.stage is ProviderRetryScheduleStage.RESOLVED
+    assert (
+        schedule.evidence.request_fingerprint
+        == first_request.fingerprint()
+        == retry_evidence.request_fingerprint
+    )
+    assert (
+        schedule.started_model_request_id
+        == backend.requests[1].request_id
+    )
+    assert (
+        schedule.started_model_request_fingerprint
+        == backend.requests[1].fingerprint()
+    )
+    assert (
+        schedule.started_model_request_fingerprint
+        != schedule.evidence.request_fingerprint
+    )
 
 
 def test_disclosure_cannot_widen_policy_scope_risk_budget_or_approval(

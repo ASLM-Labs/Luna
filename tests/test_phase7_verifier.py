@@ -300,6 +300,209 @@ def test_unrecognized_evidence_requirement_is_unverified() -> None:
     )
 
 
+def test_or_requirement_accepts_any_direct_alternative() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "workspace diff or verifier evidence",
+            )
+        }
+    )
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=_complete_evidence(contract),
+        policy=_policy(),
+    )
+
+    assessment = report.evidence_requirement_assessments[0]
+
+    assert report.completion_status is CompletionStatus.VERIFIED_COMPLETE
+    assert assessment.status is ClaimStatus.PASS
+    assert assessment.recognized_rules == (
+        "DIFF",
+        "ANY_DIRECT",
+    )
+    assert assessment.reasons == (
+        "at least one deterministic evidence alternative is satisfied",
+    )
+
+
+def test_or_requirement_accepts_diff_alternative() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "workspace diff or verifier evidence",
+            )
+        }
+    )
+    evidence = (
+        _evidence(
+            contract,
+            requirement_id=required_condition_claim_id(
+                "Tests pass."
+            ),
+            source_kind=EvidenceSourceKind.DIFF,
+        ),
+        _complete_evidence(contract)[1],
+    )
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+
+    assessment = report.evidence_requirement_assessments[0]
+
+    assert report.completion_status is CompletionStatus.VERIFIED_COMPLETE
+    assert assessment.status is ClaimStatus.PASS
+    assert assessment.recognized_rules == (
+        "DIFF",
+        "ANY_DIRECT",
+    )
+
+
+def test_or_requirement_is_unverified_when_no_alternative_matches() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "workspace diff or verifier evidence",
+            )
+        }
+    )
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=(),
+        policy=_policy(),
+    )
+
+    assessment = report.evidence_requirement_assessments[0]
+
+    assert assessment.status is ClaimStatus.UNVERIFIED
+    assert assessment.recognized_rules == (
+        "DIFF",
+        "ANY_DIRECT",
+    )
+    assert assessment.reasons == (
+        "no deterministic evidence alternative is fully satisfied",
+    )
+
+
+def test_or_requirement_still_requires_qualifying_evidence() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "workspace diff or verifier evidence",
+            )
+        }
+    )
+    evidence = tuple(
+        item.model_copy(update={"reproducible": False})
+        for item in _complete_evidence(contract)
+    )
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+
+    assert (
+        report.evidence_requirement_assessments[0].status
+        is ClaimStatus.UNVERIFIED
+    )
+
+
+def test_non_or_multiple_rules_remain_conjunctive() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "test result and hash evidence",
+            )
+        }
+    )
+    evidence = (_complete_evidence(contract)[0],)
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+
+    assessment = report.evidence_requirement_assessments[0]
+
+    assert assessment.status is ClaimStatus.UNVERIFIED
+    assert assessment.recognized_rules == (
+        "TEST_RESULT",
+        "HASH",
+        "ANY_DIRECT",
+    )
+    assert assessment.reasons == (
+        "missing strong qualifying evidence for: HASH",
+    )
+
+
+def test_or_requirement_with_unmapped_alternative_fails_closed() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "diff or owner aura",
+            )
+        }
+    )
+    evidence = (
+        _evidence(
+            contract,
+            requirement_id=required_condition_claim_id(
+                "Tests pass."
+            ),
+            source_kind=EvidenceSourceKind.DIFF,
+        ),
+        _complete_evidence(contract)[1],
+    )
+
+    report = DeterministicVerifier().verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+
+    assessment = report.evidence_requirement_assessments[0]
+
+    assert assessment.status is ClaimStatus.UNVERIFIED
+    assert assessment.recognized_rules == ("DIFF",)
+    assert assessment.reasons == (
+        "evidence requirement contains unmapped OR alternative(s): 2",
+    )
+
+
+def test_or_requirement_has_deterministic_semantic_signature() -> None:
+    contract = _contract().model_copy(
+        update={
+            "evidence_required": (
+                "workspace diff or verifier evidence",
+            )
+        }
+    )
+    evidence = _complete_evidence(contract)
+    verifier = DeterministicVerifier()
+
+    first = verifier.verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+    second = verifier.verify(
+        contract=contract,
+        evidence=evidence,
+        policy=_policy(),
+    )
+
+    assert first.semantic_signature() == second.semantic_signature()
+
+
 def test_same_input_has_same_semantic_report() -> None:
     contract = _contract()
     evidence = _complete_evidence(contract)

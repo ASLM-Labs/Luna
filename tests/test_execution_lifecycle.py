@@ -24,6 +24,7 @@ class _RecordingHandler:
     def __init__(self) -> None:
         self.calls = 0
         self.lifecycle = None
+        self.context: ToolExecutionContext | None = None
 
     def execute(
         self,
@@ -33,6 +34,7 @@ class _RecordingHandler:
         del arguments
         self.calls += 1
         self.lifecycle = context.lifecycle
+        self.context = context
         return ToolExecutionOutput(stdout="executed")
 
 
@@ -123,6 +125,31 @@ def test_pending_cancellation_before_dispatch_calls_no_handler() -> None:
     assert handler.calls == 0
     assert outcome.result.status is ToolResultStatus.BLOCKED
     assert outcome.result.error_class == "ToolExecutionCancelled"
+
+
+def test_dispatch_threads_exact_runtime_receipt_identity_to_handler() -> None:
+    handler = _RecordingHandler()
+    task = _contract()
+    request = _request(task)
+    runtime_receipt_id = uuid4()
+
+    outcome = _dispatcher(handler).dispatch(
+        request=request,
+        task_contract=task,
+        policy=_policy(),
+        runtime_receipt_id=runtime_receipt_id,
+    )
+
+    assert outcome.result.status is ToolResultStatus.SUCCESS
+    assert handler.context is not None
+    assert (
+        handler.context.lifecycle.execution_id
+        == request.request_id
+    )
+    assert (
+        handler.context.runtime_receipt_id
+        == runtime_receipt_id
+    )
 
 
 def test_cooperative_handler_observes_runtime_cancellation_and_stops() -> None:

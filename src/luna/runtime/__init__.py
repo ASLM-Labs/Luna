@@ -37,6 +37,8 @@ from luna.runtime.isolation import (
 )
 from luna.runtime.journal import (
     JOURNAL_SCHEMA_VERSION,
+    ProviderRetryScheduleRecord,
+    ProviderRetryScheduleStage,
     RuntimeControlCommand,
     RuntimeControlRecord,
     RuntimeJournalConflictError,
@@ -76,6 +78,8 @@ __all__ = [
     "Phase12FServices",
     "PolicyTurn",
     "PolicyTurnStatus",
+    "ProviderRetryScheduleRecord",
+    "ProviderRetryScheduleStage",
     "RequestSource",
     "RuntimeActor",
     "RuntimeBudget",

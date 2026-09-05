@@ -6,11 +6,13 @@ import json
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
+from typing import Literal
 from uuid import UUID, uuid4
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from luna.contracts.base import LunaContractModel, require_utc, utc_now
+from luna.applied_changes.models import AppliedChangeCandidate
+from luna.contracts.base import SCHEMA_VERSION, LunaContractModel, require_utc, utc_now
 
 
 def _snapshot_digest_payload(
@@ -48,6 +50,38 @@ class RollbackStatus(StrEnum):
 
     RESTORED = "RESTORED"
     NO_CHANGES = "NO_CHANGES"
+
+
+class WorkspaceTargetBasis(LunaContractModel):
+    """Immutable state accepted before mutating one workspace target."""
+
+    model_config = ConfigDict(frozen=True)
+
+    relative_path: str = Field(min_length=1, max_length=4000)
+    existed: bool
+    content_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(default=0, ge=0)
+    mode: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_basis(self) -> WorkspaceTargetBasis:
+        if self.existed:
+            if self.content_digest is None or self.mode is None:
+                raise ValueError(
+                    "existing target basis requires digest and mode"
+                )
+        elif (
+            self.content_digest is not None
+            or self.size_bytes != 0
+            or self.mode is not None
+        ):
+            raise ValueError(
+                "absent target basis cannot carry file content metadata"
+            )
+        return self
 
 
 class SnapshotEntry(LunaContractModel):
@@ -141,6 +175,745 @@ class WorkspaceSnapshot(LunaContractModel):
         )
 
 
+
+class SafeUndoReceiptState(StrEnum):
+    """Durable lifecycle state for one conditional safe-undo receipt."""
+
+    PREPARED = "PREPARED"
+    PUBLICATION_PREPARED = "PUBLICATION_PREPARED"
+    COMMITTED = "COMMITTED"
+    UNDONE = "UNDONE"
+
+
+class WindowsAfterStateToken(LunaContractModel):
+    """Durable Windows identity, freshness, content, and policy evidence."""
+
+    model_config = ConfigDict(frozen=True)
+
+    volume_serial_number: int = Field(ge=0)
+    file_id: str = Field(
+        pattern=r"^[0-9a-f]{32}$",
+    )
+    creation_time: int = Field(ge=0)
+    last_write_time: int = Field(ge=0)
+    change_time: int = Field(ge=0)
+    content_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(ge=0)
+    mode: int = Field(ge=0)
+    dacl_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    dacl_protected: bool
+
+
+class WindowsPreparedPublicationIdentity(
+    LunaContractModel
+):
+    """Stable object/content/policy identity captured before publication."""
+
+    model_config = ConfigDict(frozen=True)
+
+    volume_serial_number: int = Field(ge=0)
+    file_id: str = Field(
+        pattern=r"^[0-9a-f]{32}$",
+    )
+    creation_time: int = Field(ge=0)
+    last_write_time: int = Field(ge=0)
+    content_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    size_bytes: int = Field(ge=0)
+    mode: int = Field(ge=0)
+    dacl_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    dacl_protected: bool
+
+    @classmethod
+    def from_after_state_token(
+        cls,
+        token: WindowsAfterStateToken,
+    ) -> WindowsPreparedPublicationIdentity:
+        """Project only fields proven stable across native publication."""
+
+        return cls(
+            volume_serial_number=(
+                token.volume_serial_number
+            ),
+            file_id=token.file_id,
+            creation_time=token.creation_time,
+            last_write_time=(
+                token.last_write_time
+            ),
+            content_sha256=(
+                token.content_sha256
+            ),
+            size_bytes=token.size_bytes,
+            mode=token.mode,
+            dacl_sha256=token.dacl_sha256,
+            dacl_protected=(
+                token.dacl_protected
+            ),
+        )
+
+    def matches_after_state_token(
+        self,
+        token: WindowsAfterStateToken,
+    ) -> bool:
+        """Return observational stable-projection equality only."""
+
+        return self == type(self).from_after_state_token(
+            token
+        )
+
+
+class WorkspaceExecutionBinding(LunaContractModel):
+    """Exact runtime identities bound to one workspace side-effect attempt."""
+
+    model_config = ConfigDict(frozen=True)
+
+    request_id: UUID
+    runtime_receipt_id: UUID
+
+
+def _safe_undo_receipt_digest_payload(
+    *,
+    schema_version: str,
+    receipt_version: int,
+    state: SafeUndoReceiptState,
+    snapshot_id: UUID,
+    snapshot_digest: str,
+    task_id: UUID,
+    workspace_root_digest: str,
+    relative_path: str,
+    expected_after_sha256: str,
+    expected_after_size_bytes: int,
+    execution_binding: WorkspaceExecutionBinding | None,
+    prepared_publication_identity: (
+        WindowsPreparedPublicationIdentity | None
+    ),
+    after_token: WindowsAfterStateToken | None,
+) -> bytes:
+    payload = {
+        "schema_version": schema_version,
+        "receipt_version": receipt_version,
+        "state": state.value,
+        "snapshot_id": str(snapshot_id),
+        "snapshot_digest": snapshot_digest,
+        "task_id": str(task_id),
+        "workspace_root_digest": workspace_root_digest,
+        "relative_path": relative_path,
+        "expected_after_sha256": expected_after_sha256,
+        "expected_after_size_bytes": expected_after_size_bytes,
+        "after_token": (
+            None
+            if after_token is None
+            else after_token.model_dump(mode="json")
+        ),
+    }
+
+    # Preserve the exact v1 digest payload. New identity material
+    # participates in the digest only for receipt_version == 2.
+    if receipt_version == 2:
+        payload["execution_binding"] = (
+            None
+            if execution_binding is None
+            else execution_binding.model_dump(mode="json")
+        )
+        payload["prepared_publication_identity"] = (
+            None
+            if prepared_publication_identity is None
+            else prepared_publication_identity.model_dump(
+                mode="json"
+            )
+        )
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+class SafeUndoReceipt(LunaContractModel):
+    """Integrity-bound durable authority record for conditional safe undo."""
+
+    model_config = ConfigDict(frozen=True)
+
+    receipt_version: Literal[1, 2] = 1
+    state: SafeUndoReceiptState
+
+    snapshot_id: UUID
+    snapshot_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    task_id: UUID
+    workspace_root_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    relative_path: str = Field(
+        min_length=1,
+        max_length=4000,
+    )
+
+    expected_after_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    expected_after_size_bytes: int = Field(
+        ge=0,
+    )
+
+    execution_binding: WorkspaceExecutionBinding | None = None
+    prepared_publication_identity: (
+        WindowsPreparedPublicationIdentity | None
+    ) = None
+    after_token: WindowsAfterStateToken | None = None
+
+    receipt_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    @model_validator(mode="after")
+    def validate_receipt(
+        self,
+    ) -> SafeUndoReceipt:
+        if self.receipt_version == 1:
+            if self.execution_binding is not None:
+                raise ValueError(
+                    "v1 safe-undo receipt cannot carry "
+                    "execution binding"
+                )
+
+            if (
+                self.prepared_publication_identity
+                is not None
+            ):
+                raise ValueError(
+                    "v1 safe-undo receipt cannot carry "
+                    "prepared publication identity"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PUBLICATION_PREPARED
+            ):
+                raise ValueError(
+                    "v1 safe-undo receipt cannot enter "
+                    "PUBLICATION_PREPARED"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PREPARED
+            ):
+                if self.after_token is not None:
+                    raise ValueError(
+                        "PREPARED safe-undo receipt "
+                        "cannot carry an after token"
+                    )
+
+            elif self.after_token is None:
+                raise ValueError(
+                    "COMMITTED or UNDONE safe-undo "
+                    "receipt requires an after token"
+                )
+
+        else:
+            if self.execution_binding is None:
+                raise ValueError(
+                    "v2 safe-undo receipt requires "
+                    "an execution binding"
+                )
+
+            if (
+                self.state
+                is SafeUndoReceiptState.PREPARED
+            ):
+                if (
+                    self.prepared_publication_identity
+                    is not None
+                    or self.after_token is not None
+                ):
+                    raise ValueError(
+                        "v2 PREPARED safe-undo receipt "
+                        "cannot carry publication evidence"
+                    )
+
+            elif (
+                self.state
+                is SafeUndoReceiptState.PUBLICATION_PREPARED
+            ):
+                if (
+                    self.prepared_publication_identity
+                    is None
+                ):
+                    raise ValueError(
+                        "PUBLICATION_PREPARED safe-undo "
+                        "receipt requires prepared identity"
+                    )
+
+                if self.after_token is not None:
+                    raise ValueError(
+                        "PUBLICATION_PREPARED safe-undo "
+                        "receipt cannot carry an after token"
+                    )
+
+            else:
+                if (
+                    self.prepared_publication_identity
+                    is None
+                    or self.after_token is None
+                ):
+                    raise ValueError(
+                        "v2 COMMITTED or UNDONE receipt "
+                        "requires prepared and after evidence"
+                    )
+
+        if (
+            self.prepared_publication_identity is not None
+            and (
+                self.prepared_publication_identity.content_sha256
+                != self.expected_after_sha256
+                or self.prepared_publication_identity.size_bytes
+                != self.expected_after_size_bytes
+            )
+        ):
+            raise ValueError(
+                "prepared publication identity does not "
+                "match expected after-state semantics"
+            )
+
+        if (
+            self.after_token is not None
+            and (
+                self.after_token.content_sha256
+                != self.expected_after_sha256
+                or self.after_token.size_bytes
+                != self.expected_after_size_bytes
+            )
+        ):
+            raise ValueError(
+                "safe-undo after token does not "
+                "match expected after-state semantics"
+            )
+
+        if (
+            self.prepared_publication_identity is not None
+            and self.after_token is not None
+            and not (
+                self.prepared_publication_identity
+                .matches_after_state_token(
+                    self.after_token
+                )
+            )
+        ):
+            raise ValueError(
+                "published after token does not match "
+                "durable prepared publication identity"
+            )
+
+        expected = sha256(
+            _safe_undo_receipt_digest_payload(
+                schema_version=self.schema_version,
+                receipt_version=self.receipt_version,
+                state=self.state,
+                snapshot_id=self.snapshot_id,
+                snapshot_digest=self.snapshot_digest,
+                task_id=self.task_id,
+                workspace_root_digest=(
+                    self.workspace_root_digest
+                ),
+                relative_path=self.relative_path,
+                expected_after_sha256=(
+                    self.expected_after_sha256
+                ),
+                expected_after_size_bytes=(
+                    self.expected_after_size_bytes
+                ),
+                execution_binding=(
+                    self.execution_binding
+                ),
+                prepared_publication_identity=(
+                    self.prepared_publication_identity
+                ),
+                after_token=self.after_token,
+            )
+        ).hexdigest()
+
+        if self.receipt_digest != expected:
+            raise ValueError(
+                "receipt_digest does not match "
+                "safe-undo receipt"
+            )
+
+        return self
+
+    @classmethod
+    def _build(
+        cls,
+        *,
+        receipt_version: Literal[1, 2],
+        state: SafeUndoReceiptState,
+        snapshot_id: UUID,
+        snapshot_digest: str,
+        task_id: UUID,
+        workspace_root_digest: str,
+        relative_path: str,
+        expected_after_sha256: str,
+        expected_after_size_bytes: int,
+        execution_binding: WorkspaceExecutionBinding | None,
+        prepared_publication_identity: (
+            WindowsPreparedPublicationIdentity | None
+        ),
+        after_token: WindowsAfterStateToken | None,
+    ) -> SafeUndoReceipt:
+        digest = sha256(
+            _safe_undo_receipt_digest_payload(
+                schema_version=SCHEMA_VERSION,
+                receipt_version=receipt_version,
+                state=state,
+                snapshot_id=snapshot_id,
+                snapshot_digest=snapshot_digest,
+                task_id=task_id,
+                workspace_root_digest=(
+                    workspace_root_digest
+                ),
+                relative_path=relative_path,
+                expected_after_sha256=(
+                    expected_after_sha256
+                ),
+                expected_after_size_bytes=(
+                    expected_after_size_bytes
+                ),
+                execution_binding=execution_binding,
+                prepared_publication_identity=(
+                    prepared_publication_identity
+                ),
+                after_token=after_token,
+            )
+        ).hexdigest()
+
+        return cls(
+            receipt_version=receipt_version,
+            state=state,
+            snapshot_id=snapshot_id,
+            snapshot_digest=snapshot_digest,
+            task_id=task_id,
+            workspace_root_digest=(
+                workspace_root_digest
+            ),
+            relative_path=relative_path,
+            expected_after_sha256=(
+                expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                expected_after_size_bytes
+            ),
+            execution_binding=execution_binding,
+            prepared_publication_identity=(
+                prepared_publication_identity
+            ),
+            after_token=after_token,
+            receipt_digest=digest,
+        )
+
+    @classmethod
+    def build_prepared(
+        cls,
+        *,
+        snapshot_id: UUID,
+        snapshot_digest: str,
+        task_id: UUID,
+        workspace_root_digest: str,
+        relative_path: str,
+        expected_after_sha256: str,
+        expected_after_size_bytes: int,
+        execution_binding: WorkspaceExecutionBinding | None = None,
+    ) -> SafeUndoReceipt:
+        receipt_version: Literal[1, 2] = (
+            2
+            if execution_binding is not None
+            else 1
+        )
+
+        return cls._build(
+            receipt_version=receipt_version,
+            state=SafeUndoReceiptState.PREPARED,
+            snapshot_id=snapshot_id,
+            snapshot_digest=snapshot_digest,
+            task_id=task_id,
+            workspace_root_digest=(
+                workspace_root_digest
+            ),
+            relative_path=relative_path,
+            expected_after_sha256=(
+                expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                expected_after_size_bytes
+            ),
+            execution_binding=execution_binding,
+            prepared_publication_identity=None,
+            after_token=None,
+        )
+
+    def with_prepared_publication_identity(
+        self,
+        identity: WindowsPreparedPublicationIdentity,
+    ) -> SafeUndoReceipt:
+        if self.receipt_version != 2:
+            raise ValueError(
+                "prepared publication transition "
+                "requires a v2 safe-undo receipt"
+            )
+
+        if (
+            self.state
+            is not SafeUndoReceiptState.PREPARED
+        ):
+            raise ValueError(
+                "prepared publication transition "
+                "requires PREPARED state"
+            )
+
+        return type(self)._build(
+            receipt_version=2,
+            state=(
+                SafeUndoReceiptState
+                .PUBLICATION_PREPARED
+            ),
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=identity,
+            after_token=None,
+        )
+
+    def with_committed_after_state(
+        self,
+        after_token: WindowsAfterStateToken,
+    ) -> SafeUndoReceipt:
+        required_state = (
+            SafeUndoReceiptState.PUBLICATION_PREPARED
+            if self.receipt_version == 2
+            else SafeUndoReceiptState.PREPARED
+        )
+
+        if self.state is not required_state:
+            raise ValueError(
+                "safe-undo receipt commit requires "
+                f"{required_state.value} state"
+            )
+
+        return type(self)._build(
+            receipt_version=self.receipt_version,
+            state=SafeUndoReceiptState.COMMITTED,
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=(
+                self.prepared_publication_identity
+            ),
+            after_token=after_token,
+        )
+
+    def with_undone_state(
+        self,
+    ) -> SafeUndoReceipt:
+        if (
+            self.state
+            is not SafeUndoReceiptState.COMMITTED
+        ):
+            raise ValueError(
+                "safe-undo receipt completion "
+                "requires COMMITTED state"
+            )
+
+        assert self.after_token is not None
+
+        return type(self)._build(
+            receipt_version=self.receipt_version,
+            state=SafeUndoReceiptState.UNDONE,
+            snapshot_id=self.snapshot_id,
+            snapshot_digest=self.snapshot_digest,
+            task_id=self.task_id,
+            workspace_root_digest=(
+                self.workspace_root_digest
+            ),
+            relative_path=self.relative_path,
+            expected_after_sha256=(
+                self.expected_after_sha256
+            ),
+            expected_after_size_bytes=(
+                self.expected_after_size_bytes
+            ),
+            execution_binding=self.execution_binding,
+            prepared_publication_identity=(
+                self.prepared_publication_identity
+            ),
+            after_token=self.after_token,
+        )
+
+
+class WorkspaceReconciliationTargetState(StrEnum):
+    """Observed target relation to one exact runtime-bound workspace receipt."""
+
+    NO_BOUND_RECEIPT = "NO_BOUND_RECEIPT"
+    BEFORE_MATCH = "BEFORE_MATCH"
+    AFTER_MATCH = "AFTER_MATCH"
+    DIVERGED = "DIVERGED"
+    UNOBSERVABLE = "UNOBSERVABLE"
+
+
+class WorkspaceExecutionReconciliation(LunaContractModel):
+    """Read-only cold observation for one exact runtime side-effect attempt."""
+
+    model_config = ConfigDict(frozen=True)
+
+    task_id: UUID
+    request_id: UUID
+    runtime_receipt_id: UUID
+
+    workspace_root_digest: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+    receipt_state: SafeUndoReceiptState | None = None
+
+    snapshot_id: UUID | None = None
+    snapshot_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    receipt_digest: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    relative_path: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=4000,
+    )
+
+    target_state: WorkspaceReconciliationTargetState
+
+    observed_after_token: WindowsAfterStateToken | None = None
+
+    reason: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2000,
+    )
+
+    @model_validator(mode="after")
+    def validate_reconciliation(
+        self,
+    ) -> WorkspaceExecutionReconciliation:
+        bound_values = (
+            self.snapshot_id,
+            self.snapshot_digest,
+            self.receipt_digest,
+            self.relative_path,
+        )
+
+        if self.receipt_state is None:
+            if any(
+                value is not None
+                for value in bound_values
+            ):
+                raise ValueError(
+                    "unbound reconciliation cannot "
+                    "carry receipt evidence"
+                )
+
+            if (
+                self.target_state
+                is not WorkspaceReconciliationTargetState
+                .NO_BOUND_RECEIPT
+            ):
+                raise ValueError(
+                    "missing receipt requires "
+                    "NO_BOUND_RECEIPT target state"
+                )
+
+            if self.observed_after_token is not None:
+                raise ValueError(
+                    "unbound reconciliation cannot "
+                    "carry target token evidence"
+                )
+
+        else:
+            if any(
+                value is None
+                for value in bound_values
+            ):
+                raise ValueError(
+                    "bound reconciliation requires "
+                    "complete receipt evidence"
+                )
+
+            if (
+                self.target_state
+                is WorkspaceReconciliationTargetState
+                .NO_BOUND_RECEIPT
+            ):
+                raise ValueError(
+                    "bound reconciliation cannot report "
+                    "NO_BOUND_RECEIPT"
+                )
+
+        if (
+            self.target_state
+            is WorkspaceReconciliationTargetState.AFTER_MATCH
+            and self.observed_after_token is None
+        ):
+            raise ValueError(
+                "AFTER_MATCH reconciliation requires "
+                "an observed after-state token"
+            )
+
+        if (
+            self.target_state
+            is WorkspaceReconciliationTargetState.UNOBSERVABLE
+            and self.reason is None
+        ):
+            raise ValueError(
+                "UNOBSERVABLE reconciliation requires "
+                "an explicit reason"
+            )
+
+        return self
+
+
 class FileChange(LunaContractModel):
     """Hash-addressed evidence for one committed file mutation."""
 
@@ -149,6 +922,7 @@ class FileChange(LunaContractModel):
     after_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     before_size_bytes: int = Field(default=0, ge=0)
     after_size_bytes: int = Field(default=0, ge=0)
+    after_mode: int | None = Field(default=None, ge=0)
     created: bool = False
     deleted: bool = False
 
@@ -195,6 +969,7 @@ class WorkspaceMutationResult(LunaContractModel):
     snapshot: WorkspaceSnapshot
     status: MutationStatus
     changes: tuple[FileChange, ...] = Field(min_length=1)
+    applied_changes: tuple[AppliedChangeCandidate, ...] = ()
     rollback: RollbackResult | None = None
 
     @model_validator(mode="after")
@@ -215,5 +990,118 @@ class WorkspaceMutationResult(LunaContractModel):
             raise ValueError(
                 "rolled-back mutation requires matching rollback result"
             )
+
+        if self.applied_changes:
+            if self.status is not MutationStatus.COMMITTED:
+                raise ValueError(
+                    "applied-change evidence requires a committed mutation"
+                )
+
+            if len(self.applied_changes) != len(self.changes):
+                raise ValueError(
+                    "applied-change evidence must cover every file change"
+                )
+
+            change_paths = tuple(
+                change.relative_path
+                for change in self.changes
+            )
+            candidate_paths = tuple(
+                candidate.relative_path
+                for candidate in self.applied_changes
+            )
+
+            if len(change_paths) != len(set(change_paths)):
+                raise ValueError(
+                    "file changes must have unique paths when "
+                    "applied-change evidence is present"
+                )
+
+            if len(candidate_paths) != len(set(candidate_paths)):
+                raise ValueError(
+                    "applied-change candidates must have unique paths"
+                )
+
+            if set(change_paths) != set(candidate_paths):
+                raise ValueError(
+                    "applied-change paths must exactly match file changes"
+                )
+
+            snapshot_by_path = {
+                entry.relative_path: entry
+                for entry in self.snapshot.entries
+            }
+            change_by_path = {
+                change.relative_path: change
+                for change in self.changes
+            }
+
+            for candidate in self.applied_changes:
+                if candidate.task_id != self.task_id:
+                    raise ValueError(
+                        "applied-change task_id must match mutation task_id"
+                    )
+
+                change = change_by_path[
+                    candidate.relative_path
+                ]
+
+                if change.deleted:
+                    raise ValueError(
+                        "text applied-change evidence cannot bind "
+                        "a deleted file change"
+                    )
+
+                if (
+                    change.created
+                    is candidate.before_existed
+                ):
+                    raise ValueError(
+                        "applied-change existence state does not "
+                        "match file change"
+                    )
+
+                if (
+                    candidate.before_digest
+                    != change.before_digest
+                    or candidate.after_digest
+                    != change.after_digest
+                ):
+                    raise ValueError(
+                        "applied-change digests do not match file change"
+                    )
+
+                if (
+                    candidate.before_size_bytes
+                    != change.before_size_bytes
+                    or candidate.after_size_bytes
+                    != change.after_size_bytes
+                ):
+                    raise ValueError(
+                        "applied-change sizes do not match file change"
+                    )
+
+                snapshot_entry = snapshot_by_path.get(
+                    candidate.relative_path
+                )
+
+                if snapshot_entry is None:
+                    raise ValueError(
+                        "applied-change path is missing from "
+                        "the mutation snapshot"
+                    )
+
+                if (
+                    candidate.before_existed
+                    != snapshot_entry.existed
+                    or candidate.before_digest
+                    != snapshot_entry.content_digest
+                    or candidate.before_size_bytes
+                    != snapshot_entry.size_bytes
+                ):
+                    raise ValueError(
+                        "applied-change before-state does not "
+                        "match mutation snapshot"
+                    )
 
         return self
