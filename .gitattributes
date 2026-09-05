@@ -1,2 +1,3 @@
 # Luna hash-locked native bridge source must have deterministic checkout bytes.
 native/neural_bridge/luna_nr2b_shim_harmony.cpp text eol=lf
+native/neural_bridge/c011_v2/luna_c011_nr2b_shim_harmony_v2.cpp text eol=lf

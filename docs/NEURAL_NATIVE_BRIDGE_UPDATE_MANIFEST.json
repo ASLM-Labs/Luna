@@ -3,8 +3,8 @@
   "developer": "Novopic Intelligence",
   "files": {
     ".gitattributes": {
-      "sha256": "bd756e56378772d02f61d5c66f83af51ff5684c33acbd5bca2d519040d572a77",
-      "size_bytes": 140
+      "sha256": "1345bb537f4f110c7c9e2ed06b5c2281a2bdb53576637f431f5f2b5d338b30e8",
+      "size_bytes": 216
     },
     "docs/NEURAL_NATIVE_BRIDGE_BUILD_GOVERNANCE.md": {
       "sha256": "348f34d3429528a8a2e8cdeaf9eb3aee76ba1f48c0eab795cdf0147256cc0280",
