@@ -1,0 +1,80 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S2_DURABLE_EVENT_RECOVERY_CORE",
+  "stage_status": "C011_S2_DURABLE_RECOVERY_ACCEPTED",
+  "owner_authorization_date": "2026-08-24",
+  "acceptance_date": "2026-08-26",
+  "baseline_commit": "8c82cab7eebafd04fdd6a7990115ac1019176ad1",
+  "baseline_tree": "149bbc2b3274505a18b2b5d91a5527af37be9e6e",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "production_behavior_changed": false,
+  "live_c011_execution": false,
+  "controlled_c011_execution": false,
+  "backend_kind": "DETERMINISTIC_IN_PROCESS_FAKE_ONLY",
+  "store_schema_version": 1,
+  "durable_properties": {
+    "store_issued_event_sequence": true,
+    "append_only_hash_chain": true,
+    "task_scoped_root_lease": true,
+    "monotonic_coordination_epoch": true,
+    "stale_epoch_fencing": true,
+    "idempotent_event_append": true,
+    "idempotent_fake_result_persistence": true,
+    "store_authored_execution_receipt": true,
+    "ambiguous_inflight_blind_replay": false
+  },
+  "verification": {
+    "new_s2_durable_recovery_tests": {
+      "status": "PASS",
+      "passed": 19,
+      "failed": 0
+    },
+    "targeted_s2_s1_c7_solo_metadata_suite": {
+      "status": "PASS",
+      "passed": 195,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1339,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_49_OF_49",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "store_issued_event_provenance_established": true,
+    "production_runtime_authorship_established": false,
+    "root_identity_authentication_established": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "open_stage_boundaries": [
+    "Lease and event provenance is store-mediated local fencing, not cryptographic root identity authentication.",
+    "A complete internally valid SQLite rollback or authorized full-chain rewrite needs an external anchor or MAC to detect.",
+    "Current-state admission, authoritative evidence resolution, cancellation and late-result fences remain S3.",
+    "Live read-only workers, real backend isolation and termination proof remain S4.",
+    "No hidden chain-of-thought access, persistence, reconstruction or claim exists."
+  ]
+}

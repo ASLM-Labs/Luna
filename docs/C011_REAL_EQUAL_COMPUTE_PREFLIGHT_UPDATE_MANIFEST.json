@@ -1,0 +1,72 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E1_REAL_EQUAL_COMPUTE_PREFLIGHT",
+  "stage_status": "C011_REAL_EQUAL_COMPUTE_EXTERNAL_EVIDENCE_PREFLIGHT_ACCEPTED_BLOCKED",
+  "baseline_commit": "dcc0c25e1e34d7ce4ea8bcb2c77bfa17e7ca64ff",
+  "baseline_tree": "ce68639c9e593b30ee4b3d8405377359d7bfa867",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "preflight_outcome": "NOT_EXECUTED_BLOCKED",
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_RUNTIME_ACCOUNTING_CONTRACT_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "owner_authorization_recorded": true,
+  "provider_execution_during_preflight": false,
+  "live_model_execution_during_preflight": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 23,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_real_equal_compute_preflight_verification.json",
+    "docs/C011_REAL_EQUAL_COMPUTE_PREFLIGHT_REPORT.md",
+    "docs/C011_REAL_EQUAL_COMPUTE_PREFLIGHT_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_real_equal_compute_preflight.py",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "scripts/verify_c011_s5c.py",
+    "scripts/verify_c011_s5d.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/equal_compute_preflight.py",
+    "tests/test_c011_real_equal_compute_preflight.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_16",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "real_equal_compute_fail_closed_preflight_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1476,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_314_FILES",
+      "verifier_and_cli_chain": "PASS_58_OF_58",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "The owner authorized a bounded real equal-compute evidence test.",
+    "Measured token accounting and the required parallel runtime basis are rejected by current source and accepted receipts.",
+    "No provider/model call was attempted because the current basis cannot produce valid equal-compute evidence.",
+    "The preflight is passive, content-addressed, fail-closed and non-authoritative.",
+    "C-011 remains QUEUED and default-off; ASLM Research remains a separate project."
+  ]
+}

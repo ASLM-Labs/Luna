@@ -1,0 +1,168 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E4_REAL_RUNTIME_CONFIGURATION_CONTRACTS",
+  "stage_status": "C011_REAL_RUNTIME_CONFIGURATION_CONTRACTS_ACCEPTED",
+  "owner_authorization_date": "2026-09-04",
+  "owner_authorization_recorded": true,
+  "owner_authorization_scope": "REAL_RUNTIME_CONFIGURATION_CONTRACTS_AND_BOUNDED_TWO_LANE_PROOF",
+  "real_model_test_permitted_by_owner": true,
+  "evidence_date": "2026-09-04",
+  "baseline_commit": "00a684f600e5dba74ce7e991e4583af6bc8b0bab",
+  "baseline_tree": "d9849cb6e8bcaf44c793ba8417daccf8ab58c55c",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "rollout_stage": "BLOCKED",
+  "configuration_outcome": "THREE_ARM_CONTRACTS_FROZEN_TWO_LANE_REAL_PROOF_VERIFIED",
+  "configuration_set_id": "c011-real-runtime-set:sha256:9e9f567f200ff2af31f6956b77107d97fa0cf72a35a09078d1f5b702c86442ca",
+  "asset_binding_id": "c011-real-runtime-assets:sha256:dd01e2ce08143e62f2d0ec895d243425c9190443791869ebb671ae02f96c492e",
+  "pool_binding_id": "c011-native-adapter-pool:sha256:a94c60a5805f9aaf1c4c2d02c6cae9ca35798a212e99b7384cae1549d8631ef4",
+  "runtime_arm_ids": {
+    "SOLO": "c011-real-runtime-arm:sha256:ac04b37ff1f1e814abcfaf195a6af187a0ce0d5baef9415c9cf6ae15c6051792",
+    "ULTRA_SOLO": "c011-real-runtime-arm:sha256:992ddb3cff31b75185015c98903334ed96708d7a8d731a38cffbe7d1b99fa701",
+    "PARALLEL": "c011-real-runtime-arm:sha256:e56d211951028dc80f28fb6fc4d1ffe17056bc8e33a72fa6d0c62fed45203582"
+  },
+  "common_budget": {
+    "max_total_output_tokens_per_arm": 256,
+    "normalized_compute_units_per_arm": 1000,
+    "engine_native_usage_required": true,
+    "max_tool_calls": 0
+  },
+  "real_model_evidence": {
+    "status": "PASS_C011_REAL_RUNTIME_CONFIGURATION_TWO_LANE_FULL_CHAIN",
+    "proof_path": "docs/C011_RUNTIME_CONFIGURATION_REAL_PROOF_RECEIPT.json",
+    "proof_canonical_sha256": "2d3dd1e8a9f3a2abc37948ee95b53d457e5a915e99d0d38ef8eb916939e46aca",
+    "provider_calls_executed": 2,
+    "max_concurrent_observed": 2,
+    "pool_exhausted_without_replay": true,
+    "per_lane_native_usage": [
+      {
+        "source": "ENGINE_NATIVE_COUNTERS",
+        "input_tokens": 76,
+        "output_tokens": 24,
+        "total_tokens": 100
+      },
+      {
+        "source": "ENGINE_NATIVE_COUNTERS",
+        "input_tokens": 76,
+        "output_tokens": 24,
+        "total_tokens": 100
+      }
+    ],
+    "asset_pre_post_integrity": "PASS",
+    "repository_pre_post_status_unchanged": true
+  },
+  "preflight_prerequisites_after": {
+    "verified_local": [
+      "CURRENT_ASSET_BINDING",
+      "MEASURED_TOKEN_ACCOUNTING",
+      "PARALLEL_RUNTIME_CONTRACT",
+      "SOLO_RUNTIME_CONTRACT",
+      "ULTRA_SOLO_RUNTIME_CONTRACT"
+    ],
+    "partial": [
+      "HARDWARE_RESOURCE_ATTESTATION",
+      "SAFETY_CONTAINMENT_ATTESTATION"
+    ],
+    "open_external_or_evaluation": [
+      "CONTAMINATION_PROVENANCE_ATTESTATION",
+      "EXTERNAL_LEDGER_ANCHOR",
+      "INDEPENDENT_EVALUATOR_ATTESTATION",
+      "REPRESENTATIVE_FROZEN_SUITE"
+    ],
+    "rejected": []
+  },
+  "source_basis": {
+    "contract_models": {
+      "path": "src/luna/parallel_cognition/models.py",
+      "canonical_text_lf_sha256": "a06b27430bb1bb45f23da4673ccf87edcd5f1ecd804eed299ca9d45487eb2091",
+      "size_bytes": 46342
+    },
+    "live_result_contract": {
+      "path": "src/luna/parallel_cognition/live.py",
+      "canonical_text_lf_sha256": "a2e380ebeb76065d50ae63d66f5ce56c1a1fe37d09ba065984fba144bd059f47",
+      "size_bytes": 20656
+    },
+    "subprocess_boundary": {
+      "path": "src/luna/parallel_cognition/subprocess_backend.py",
+      "canonical_text_lf_sha256": "a9625c6e60eed1cfdc02939b1aa6ce6037ad32649250d343aea7b9abc08679c6",
+      "size_bytes": 23417
+    },
+    "native_adapter": {
+      "path": "src/luna/parallel_cognition/native_adapter.py",
+      "canonical_text_lf_sha256": "5091d90f49338239f3719e0fa5fe1bd470261af03c71d9d49eaefebab229db30",
+      "size_bytes": 26839
+    },
+    "native_adapter_pool": {
+      "path": "src/luna/parallel_cognition/native_pool.py",
+      "canonical_text_lf_sha256": "13af72c3de8bb19ca9015cc46d04d30e8508243dfec2db14aeec96e5a0b2e62d",
+      "size_bytes": 7329
+    },
+    "runtime_configuration": {
+      "path": "src/luna/parallel_cognition/runtime_configuration.py",
+      "canonical_text_lf_sha256": "59da085354080f9cdb340cd6e8c66cffb669fc65b1ba390af28152f06af15c1a",
+      "size_bytes": 16030
+    },
+    "proof_runner": {
+      "path": "scripts/prove_c011_runtime_configuration.py",
+      "canonical_text_lf_sha256": "6655adba6e9a0f0f66036328edd89f08d63cc07bd7cf956e34cfa0ec0a8a1949",
+      "size_bytes": 23723
+    },
+    "real_two_lane_proof": {
+      "path": "docs/C011_RUNTIME_CONFIGURATION_REAL_PROOF_RECEIPT.json",
+      "canonical_text_lf_sha256": "2d3dd1e8a9f3a2abc37948ee95b53d457e5a915e99d0d38ef8eb916939e46aca",
+      "size_bytes": 5452
+    },
+    "accepted_abi_v2_proof": {
+      "path": "docs/C011_NATIVE_ABI_V2_REAL_PROOF_RECEIPT.json",
+      "canonical_text_lf_sha256": "65d878bac43fe0668242bf3fdf4350844925c26b5fc23c9693ead313dd60456d",
+      "size_bytes": 3527
+    }
+  },
+  "real_equal_compute_triplet_executed": false,
+  "production_runtime_wiring_added": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "authority": {
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  },
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_256",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS_7_FILES",
+    "real_two_lane_full_chain": "PASS_2_OF_2",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1521,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_317_FILES",
+      "verifier_and_cli_chain": "PASS_61_OF_61",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_RUNNER_AND_FROZEN_SUITE_PENDING_IMPLEMENTATION",
+  "open_stage_boundaries": [
+    "The real proof executes two read-only worker lanes, not the full SOLO/ULTRA_SOLO/PARALLEL equal-compute triplet.",
+    "The local contracts and proof do not satisfy representative-suite, independent-evaluator, contamination, or external-ledger evidence.",
+    "No production runtime route, persistent residency, GPU policy, packaging, CANARY, ACTIVE, or promotion authority is added.",
+    "C-011 remains QUEUED, default-off and BLOCKED.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E5_REAL_EQUAL_COMPUTE_RUNNER_AND_FROZEN_SUITE",
+  "stage_status": "C011_REAL_EQUAL_COMPUTE_RUNNER_AND_FROZEN_SUITE_ACCEPTED_BLOCKED_EXTERNAL_EVIDENCE",
+  "owner_authorization_date": "2026-09-04",
+  "owner_authorization_recorded": true,
+  "owner_authorization_scope": "REAL_EQUAL_COMPUTE_RUNNER_FROZEN_SUITE_AND_REPOSITORY_ACCEPTANCE",
+  "real_model_test_permitted_by_owner": true,
+  "evidence_date": "2026-09-04",
+  "baseline_commit": "6550d6fa50c59e8eb60e8aa68778cd433217d5c7",
+  "baseline_tree": "edfc4629acd86d40d791d78dfaf4d69e3153040a",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "rollout_stage": "BLOCKED",
+  "runner_outcome": "FAIL_CLOSED_RUNNER_IMPLEMENTED_FROZEN_SUITE_VERIFIED_EXTERNAL_EXECUTION_BLOCKED",
+  "accepted_configuration_set_id": "c011-real-runtime-set:sha256:9e9f567f200ff2af31f6956b77107d97fa0cf72a35a09078d1f5b702c86442ca",
+  "suite_id": "c011-real-equal-compute-suite:sha256:2631da6488995b0620ab2457b24bd9969165466867b2fe8af2352ae6b101b79d",
+  "suite_sha256": "2631da6488995b0620ab2457b24bd9969165466867b2fe8af2352ae6b101b79d",
+  "suite_receipt": {
+    "path": "docs/C011_REAL_EQUAL_COMPUTE_FROZEN_SUITE_RECEIPT.json",
+    "canonical_text_lf_sha256": "4370e8bc15423774a55c861ed98f400e8191dcefd3ef90312495d7f00c502089",
+    "status": "PASS_C011_BOUNDED_FROZEN_SUITE_BUILT",
+    "case_count": 6,
+    "held_out_cases": 3,
+    "ood_cases": 3
+  },
+  "deterministic_implementation_proof": {
+    "evidence_class": "IN_PROCESS_TEST_DOUBLE_ONLY",
+    "two_worker_schedule_calls": 36,
+    "two_worker_max_concurrent": 2,
+    "three_worker_schedule_calls": 42,
+    "three_worker_max_concurrent": 3,
+    "provider_output_persisted": false,
+    "hidden_reasoning_requested": false,
+    "real_provider_evidence": false
+  },
+  "preflight_prerequisites_after": {
+    "verified_local": [
+      "CURRENT_ASSET_BINDING",
+      "MEASURED_TOKEN_ACCOUNTING",
+      "PARALLEL_RUNTIME_CONTRACT",
+      "REPRESENTATIVE_FROZEN_SUITE",
+      "SOLO_RUNTIME_CONTRACT",
+      "ULTRA_SOLO_RUNTIME_CONTRACT"
+    ],
+    "partial": [
+      "HARDWARE_RESOURCE_ATTESTATION",
+      "SAFETY_CONTAINMENT_ATTESTATION"
+    ],
+    "open_external": [
+      "CONTAMINATION_PROVENANCE_ATTESTATION",
+      "EXTERNAL_LEDGER_ANCHOR",
+      "INDEPENDENT_EVALUATOR_ATTESTATION"
+    ],
+    "rejected": []
+  },
+  "source_basis": {
+    "runner": {
+      "path": "src/luna/parallel_cognition/equal_compute_runner.py",
+      "canonical_text_lf_sha256": "7c13f2ee56cfe5523e1c57745ff7677b3c1953ebcd0670afed056d907e84c6af",
+      "size_bytes": 45742
+    },
+    "runner_tests": {
+      "path": "tests/test_c011_equal_compute_runner.py",
+      "canonical_text_lf_sha256": "a493a1de8f808c7f8f45e57bbd8e00dd03eb4d375b81da8f5a145638b4deb315",
+      "size_bytes": 22712
+    },
+    "frozen_suite_receipt": {
+      "path": "docs/C011_REAL_EQUAL_COMPUTE_FROZEN_SUITE_RECEIPT.json",
+      "canonical_text_lf_sha256": "4370e8bc15423774a55c861ed98f400e8191dcefd3ef90312495d7f00c502089",
+      "size_bytes": 3279
+    },
+    "runtime_configuration": {
+      "path": "src/luna/parallel_cognition/runtime_configuration.py",
+      "canonical_text_lf_sha256": "59da085354080f9cdb340cd6e8c66cffb669fc65b1ba390af28152f06af15c1a",
+      "size_bytes": 16030
+    },
+    "preflight": {
+      "path": "src/luna/parallel_cognition/equal_compute_preflight.py",
+      "canonical_text_lf_sha256": "a7eb83279ff742fcd01e5c98d4b8ed76e12eeb0a537113d9017690b4ff41606f",
+      "size_bytes": 19881
+    }
+  },
+  "real_model_execution_during_gate": false,
+  "real_equal_compute_triplet_executed": false,
+  "production_runtime_wiring_added": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "authority": {
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  },
+  "verification": {
+    "focused_runner_and_adversarial_tests": "PASS_17",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS_3_FILES",
+    "deterministic_schedule_proof": "PASS_36_AND_42_CALLS",
+    "current_preflight_block": "PASS_ZERO_PROVIDER_CALLS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1539,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_318_FILES",
+      "verifier_and_cli_chain": "PASS_62_OF_62",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_EXTERNAL_ATTESTATIONS_AND_EXECUTION_BLOCKED",
+  "open_stage_boundaries": [
+    "Independent evaluator, contamination provenance, and external-ledger attestations remain absent.",
+    "Hardware/resource and safety-containment evidence remain partial and are not external attestations.",
+    "No real six-case SOLO/ULTRA_SOLO/PARALLEL triplet was executed because current preflight remains blocked.",
+    "No production runtime route, CANARY, ACTIVE, or promotion authority is added.",
+    "C-011 remains QUEUED, default-off and BLOCKED.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

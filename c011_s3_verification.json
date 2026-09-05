@@ -1,0 +1,80 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S3_ADMISSION_HIERARCHICAL_CONTROLS",
+  "stage_status": "C011_S3_ADMISSION_CONTROLS_ACCEPTED",
+  "owner_authorization_date": "2026-08-28",
+  "acceptance_date": "2026-08-28",
+  "baseline_commit": "5620d8e428f003b1ca5c8a6392e64e213145132a",
+  "baseline_tree": "64ab6a54d168d43286f68043cbd9ab27ec9df935",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "production_behavior_changed": false,
+  "live_c011_execution": false,
+  "controlled_c011_execution": false,
+  "backend_kind": "DETERMINISTIC_IN_PROCESS_FAKE_ONLY",
+  "store_schema_version": 2,
+  "s3_properties": {
+    "current_authoritative_snapshot_admission": true,
+    "whole_plan_admit_or_deny": true,
+    "maximum_workers": 3,
+    "delegation_depth": 1,
+    "hierarchical_aggregate_budgets": true,
+    "four_current_state_fences": true,
+    "cancelled_or_late_result_quarantine": true,
+    "authoritative_typed_reference_resolution": true,
+    "resolver_recomputes_source_content_digest": true,
+    "deterministic_arrival_order_independent_reconciliation": true,
+    "majority_vote_authority": false,
+    "automatic_state_adoption": false,
+    "durable_fence_and_quarantine_receipts": true,
+    "hidden_chain_of_thought_access": false
+  },
+  "verification": {
+    "new_s3_admission_controls_tests": {
+      "status": "PASS",
+      "passed": 24,
+      "failed": 0
+    },
+    "combined_s1_s2_s3_suite": {
+      "status": "PASS",
+      "passed": 72,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1364,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_50_OF_50",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "production_runtime_authorship_established": false,
+    "root_identity_authentication_established": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false
+  },
+  "open_stage_boundaries": [
+    "Live read-only workers, interruptible backend isolation and termination proof remain S4.",
+    "Root-context adoption and one-voice production integration remain S4.",
+    "Production budget values require a separately owner-approved policy; S3 defines no permissive defaults.",
+    "Local SQLite integrity still needs an external anchor or MAC to detect a complete valid rollback or full-chain rewrite.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S3."
+  ]
+}

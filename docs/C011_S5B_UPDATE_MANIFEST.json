@@ -1,0 +1,87 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S5B_LOCAL_NATIVE_DRIVER_ADAPTER",
+  "stage_status": "C011_S5B_LOCAL_NATIVE_DRIVER_ADAPTER_ACCEPTED",
+  "owner_authorization_date": "2026-08-30",
+  "evidence_date": "2026-08-30",
+  "baseline_commit": "3d302c1ace97d65c612cd4c040c5d54f3c5bec00",
+  "baseline_tree": "bca0ae37a9e57e1f7c71782cad44aef656382171",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_evidence_gate": "C011_S5B_REAL_LOCAL_NATIVE_EXECUTION_BLOCKED_PENDING_EXTERNAL_EVIDENCE",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "fixture_child_process_executed": true,
+  "provider_call_executed": false,
+  "live_model_execution": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 18,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s5b_verification.json",
+    "docs/C011_S5B_LOCAL_NATIVE_DRIVER_ADAPTER_REPORT.md",
+    "docs/C011_S5B_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/native_adapter.py",
+    "tests/test_c011_s5b_native_adapter.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "s5b_native_adapter_tests": {
+      "status": "PASS",
+      "passed": 13,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1409,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_53_OF_53",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "real_provider_execution_authority": false,
+    "root_context_adoption_authority": false,
+    "task_state_authority": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "promotion_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "S5B composes exact S5A SHADOW_ELIGIBLE selection with the accepted S4 interruptible subprocess boundary.",
+    "The first slice admits only content-addressed deterministic fixtures with explicit environment and exact executable, driver and model hashes.",
+    "S5B preserves S4 result identities by using a separate result subtype whose identity binds the provider binding ID.",
+    "Only fixture child processes ran; no real provider/model call or production runtime route was added.",
+    "Real local-native execution remains blocked pending current external evidence; S5C has not started.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S5B."
+  ]
+}

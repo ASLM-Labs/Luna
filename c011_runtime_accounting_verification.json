@@ -1,0 +1,158 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E2_RUNTIME_ACCOUNTING_CONTRACT",
+  "stage_status": "C011_REAL_EQUAL_COMPUTE_RUNTIME_ACCOUNTING_CONTRACT_ACCEPTED_BLOCKED_ABI_V1",
+  "owner_authorization_date": "2026-09-01",
+  "owner_authorization_recorded": true,
+  "owner_authorization_scope": "RUNTIME_ACCOUNTING_CONTRACT_ONLY",
+  "real_model_test_permitted_by_owner": true,
+  "evidence_date": "2026-09-01",
+  "evaluated_at_utc": "2026-09-01T09:21:50Z",
+  "baseline_commit": "a86c41510187a95b057c3ea615f79f70dc6bb9cf",
+  "baseline_tree": "bb9149310341700cf6e923ceb691f4277bd7eee7",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "accounting_outcome": "BLOCKED_USAGE_CHANNEL_ABSENT",
+  "decision_disposition": "BLOCKED_USAGE_CHANNEL_ABSENT",
+  "accounting_ready": false,
+  "semantics_id": "c011-runtime-token-semantics:sha256:0c843b2748ab7994680ec8cb865b3f2b25c5b51cb361590f5260117e2ad4ddfc",
+  "token_semantics": {
+    "schema_version": "1.0",
+    "semantics_id": "c011-runtime-token-semantics:sha256:0c843b2748ab7994680ec8cb865b3f2b25c5b51cb361590f5260117e2ad4ddfc",
+    "revision": "1.0.0",
+    "input_basis": "POST_CHAT_TEMPLATE_MODEL_TOKENIZATION",
+    "includes_special_tokens_actually_fed": true,
+    "includes_bos_if_actually_fed": true,
+    "output_basis": "SAMPLED_NON_EOG_TOKENS",
+    "terminal_eog_included": false,
+    "total_basis": "INPUT_PLUS_OUTPUT",
+    "required_source": "ENGINE_NATIVE_COUNTERS",
+    "prohibited_substitutes": [
+      "BUDGET_CEILING",
+      "BYTE_ESTIMATE",
+      "DRIVER_ZERO_PLACEHOLDER",
+      "TEXT_RETOKENIZATION",
+      "WORD_ESTIMATE"
+    ]
+  },
+  "minimum_usage_abi_version": 2,
+  "required_usage_fields": [
+    "input_tokens",
+    "output_tokens",
+    "total_tokens"
+  ],
+  "accepted_measurement_sources": [
+    "ENGINE_NATIVE_COUNTERS"
+  ],
+  "policy_id": "c011-runtime-accounting-policy:sha256:c0e0161b431d1cc9cf50ba73a1bf2eae7103a6cec6959b97c6d99369e15dc427",
+  "snapshot_id": "c011-native-usage-capability:sha256:85ae7da943c2a17316bdbedcc4834a5ff718aee2e2b34bac452b4ca8cddf07f5",
+  "decision_id": "c011-runtime-accounting-decision:sha256:e0e3ea590602affb5e121dc241bbdf3ea9d9b481928558dec6f895bf32095a93",
+  "blocked_reasons": [
+    "native ABI does not expose the required usage result fields",
+    "native ABI exposes no usage channel",
+    "native ABI version is below the measured-usage minimum"
+  ],
+  "current_native_capability": {
+    "abi_version": 1,
+    "exported_symbols": [
+      "luna_nr2b_abi_version",
+      "luna_nr2b_engine_create",
+      "luna_nr2b_generate",
+      "luna_nr2b_engine_destroy"
+    ],
+    "prompt_token_count_computed_inside_shim": true,
+    "generation_loop_samples_one_token_per_step": true,
+    "usage_channel_present": false,
+    "usage_result_fields": [],
+    "measurement_source": "NONE",
+    "worker_reported_tokens": 0
+  },
+  "source_basis": {
+    "native_shim": {
+      "path": "native/neural_bridge/luna_nr2b_shim_harmony.cpp",
+      "canonical_text_lf_sha256": "6d130a9b53b6014ecbae91276e15478e4424de7ea72ccfc35e087d8ddafa8ff1",
+      "size_bytes": 19479
+    },
+    "bridge_contract": {
+      "path": "native/neural_bridge/bridge_contract.json",
+      "canonical_text_lf_sha256": "ef0b19eae783b1673be8d416a2a48134e23441d06392b54729c10774ac025911",
+      "size_bytes": 2930
+    },
+    "native_worker_process": {
+      "path": "src/luna/neural/native_worker_process.py",
+      "canonical_text_lf_sha256": "5dd16004f925bce51613c6decba152f7714dca580bedfe17bc99f1f5640c4097",
+      "size_bytes": 10013
+    },
+    "native_real_driver": {
+      "path": "src/luna/parallel_cognition/native_real_driver.py",
+      "canonical_text_lf_sha256": "5a6361323c8b9c2e4dab1f639c32c097ae7d58873a5611fbb6d5dd6207048e23",
+      "size_bytes": 8584,
+      "worker_reported_tokens": 0
+    },
+    "native_bridge_real_proof": {
+      "path": "docs/NEURAL_NATIVE_BRIDGE_REAL_PROOF_RECEIPT.json",
+      "canonical_text_lf_sha256": "c19dd8e746c44024ec6a9328fda2ee5c2a528994f8eb7e94e4889d19c503eeeb",
+      "size_bytes": 1882,
+      "usage_fields_present": false
+    },
+    "accepted_equal_compute_preflight": {
+      "path": "c011_real_equal_compute_preflight_verification.json",
+      "canonical_text_lf_sha256": "3036e03b916054634723d862f9c35bc79bbd75cfa7e4a683fa2f382fca56e2f2",
+      "size_bytes": 8747,
+      "decision_disposition": "BLOCKED_REJECTED_BASIS"
+    }
+  },
+  "execution_attempted": false,
+  "provider_execution_during_gate": false,
+  "live_model_execution_during_gate": false,
+  "real_model_non_execution_reason": "ABI v1 cannot return authoritative input, output and total token counters; another text-only call would add no valid accounting evidence.",
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "authority": {
+    "authorization_grants_execution_authority": false,
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  },
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_20",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "runtime_accounting_fail_closed_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1497,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_315_FILES",
+      "verifier_and_cli_chain": "PASS_59_OF_59",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_NATIVE_ABI_V2_MEASURED_USAGE_CHANNEL_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "open_stage_boundaries": [
+    "The current native bridge is ABI v1 and exports only text output plus output byte size.",
+    "Prompt token count exists inside the shim but is not returned through the ABI.",
+    "The generation loop samples tokens internally but returns no non-EOG output-token counter.",
+    "Driver-reported values, text re-tokenization, bytes, words, budget ceilings and a zero placeholder are not accepted measurements.",
+    "A separately authorized ABI v2 gate must expose engine-native input, output and total counters before a real call can create valid accounting evidence.",
+    "This gate does not select the ABI v2 layout, rebuild the bridge, alter native runtime files or call a model.",
+    "C-011 remains QUEUED, default-off and BLOCKED; CANARY and ACTIVE are not authorized.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

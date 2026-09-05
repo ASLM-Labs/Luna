@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import subprocess
+from collections.abc import Callable
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -28,6 +29,8 @@ from luna.context import (
     ContextSourceKind,
     LayeredContextCandidate,
     LayeredContextComposer,
+    RootContextExtensionProvider,
+    RootContextExtensionResult,
 )
 from luna.continuity import ContinuityService, SQLiteContinuityStore
 from luna.contracts import (
@@ -209,6 +212,51 @@ class _RecordingScriptedBackend(ScriptedTestBackend):
         return super().generate(request)
 
 
+class _DisabledParallelCognitionProvider:
+    """Prove the default-off runtime boundary is not invoked."""
+
+    enabled = False
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def collect_for_root(self, **kwargs: object) -> object:
+        del kwargs
+        self.calls += 1
+        raise AssertionError("disabled parallel cognition must not be called")
+
+
+class _QualifiedRootContextResult:
+    context_available = True
+    context_locator = "runtime://test/qualified-root-evidence"
+
+    def __init__(self) -> None:
+        self.generated_at = datetime.now(UTC)
+
+    def render_for_root_context(self) -> str:
+        return '{"qualified_root_evidence":"fixture-only","authority":"none"}'
+
+
+class _EnabledRootContextProvider:
+    enabled = True
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def collect_for_root(
+        self,
+        *,
+        state: TaskState,
+        root_owner_ref: str,
+        cancellation_probe: Callable[[], bool],
+    ) -> RootContextExtensionResult:
+        assert state.phase.value == "PLANNED"
+        assert root_owner_ref == "test-owner"
+        assert cancellation_probe() is False
+        self.calls += 1
+        return _QualifiedRootContextResult()
+
+
 def _runtime(
     tmp_path,
     backend: ScriptedTestBackend,
@@ -218,6 +266,7 @@ def _runtime(
     knowledge_evolution_handoff_provider: (
         KnowledgeEvolutionRuntimeHandoffProvider | None
     ) = None,
+    root_context_extension_provider: RootContextExtensionProvider | None = None,
 ) -> LunaRuntime:
     registry = build_phase5_registry()
     persistence_root = state_root or tmp_path
@@ -253,6 +302,7 @@ def _runtime(
             knowledge_evolution_handoff_provider=(
                 knowledge_evolution_handoff_provider
             ),
+            root_context_extension_provider=root_context_extension_provider,
         )
     )
 
@@ -381,6 +431,89 @@ def test_read_action_runs_once_then_hands_off_to_verification(tmp_path) -> None:
     assert len(observations) == 1
     assert observations[0].outcome.request.tool_name == "filesystem.read_text"
     assert observations[0].outcome.result.stdout_excerpt == "hello"
+
+
+def test_disabled_parallel_cognition_preserves_the_solo_runtime_path(tmp_path) -> None:
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Read the bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="read-disabled-s4",
+                            tool_name="filesystem.read_text",
+                            arguments={"path": "note.txt"},
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+    disabled = _DisabledParallelCognitionProvider()
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        root_context_extension_provider=cast(RootContextExtensionProvider, disabled),
+    )
+    request = _request(tmp_path, allowed_tools=("filesystem.read_text",))
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.VERIFICATION_PENDING
+    assert disabled.calls == 0
+    assert len(backend.requests) == 1
+    context_text = "\n".join(
+        message.content for message in backend.requests[0].messages
+    )
+    assert "runtime://parallel-cognition/" not in context_text
+
+
+def test_enabled_root_context_extension_is_data_only_in_one_root_request(tmp_path) -> None:
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    backend = _RecordingScriptedBackend(
+        (
+            ScriptedTurn(
+                output=ScriptedModelOutput(
+                    text="Read the bounded file.",
+                    tool_calls=(
+                        ModelToolCall(
+                            call_id="read-root-extension",
+                            tool_name="filesystem.read_text",
+                            arguments={"path": "note.txt"},
+                        ),
+                    ),
+                    finish_reason=ModelFinishReason.TOOL_CALLS,
+                )
+            ),
+        )
+    )
+    provider = _EnabledRootContextProvider()
+    runtime = _runtime(
+        tmp_path,
+        backend,
+        root_context_extension_provider=cast(RootContextExtensionProvider, provider),
+    )
+    request = _request(tmp_path, allowed_tools=("filesystem.read_text",))
+
+    outcome = runtime.run(
+        request=request,
+        tool_policy=_policy(allowed_tools=("filesystem.read_text",)),
+    )
+
+    assert outcome.stop_reason is RuntimeStopReason.VERIFICATION_PENDING
+    assert provider.calls == 1
+    assert len(backend.requests) == 1
+    context_text = "\n".join(
+        message.content for message in backend.requests[0].messages
+    )
+    assert '"qualified_root_evidence":"fixture-only"' in context_text
+    assert '"authority":"none"' in context_text
 
 
 def test_write_action_is_write_ahead_fenced_and_never_blindly_replayed(tmp_path) -> None:

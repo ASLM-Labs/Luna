@@ -1,0 +1,77 @@
+{
+  "capability": "C-011",
+  "stage": "S5A_PROVIDER_PROFILE_CONTROL_PLANE",
+  "stage_status": "C011_S5A_PROVIDER_PROFILE_CONTROL_PLANE_ACCEPTED",
+  "owner_authorization_date": "2026-08-29",
+  "evidence_date": "2026-08-30",
+  "baseline_commit": "4374d7e78bdb67e87dfebdeef24288520c44eb8f",
+  "baseline_tree": "967a99a21c45460cb612ec10012752d466c8dc01",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "provider_call_executed": false,
+  "live_model_execution": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "s5a_properties": {
+    "content_addressed_profiles": true,
+    "exact_compatibility_fingerprint_binding": true,
+    "exact_neural_resource_budget_binding": true,
+    "assignment_capacity_is_upper_bounded": true,
+    "default_policy_disabled": true,
+    "default_kill_switch_engaged": true,
+    "maximum_profile_workers": 3,
+    "nr2b_slice1_max_parallel_generations": 1,
+    "nr2b_slice1_max_output_tokens": 256,
+    "nr2b_slice1_cpu_only_ephemeral": true,
+    "shadow_eligibility_is_non_executable": true,
+    "canary_and_active_rejected": true,
+    "runtime_wiring_added": false
+  },
+  "verification": {
+    "s5a_provider_profile_tests": {
+      "status": "PASS",
+      "passed": 17,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1395,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_52_OF_52",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "provider_execution_authority": false,
+    "root_context_adoption_authority": false,
+    "task_state_authority": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "promotion_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "open_stage_boundaries": [
+    "No provider, model, child process, runtime route, credential, network call or controlled C-011 execution occurred.",
+    "Current external model and driver asset identities and target-host numeric budgets remain open.",
+    "S5B local-native driver binding, S5C shadow evaluation and S5D promotion evidence are not implemented by S5A.",
+    "C-011 remains QUEUED and default-off; SHADOW_ELIGIBLE is not execution or promotion authority.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S5A."
+  ]
+}

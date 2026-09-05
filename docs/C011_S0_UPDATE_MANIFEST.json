@@ -1,0 +1,73 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S0_RFC_AND_EVIDENCE_FREEZE",
+  "baseline_commit": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "baseline_tree": "4b378b54a0add0c17b0207308ee4426f331078c4",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "luna_local_gate": "C011_S0_GOVERNANCE_AUTHORIZED",
+  "next_code_gate": "C011_S1_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "aslm_source": {
+    "accepted_owner_floor_commit": "8036ca918f937f2cfc40c9c6f13381191b0ced6a",
+    "reverified_branch": "research/asia-frontier-deep-recon-v0-1",
+    "reverified_head": "78d2f43afb21a93927f14ccb377730032447cb6d",
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "production_behavior_changed": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 7,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "docs/C011_OWNER_DIRECTED_SEQUENCE_DELTA_REVIEW.md",
+    "docs/C011_S0_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md"
+  ],
+  "verification": {
+    "current_git_and_live_main_reverified": true,
+    "separately_scoped_read_only_subagent_reviews": 3,
+    "c7_baseline_tests": {
+      "passed": 57,
+      "failed": 0
+    },
+    "targeted_s0_tests": {
+      "passed": 87,
+      "failed": 0
+    },
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1289,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_47_OF_47",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "next_action": "Record separate S1 owner authorization against current Git; only then implement and verify the immutable contract/state package with no live workers.",
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "worker_runtime_authority": false,
+    "worker_execution_authority": false,
+    "worker_completion_authority": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false
+  },
+  "notes": [
+    "S0 records the owner-directed sequence change and freezes the first safe C-011A boundary.",
+    "C-011 remains QUEUED and production remains the unchanged single-policy-agent path.",
+    "The reference profile is root plus zero to three temporary read-only workers at delegation depth one.",
+    "Existing C7 code is scaffolding, not production C-011 completion evidence.",
+    "Development-process Codex subagents and local tools are not C-011 runtime execution evidence.",
+    "A deep temporary path exposed Windows MAX_PATH failures; the unchanged candidate passed from a short temporary path.",
+    "Conversation memory is not an acceptance source; current Git and committed artifacts govern resume."
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E1_REAL_EQUAL_COMPUTE_PREFLIGHT",
+  "stage_status": "C011_REAL_EQUAL_COMPUTE_EXTERNAL_EVIDENCE_PREFLIGHT_ACCEPTED_BLOCKED",
+  "owner_authorization_date": "2026-09-01",
+  "owner_authorization_recorded": true,
+  "owner_authorization_scope": "BOUNDED_REAL_EQUAL_COMPUTE_EVIDENCE_TEST",
+  "real_model_test_permitted_by_owner": true,
+  "evidence_date": "2026-09-01",
+  "baseline_commit": "dcc0c25e1e34d7ce4ea8bcb2c77bfa17e7ca64ff",
+  "baseline_tree": "ce68639c9e593b30ee4b3d8405377359d7bfa867",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "required_configurations": ["SOLO", "ULTRA_SOLO", "PARALLEL"],
+  "minimum_parallel_workers": 2,
+  "measured_token_accounting_required": true,
+  "decision_disposition": "BLOCKED_REJECTED_BASIS",
+  "preflight_outcome": "NOT_EXECUTED_BLOCKED",
+  "preflight_ready": false,
+  "policy_id": "c011-real-equal-compute-policy:sha256:58290038189faf139bc429269c805f5e5ca386a4e4119387c1dd150bfa997d7c",
+  "snapshot_id": "c011-real-equal-compute-snapshot:sha256:736f47900d51a821671c638d4913051c929c911398839799e38ebe6615578cd2",
+  "decision_id": "c011-real-equal-compute-decision:sha256:2f37cb96dd96d05fd8038b2d8539a4dd1a9441a4ebbe251c939cd0606cfa7a7e",
+  "source_basis": {
+    "native_real_driver": {
+      "path": "src/luna/parallel_cognition/native_real_driver.py",
+      "canonical_text_lf_sha256": "5a6361323c8b9c2e4dab1f639c32c097ae7d58873a5611fbb6d5dd6207048e23",
+      "reported_token_assignment": 0
+    },
+    "accepted_real_proof_harness": {
+      "path": "scripts/prove_c011_s5b_real_adapter.py",
+      "canonical_text_lf_sha256": "49d2db4a3fd0074e6a3c12de319ce2a1d4726db854386dfae985bb54f4e8afb0",
+      "max_parallel_generations": 1,
+      "max_total_workers": 1,
+      "max_concurrent_workers": 1
+    },
+    "s5b_real_adapter_receipt": {
+      "path": "c011_s5b_real_adapter_verification.json",
+      "canonical_text_lf_sha256": "75f99933be8780406384bd62d5bc8a646570045d2b901a57adc5c27f63c01a85",
+      "accepted_real_result_count": 1,
+      "reported_tokens": 0,
+      "max_parallel_generations": 1
+    },
+    "s5c_shadow_ledger_receipt": {
+      "path": "c011_s5c_verification.json",
+      "canonical_text_lf_sha256": "2611e4ca8cfe1b20f660e793b2d76974c1477b19446baad9b0b4009949761bb0",
+      "evidence_kind": "DETERMINISTIC_FIXTURE",
+      "real_provider_execution": false,
+      "equal_compute_non_inferiority_established": false,
+      "ultra_solo_runtime_contract": false
+    },
+    "s5d_promotion_receipt": {
+      "path": "c011_s5d_verification.json",
+      "canonical_text_lf_sha256": "54d0c16672abb25eed8936ad9794709a276400ec3f4a69b1cb67bc04ba175432",
+      "decision_disposition": "BLOCKED_INSUFFICIENT_EVIDENCE"
+    }
+  },
+  "evidence_inventory": [
+    {
+      "prerequisite": "CURRENT_ASSET_BINDING",
+      "state": "PARTIAL",
+      "evidence_class": "REAL_PROVIDER_MEASUREMENT",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:68f4a3c6be5dc8e5ede608b79c51455450525097e91cdfaf14cc91cbd3bc555b"
+    },
+    {
+      "prerequisite": "MEASURED_TOKEN_ACCOUNTING",
+      "state": "REJECTED",
+      "evidence_class": "REPOSITORY_SOURCE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:a3f58d884b69eb361ec8e2f38e1946ce72fb3fd87adbaecfd79a8e07061a4509"
+    },
+    {
+      "prerequisite": "SOLO_RUNTIME_CONTRACT",
+      "state": "OPEN",
+      "evidence_class": "NONE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:a651b3e377ed3ba0dcc93b886801ea1580e3cfbba5b30ae8434aae842d862f54"
+    },
+    {
+      "prerequisite": "ULTRA_SOLO_RUNTIME_CONTRACT",
+      "state": "OPEN",
+      "evidence_class": "NONE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:6202bccb2ecb52e91f7411ecac9ce9d204e585502d6a7b70d35ae871a221ee39"
+    },
+    {
+      "prerequisite": "PARALLEL_RUNTIME_CONTRACT",
+      "state": "REJECTED",
+      "evidence_class": "REPOSITORY_SOURCE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:4aeb172e6e46bfadcdedc0ad104ff6f6e35dbd0ebc1241ddf1364569a987a0a3"
+    },
+    {
+      "prerequisite": "REPRESENTATIVE_FROZEN_SUITE",
+      "state": "PARTIAL",
+      "evidence_class": "REPOSITORY_RECEIPT",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:82567584f61f4908f67bbebc2e521f1ea9c3b83bf0a55bade38885e60efd96ad"
+    },
+    {
+      "prerequisite": "INDEPENDENT_EVALUATOR_ATTESTATION",
+      "state": "OPEN",
+      "evidence_class": "NONE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:ca6603ebe37a10e569fea147bc8fb4e92b34eec02cf3fec256732966781dfeda"
+    },
+    {
+      "prerequisite": "CONTAMINATION_PROVENANCE_ATTESTATION",
+      "state": "OPEN",
+      "evidence_class": "NONE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:764e6d653acb330a4449974e9f397550019a7850accc4c7b01f383960e0020a0"
+    },
+    {
+      "prerequisite": "HARDWARE_RESOURCE_ATTESTATION",
+      "state": "PARTIAL",
+      "evidence_class": "REPOSITORY_RECEIPT",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:7473e92147e6ab195d90f8574763c944d01e3ecb5b953e53e4e00fa3b68235b1"
+    },
+    {
+      "prerequisite": "SAFETY_CONTAINMENT_ATTESTATION",
+      "state": "PARTIAL",
+      "evidence_class": "REPOSITORY_RECEIPT",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:a2275883a77c00ebdb53c5654d3e0bad8a3c960794e4493028514d7c43acb126"
+    },
+    {
+      "prerequisite": "EXTERNAL_LEDGER_ANCHOR",
+      "state": "OPEN",
+      "evidence_class": "NONE",
+      "evidence_id": "c011-real-equal-compute-evidence:sha256:dd9575db65b8821795c1434626e9f47a197f6083fba71afe30cf2cb9ebd6d87c"
+    }
+  ],
+  "verified_prerequisites": [],
+  "partial_prerequisites": [
+    "CURRENT_ASSET_BINDING",
+    "REPRESENTATIVE_FROZEN_SUITE",
+    "HARDWARE_RESOURCE_ATTESTATION",
+    "SAFETY_CONTAINMENT_ATTESTATION"
+  ],
+  "open_prerequisites": [
+    "SOLO_RUNTIME_CONTRACT",
+    "ULTRA_SOLO_RUNTIME_CONTRACT",
+    "INDEPENDENT_EVALUATOR_ATTESTATION",
+    "CONTAMINATION_PROVENANCE_ATTESTATION",
+    "EXTERNAL_LEDGER_ANCHOR"
+  ],
+  "rejected_prerequisites": [
+    "MEASURED_TOKEN_ACCOUNTING",
+    "PARALLEL_RUNTIME_CONTRACT"
+  ],
+  "execution_attempted": false,
+  "provider_execution_during_preflight": false,
+  "live_model_execution_during_preflight": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "authority": {
+    "authorization_grants_runtime_authority": false,
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  },
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_16",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "real_equal_compute_fail_closed_preflight_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1476,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_314_FILES",
+      "verifier_and_cli_chain": "PASS_58_OF_58",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_RUNTIME_ACCOUNTING_CONTRACT_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "open_stage_boundaries": [
+    "Measured token accounting is rejected because the live driver hard-codes zero tokens and the accepted real result reports zero.",
+    "The accepted real harness permits only one total and concurrent worker, so it cannot establish the required parallel configuration.",
+    "SOLO and ULTRA_SOLO real runtime contracts remain absent; ULTRA_SOLO is only an evaluation label.",
+    "The frozen suite is deterministic fixture evidence, not representative real equal-compute evidence.",
+    "Independent evaluator, contamination provenance and external ledger-anchor attestations are absent.",
+    "Hardware-resource and safety-containment attestations remain partial.",
+    "Owner permission to run a real model does not cure a rejected measurement basis or grant runtime authority.",
+    "No provider/model call was attempted because it could not produce valid equal-compute evidence on the current basis.",
+    "C-011 remains QUEUED, default-off and BLOCKED; CANARY and ACTIVE are not authorized.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

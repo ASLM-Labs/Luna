@@ -1,0 +1,93 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S3_ADMISSION_HIERARCHICAL_CONTROLS",
+  "stage_status": "C011_S3_ADMISSION_CONTROLS_ACCEPTED",
+  "owner_authorization_date": "2026-08-28",
+  "acceptance_date": "2026-08-28",
+  "baseline_commit": "5620d8e428f003b1ca5c8a6392e64e213145132a",
+  "baseline_tree": "64ab6a54d168d43286f68043cbd9ab27ec9df935",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_code_gate": "C011_S4_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "production_behavior_changed": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 24,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s3_verification.json",
+    "docs/C011_S3_ADMISSION_CONTROLS_REPORT.md",
+    "docs/C011_S3_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s2.py",
+    "scripts/verify_c011_s3.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/admission.py",
+    "src/luna/parallel_cognition/controls.py",
+    "src/luna/parallel_cognition/events.py",
+    "src/luna/parallel_cognition/models.py",
+    "src/luna/parallel_cognition/reconciliation.py",
+    "src/luna/parallel_cognition/resolution.py",
+    "src/luna/parallel_cognition/store.py",
+    "tests/test_c011_s2_durable_recovery.py",
+    "tests/test_c011_s3_admission_controls.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "current_git_and_main_reverified": true,
+    "new_s3_admission_controls_tests": {
+      "status": "PASS",
+      "passed": 24,
+      "failed": 0
+    },
+    "combined_s1_s2_s3_suite": {
+      "status": "PASS",
+      "passed": 72,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1364,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_50_OF_50",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "production_runtime_authorship_established": false,
+    "root_identity_authentication_established": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false
+  },
+  "notes": [
+    "S3 remains isolated from legacy C7 behavior and all production LunaRuntime call sites.",
+    "Admission rebuilds exact identities from actual current task, policy, capability, lease and source objects.",
+    "Every S3 plan is non-executable and grants no worker authority beyond a bounded read-only proposal contract.",
+    "Late, cancelled, stale, unbound, digest-changed and wrong-runtime results fail closed or remain quarantined.",
+    "Reconciliation is exact and arrival-order independent; a two-to-one majority cannot convert contradiction into truth.",
+    "ACCEPT grants root consideration only and never completion or automatic adoption.",
+    "No live worker, model call, tool call, network access, child process, training or controlled C-011 execution occurred.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S3."
+  ]
+}

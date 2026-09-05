@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "capability": "C-011",
+  "stage": "S5D_E5_REAL_EQUAL_COMPUTE_RUNNER_AND_FROZEN_SUITE",
+  "status": "PASS_C011_BOUNDED_FROZEN_SUITE_BUILT",
+  "evidence_date": "2026-09-04",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "source_commit_oid": "6550d6fa50c59e8eb60e8aa68778cd433217d5c7",
+  "source_tree_oid": "edfc4629acd86d40d791d78dfaf4d69e3153040a",
+  "suite_id": "c011-real-equal-compute-suite:sha256:2631da6488995b0620ab2457b24bd9969165466867b2fe8af2352ae6b101b79d",
+  "suite_sha256": "2631da6488995b0620ab2457b24bd9969165466867b2fe8af2352ae6b101b79d",
+  "revision": "1.0.0",
+  "case_count": 6,
+  "repetitions": 1,
+  "partitions": {
+    "HELD_OUT": 3,
+    "OOD": 3
+  },
+  "representative_dimensions": [
+    "authority_boundary",
+    "changed_basis_failure_classification",
+    "contradiction_resolution",
+    "cross_review_synthesis",
+    "evidence_grounding",
+    "stale_state_reconciliation"
+  ],
+  "cases": [
+    {
+      "case_id": "C011-EQ-001",
+      "case_content_sha256": "f4c4e853d4dccb2fc00e9575367dfe7fad384fd1e4498c1ace2bfe2e0b009674",
+      "partition": "HELD_OUT",
+      "task_family": "evidence_grounding",
+      "source_trajectory_id": "c011-e5-grounding"
+    },
+    {
+      "case_id": "C011-EQ-002",
+      "case_content_sha256": "df6c5a3a8f9c8a8f16c10754dccf1d9c0571bd1f2ac314ebe6fb935a7c6654f8",
+      "partition": "HELD_OUT",
+      "task_family": "contradiction_resolution",
+      "source_trajectory_id": "c011-e5-contradiction"
+    },
+    {
+      "case_id": "C011-EQ-003",
+      "case_content_sha256": "d11e51cbd0e5dff0ccc4187dda451e4a618facc52f60321545cb89cf4e14b88f",
+      "partition": "HELD_OUT",
+      "task_family": "authority_boundary",
+      "source_trajectory_id": "c011-e5-authority"
+    },
+    {
+      "case_id": "C011-EQ-004",
+      "case_content_sha256": "f25a822f0381c503ddedf40f85120430563ee58bcb7c8bc88fcd4ab7f16f0ce6",
+      "partition": "OOD",
+      "task_family": "stale_state_reconciliation",
+      "source_trajectory_id": "c011-e5-stale-state"
+    },
+    {
+      "case_id": "C011-EQ-005",
+      "case_content_sha256": "96dac6ffb39c3cbac590e7c52015d1b2a4a3d494ddb8f1e2cb3de505d1345f88",
+      "partition": "OOD",
+      "task_family": "changed_basis_failure_classification",
+      "source_trajectory_id": "c011-e5-failure-basis"
+    },
+    {
+      "case_id": "C011-EQ-006",
+      "case_content_sha256": "80caa903c79cf4e48a40cf4b82297b6a95f115abcbcd884c85e9cee9ac8225bd",
+      "partition": "OOD",
+      "task_family": "cross_review_synthesis",
+      "source_trajectory_id": "c011-e5-synthesis"
+    }
+  ],
+  "evaluator": {
+    "kind": "HUMAN_REVIEW",
+    "rubric_sha256": "fce6884db3b6d0607d2f7adb261c947a7e6893d1dbaa3632046c4fdc1fbed032",
+    "independent_evaluator_attested": false,
+    "contamination_provenance_attested": false,
+    "external_ledger_anchored": false,
+    "hidden_reasoning_required": false
+  },
+  "execution": {
+    "provider_calls_executed": 0,
+    "real_equal_compute_triplet_executed": false,
+    "controlled_c011_execution": false
+  },
+  "authority": {
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S1_CONTRACT_STATE_PACKAGE",
+  "stage_status": "C011_S1_CONTRACTS_ACCEPTED",
+  "baseline_commit": "09a5dcc2855edec5625fe9b8845da9f7745dae6f",
+  "baseline_tree": "8c7c0e72fbe7660357164e37cbb5cd31951def1c",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "production_behavior_changed": false,
+  "live_c011_execution": false,
+  "runtime_authorship_established": false,
+  "root_authorship_established": false,
+  "contract_types": [
+    "AssignmentSemanticSpec",
+    "AgentExecutionAttempt",
+    "ReadOnlyContextManifest",
+    "AgentPayload",
+    "AgentExecutionReceipt",
+    "ClaimRecord",
+    "DistilledHandoff",
+    "AdoptionReceipt"
+  ],
+  "verification": {
+    "new_s1_contract_tests": {
+      "status": "PASS",
+      "passed": 29,
+      "failed": 0
+    },
+    "targeted_s1_c7_solo_metadata_suite": {
+      "status": "PASS",
+      "passed": 156,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_s1_package": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1319,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_48_OF_48",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "single_root_task_state_owner": true,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "open_stage_boundaries": [
+    "SHA-256 identities prove deterministic content integrity, not trusted issuer authorship.",
+    "Durable runtime and root authorship, append-only events, and recovery remain S2.",
+    "Current-state admission and authoritative evidence resolution remain S3.",
+    "Live read-only workers and isolation evidence remain S4."
+  ]
+}

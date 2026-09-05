@@ -1,0 +1,72 @@
+{
+  "capability": "C-011",
+  "stage": "S5B_REAL_ADAPTER_EXECUTION",
+  "stage_status": "C011_S5B_REAL_ADAPTER_EXECUTION_ACCEPTED",
+  "baseline_commit": "9b2667838df9ed5e127e1db54e1428062716a18c",
+  "baseline_tree": "0a352462f225543955efd2517d9ae44b558dfd27",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_gate": "C011_S5C_SHADOW_EVALUATION_PENDING_IMPLEMENTATION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "real_adapter_execution_executed": true,
+  "successful_real_adapter_results": 1,
+  "controlled_c011_execution": false,
+  "scope_file_count": 25,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s5b_real_adapter_verification.json",
+    "docs/C011_S5B_REAL_ADAPTER_EXECUTION_REPORT.md",
+    "docs/C011_S5B_REAL_ADAPTER_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/prove_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/native_adapter.py",
+    "src/luna/parallel_cognition/native_real_driver.py",
+    "src/luna/parallel_cognition/subprocess_backend.py",
+    "tests/test_c011_s4_live_workers.py",
+    "tests/test_c011_s5b_native_adapter.py",
+    "tests/test_c011_s5b_real_native_driver.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "focused_fixture_and_adversarial_tests": "PASS_31",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "real_adapter_proof": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1419,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_311_FILES",
+      "verifier_and_cli_chain": "PASS_55_OF_55",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "One real LocalNativeDriverAdapter result passed after two fail-closed attempts and changed-basis corrections.",
+    "The real driver is one directly supervised child and reuses the accepted NR-2B ABI and final-only parser.",
+    "C-011 remains QUEUED, default-off and absent from production runtime wiring.",
+    "The exact staged tree passed 1419 tests, one platform skip, Ruff, strict mypy across 311 files and the complete 55-step gate.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}
