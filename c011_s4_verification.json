@@ -1,0 +1,90 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S4_BOUNDED_LIVE_READ_ONLY_WORKERS",
+  "stage_status": "C011_S4_LIVE_WORKERS_ACCEPTED",
+  "owner_authorization_date": "2026-08-28",
+  "evidence_date": "2026-08-29",
+  "baseline_commit": "144c2d1bf7fef6a71d1246761f50086cb9868e34",
+  "baseline_tree": "aa0b4446fc98d8e776846f30694ab14b5516bb37",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "live_model_execution": false,
+  "controlled_c011_execution": false,
+  "deterministic_subprocess_fixture_execution": true,
+  "backend_kind": "DETERMINISTIC_LOCAL_SUBPROCESS_FIXTURE_ONLY",
+  "coordination_store_schema_version": 2,
+  "live_journal_schema_version": 1,
+  "hidden_chain_of_thought_access": false,
+  "s4_properties": {
+    "maximum_workers": 3,
+    "maximum_concurrent_workers": 3,
+    "delegation_depth": 1,
+    "current_s3_admission_required": true,
+    "four_s3_fences_required": true,
+    "focused_context_exact_digest_and_size": true,
+    "root_side_secret_redaction": true,
+    "explicit_subprocess_environment_only": true,
+    "shell_disabled": true,
+    "bounded_cancel_terminate_kill_cleanup": true,
+    "durable_reservation_before_spawn": true,
+    "durable_no_blind_replay": true,
+    "fresh_durable_fence_before_handoff_reuse": true,
+    "raw_worker_output_enters_root_context": false,
+    "generic_runtime_extension_boundary": true,
+    "solo_runtime_default_unchanged": true
+  },
+  "verification": {
+    "s4_live_worker_tests": {
+      "status": "PASS",
+      "passed": 10,
+      "failed": 0
+    },
+    "c011_and_solo_targeted_suite": {
+      "status": "PASS",
+      "passed": 84,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1377,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_51_OF_51",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "root_user_facing_voice": "MAIN_LUNA_ONLY",
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "automatic_handoff_adoption": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "open_stage_boundaries": [
+    "No real model or provider was invoked; acceptance uses deterministic local subprocess fixtures only.",
+    "Production model/profile routing and numeric resource policy remain owner decisions.",
+    "OS-level credential sandbox attestation and external journal anchoring remain open.",
+    "C-011 remains QUEUED and default-off; this stage does not authorize deployment or capability promotion.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S4."
+  ]
+}

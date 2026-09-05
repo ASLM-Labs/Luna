@@ -10,7 +10,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -79,13 +79,14 @@ raise SystemExit(child.wait())
 """
 
 
-class _OwnedProcessTree:
+class OwnedProcessTree:
     """Internal process-tree ownership boundary retained beyond root exit."""
 
     def is_alive(self) -> bool:
         raise NotImplementedError
 
-    def terminate(self) -> None:
+    def terminate(self, *, graceful_timeout_seconds: float) -> bool:
+        """Terminate the tree and report whether hard termination was required."""
         raise NotImplementedError
 
     def wait_quiescent(self, *, timeout_seconds: float) -> bool:
@@ -100,7 +101,7 @@ class _OwnedProcessTree:
         return None
 
 
-class _PosixProcessTree(_OwnedProcessTree):
+class _PosixProcessTree(OwnedProcessTree):
     def __init__(self, process: subprocess.Popen[bytes]) -> None:
         self._process = process
         self._pgid = process.pid
@@ -151,16 +152,18 @@ class _PosixProcessTree(_OwnedProcessTree):
             return True
         return True
 
-    def terminate(self) -> None:
+    def terminate(self, *, graceful_timeout_seconds: float) -> bool:
         try:
             self._signal_process_group(
                 self._pgid,
                 signal.SIGTERM,
             )
         except ProcessLookupError:
-            return
-        if self.wait_quiescent(timeout_seconds=0.25):
-            return
+            return False
+
+        if self.wait_quiescent(timeout_seconds=graceful_timeout_seconds):
+            return False
+
         try:
             sigkill = vars(signal).get("SIGKILL")
             if not isinstance(sigkill, int):
@@ -172,10 +175,12 @@ class _PosixProcessTree(_OwnedProcessTree):
                 sigkill,
             )
         except ProcessLookupError:
-            return
+            return False
+
+        return True
 
 
-class _WindowsJob(_OwnedProcessTree):
+class _WindowsJob(OwnedProcessTree):
     """One Windows Job Object that owns the wrapper and all descendants."""
 
     _JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1
@@ -297,11 +302,16 @@ class _WindowsJob(_OwnedProcessTree):
             raise OSError(ctypes.get_last_error(), "QueryInformationJobObject failed")
         return bool(info.ActiveProcesses)
 
-    def terminate(self) -> None:
+    def terminate(self, *, graceful_timeout_seconds: float) -> bool:
+        del graceful_timeout_seconds
+
         if self._handle is None:
-            return
+            return False
+
         if not self._kernel32.TerminateJobObject(self._handle, 1):
             raise OSError(ctypes.get_last_error(), "TerminateJobObject failed")
+
+        return True
 
     def close(self) -> None:
         if self._handle is None:
@@ -397,11 +407,14 @@ def _read_pipe(
         stream.close()
 
 
-def _start_owned_process(
+def start_owned_process(
     *,
     argv: tuple[str, ...],
     cwd: Path,
-) -> tuple[subprocess.Popen[bytes], _OwnedProcessTree]:
+    environment: Mapping[str, str],
+    stdout: int | BinaryIO | None,
+    stderr: int | BinaryIO | None,
+) -> tuple[subprocess.Popen[bytes], OwnedProcessTree]:
     """Start one root whose descendants remain owned after direct-root exit."""
 
     if os.name != "nt":
@@ -409,15 +422,16 @@ def _start_owned_process(
             process = subprocess.Popen(
                 list(argv),
                 cwd=str(cwd),
-                env=_minimal_environment(),
+                env=dict(environment),
                 stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=stdout,
+                stderr=stderr,
                 shell=False,
                 start_new_session=True,
             )
         except OSError as exc:
             raise SafeProcessError(f"process start failed: {exc}") from exc
+
         return process, _PosixProcessTree(process)
 
     # Windows cannot recover a process tree from a dead root PID. Launch a tiny
@@ -428,25 +442,33 @@ def _start_owned_process(
         process = subprocess.Popen(
             [sys.executable, "-c", _WINDOWS_JOB_WRAPPER],
             cwd=str(cwd),
-            env=_minimal_environment(),
+            env=dict(environment),
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=stdout,
+            stderr=stderr,
             shell=False,
-            creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+            creationflags=(
+                subprocess.CREATE_NO_WINDOW
+                | subprocess.CREATE_NEW_PROCESS_GROUP
+            ),
         )
     except OSError as exc:
-        raise SafeProcessError(f"process ownership gate start failed: {exc}") from exc
+        raise SafeProcessError(
+            f"process ownership gate start failed: {exc}"
+        ) from exc
 
     try:
         tree = _WindowsJob(process)
     except OSError as exc:
         process.kill()
         process.wait()
-        raise SafeProcessError(f"process tree ownership setup failed: {exc}") from exc
+        raise SafeProcessError(
+            f"process tree ownership setup failed: {exc}"
+        ) from exc
 
     assert process.stdin is not None
     payload = json.dumps(list(argv), ensure_ascii=False).encode("utf-8")
+
     try:
         process.stdin.write(len(payload).to_bytes(8, "big"))
         process.stdin.write(payload)
@@ -454,22 +476,51 @@ def _start_owned_process(
         process.stdin.close()
     except (BrokenPipeError, OSError) as exc:
         try:
-            tree.terminate()
+            tree.terminate(graceful_timeout_seconds=0.0)
             tree.wait_quiescent(timeout_seconds=5)
         finally:
             tree.close()
+
         process.wait()
-        raise SafeProcessError(f"process ownership gate release failed: {exc}") from exc
+        raise SafeProcessError(
+            f"process ownership gate release failed: {exc}"
+        ) from exc
 
     return process, tree
 
 
-def _terminate_owned_tree(tree: _OwnedProcessTree) -> None:
+def terminate_owned_process_tree(
+    tree: OwnedProcessTree,
+    *,
+    graceful_timeout_seconds: float = 0.25,
+    quiescence_timeout_seconds: float = 5.0,
+) -> bool:
     """Terminate every still-owned descendant and prove bounded quiescence."""
 
-    tree.terminate()
-    if not tree.wait_quiescent(timeout_seconds=5):
-        raise RuntimeError("owned process tree failed to quiesce after termination")
+    if graceful_timeout_seconds < 0:
+        raise ValueError(
+            "owned process graceful timeout cannot be negative"
+        )
+    if quiescence_timeout_seconds < 0:
+        raise ValueError(
+            "owned process quiescence timeout cannot be negative"
+        )
+
+    if not tree.is_alive():
+        return False
+
+    hard_termination_used = tree.terminate(
+        graceful_timeout_seconds=graceful_timeout_seconds,
+    )
+
+    if not tree.wait_quiescent(
+        timeout_seconds=quiescence_timeout_seconds
+    ):
+        raise RuntimeError(
+            "owned process tree failed to quiesce after termination"
+        )
+
+    return hard_termination_used
 
 
 def run_bounded_argv(
@@ -492,7 +543,13 @@ def run_bounded_argv(
     byte_limit = max_output_chars * 4
 
     started = time.perf_counter()
-    process, tree = _start_owned_process(argv=argv, cwd=cwd)
+    process, tree = start_owned_process(
+        argv=argv,
+        cwd=cwd,
+        environment=_minimal_environment(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
     assert process.stdout is not None
     assert process.stderr is not None
@@ -533,14 +590,14 @@ def run_bounded_argv(
     try:
         while tree.is_alive():
             if output_limit.is_set():
-                _terminate_owned_tree(tree)
+                terminate_owned_process_tree(tree)
                 break
             if stop_requested is not None and stop_requested():
-                _terminate_owned_tree(tree)
+                terminate_owned_process_tree(tree)
                 break
             if time.perf_counter() >= deadline:
                 timed_out = True
-                _terminate_owned_tree(tree)
+                terminate_owned_process_tree(tree)
                 break
             time.sleep(0.01)
 

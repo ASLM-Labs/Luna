@@ -1,0 +1,69 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_EXTERNAL_EVIDENCE_PROMOTION_DECISION",
+  "stage_status": "C011_S5D_EXTERNAL_EVIDENCE_PROMOTION_DECISION_ACCEPTED_NOT_PROMOTED",
+  "baseline_commit": "a0b75112341c296f03b519624c5aa8ec68bbf7bf",
+  "baseline_tree": "f17e4c64b7e4d62d0b45f400dc46282a75979ec2",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "promotion_outcome": "NOT_PROMOTED",
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_EXTERNAL_EVIDENCE_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "provider_execution_during_s5d": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 22,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s5d_verification.json",
+    "docs/C011_S5D_EXTERNAL_EVIDENCE_PROMOTION_DECISION_REPORT.md",
+    "docs/C011_S5D_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "scripts/verify_c011_s5c.py",
+    "scripts/verify_c011_s5d.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/promotion_decision.py",
+    "tests/test_c011_s5d_promotion_decision.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_18",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "s5d_fail_closed_decision_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1459,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_313_FILES",
+      "verifier_and_cli_chain": "PASS_57_OF_57",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "S5D adds passive content-addressed evidence, policy and fail-closed decision contracts only.",
+    "The current outcome is BLOCKED_INSUFFICIENT_EVIDENCE and NOT_PROMOTED.",
+    "No provider or model ran during S5D and no production runtime route was added.",
+    "A complete inventory can only become ready for a separate owner review; it cannot self-promote.",
+    "C-011 remains QUEUED and default-off; ASLM Research remains a separate project."
+  ]
+}

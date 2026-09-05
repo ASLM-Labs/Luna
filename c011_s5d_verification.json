@@ -1,0 +1,145 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_EXTERNAL_EVIDENCE_PROMOTION_DECISION",
+  "stage_status": "C011_S5D_EXTERNAL_EVIDENCE_PROMOTION_DECISION_ACCEPTED_NOT_PROMOTED",
+  "owner_authorization_date": "2026-09-01",
+  "evidence_date": "2026-09-01",
+  "baseline_commit": "a0b75112341c296f03b519624c5aa8ec68bbf7bf",
+  "baseline_tree": "f17e4c64b7e4d62d0b45f400dc46282a75979ec2",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "requested_transition": "CANARY",
+  "decision_disposition": "BLOCKED_INSUFFICIENT_EVIDENCE",
+  "promotion_outcome": "NOT_PROMOTED",
+  "policy_id": "c011-s5d-policy:sha256:c372b3462bf560b071fad3822e4d825b8d51a27882699cc6560dc974795d4f84",
+  "snapshot_id": "c011-s5d-snapshot:sha256:77256b92ec572e35a10c3875fb3fb79719a0f424a01ccec5fc3de3c66fcd1672",
+  "decision_id": "c011-s5d-decision:sha256:6cf28d738995bc5891327059a61b0b185ceafb134b1e453d4fb115bfe93e6162",
+  "source_receipts": {
+    "s5b_real_adapter": {
+      "path": "c011_s5b_real_adapter_verification.json",
+      "canonical_text_lf_sha256": "75f99933be8780406384bd62d5bc8a646570045d2b901a57adc5c27f63c01a85",
+      "accepted_real_result_count": 1,
+      "reported_tokens": 0
+    },
+    "s5c_shadow_ledger": {
+      "path": "c011_s5c_verification.json",
+      "canonical_text_lf_sha256": "2611e4ca8cfe1b20f660e793b2d76974c1477b19446baad9b0b4009949761bb0",
+      "evidence_kind": "DETERMINISTIC_FIXTURE",
+      "real_provider_execution": false,
+      "equal_compute_non_inferiority_established": false
+    }
+  },
+  "evidence_inventory": [
+    {
+      "requirement": "REAL_PROVIDER_EXECUTION",
+      "state": "VERIFIED",
+      "evidence_class": "REAL_PROVIDER_OBSERVATION"
+    },
+    {
+      "requirement": "HARDWARE_RESOURCE_ATTESTATION",
+      "state": "PARTIAL",
+      "evidence_class": "REPOSITORY_RECEIPT"
+    },
+    {
+      "requirement": "SAFETY_CONTAINMENT_ATTESTATION",
+      "state": "PARTIAL",
+      "evidence_class": "REPOSITORY_RECEIPT"
+    },
+    {
+      "requirement": "S5C_LEDGER_INTEGRITY",
+      "state": "VERIFIED",
+      "evidence_class": "REPOSITORY_RECEIPT"
+    },
+    {
+      "requirement": "REAL_EQUAL_COMPUTE_NON_INFERIORITY",
+      "state": "OPEN",
+      "evidence_class": "NONE"
+    },
+    {
+      "requirement": "EVALUATOR_INDEPENDENCE_ATTESTATION",
+      "state": "OPEN",
+      "evidence_class": "NONE"
+    },
+    {
+      "requirement": "CONTAMINATION_PROVENANCE_ATTESTATION",
+      "state": "OPEN",
+      "evidence_class": "NONE"
+    },
+    {
+      "requirement": "EXTERNAL_LEDGER_ANCHOR",
+      "state": "OPEN",
+      "evidence_class": "NONE"
+    }
+  ],
+  "satisfied_requirements": [
+    "REAL_PROVIDER_EXECUTION",
+    "S5C_LEDGER_INTEGRITY"
+  ],
+  "partial_requirements": [
+    "HARDWARE_RESOURCE_ATTESTATION",
+    "SAFETY_CONTAINMENT_ATTESTATION"
+  ],
+  "open_requirements": [
+    "REAL_EQUAL_COMPUTE_NON_INFERIORITY",
+    "EVALUATOR_INDEPENDENCE_ATTESTATION",
+    "CONTAMINATION_PROVENANCE_ATTESTATION",
+    "EXTERNAL_LEDGER_ANCHOR"
+  ],
+  "provider_execution_during_s5d": false,
+  "live_model_execution_during_s5d": false,
+  "production_runtime_wiring_added": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_18",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "s5d_fail_closed_decision_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1459,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_313_FILES",
+      "verifier_and_cli_chain": "PASS_57_OF_57",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "provider_execution_authority": false,
+    "runtime_execution_authority": false,
+    "root_context_adoption_authority": false,
+    "task_state_authority": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "canary_authority": false,
+    "active_authority": false,
+    "promotion_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_REAL_EQUAL_COMPUTE_EXTERNAL_EVIDENCE_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "open_stage_boundaries": [
+    "The single accepted S5B real-provider result reported zero tokens and is not equal-compute comparison evidence.",
+    "Declared process budgets are not enforceable external hardware ceilings.",
+    "OS sandbox, credential and race-free containment attestations remain absent.",
+    "Representative real SOLO, ULTRA_SOLO and PARALLEL equal-compute non-inferiority evidence is absent.",
+    "Independent evaluator, contamination provenance and external ledger-anchor attestations are absent.",
+    "S5D evaluated repository evidence only; it made no provider call and added no production runtime wiring.",
+    "C-011 remains QUEUED, default-off and BLOCKED; CANARY and ACTIVE are not authorized.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

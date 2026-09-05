@@ -1,0 +1,93 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S2_DURABLE_EVENT_RECOVERY_CORE",
+  "stage_status": "C011_S2_DURABLE_RECOVERY_ACCEPTED",
+  "owner_authorization_date": "2026-08-24",
+  "acceptance_date": "2026-08-26",
+  "baseline_commit": "8c82cab7eebafd04fdd6a7990115ac1019176ad1",
+  "baseline_tree": "149bbc2b3274505a18b2b5d91a5527af37be9e6e",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_code_gate": "C011_S3_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "production_behavior_changed": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 18,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s2_verification.json",
+    "docs/C011_S2_DURABLE_EVENT_RECOVERY_REPORT.md",
+    "docs/C011_S2_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s2.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/events.py",
+    "src/luna/parallel_cognition/fake_backend.py",
+    "src/luna/parallel_cognition/store.py",
+    "tests/test_c011_s2_durable_recovery.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "current_git_and_live_main_reverified": true,
+    "separately_scoped_multi_agent_reviews": 3,
+    "new_s2_durable_recovery_tests": {
+      "status": "PASS",
+      "passed": 19,
+      "failed": 0
+    },
+    "targeted_s2_s1_c7_solo_metadata_suite": {
+      "status": "PASS",
+      "passed": 195,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1339,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_49_OF_49",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "store_issued_event_provenance_established": true,
+    "production_runtime_authorship_established": false,
+    "root_identity_authentication_established": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "S2 remains isolated from legacy C7 and production LunaRuntime wiring.",
+    "The fake backend is a deterministic in-process acceptance fixture and does not establish a real backend guarantee.",
+    "Ambiguous or old-epoch work is inspected and quarantined without blind replay.",
+    "Execution receipts are constructed by the store from exact durable events; callers cannot submit an authoritative receipt.",
+    "S2 provides local store-mediated provenance and fencing, not cryptographic root identity authentication.",
+    "C-011 remains QUEUED and production remains the unchanged solo path.",
+    "No live Luna/C-011 worker, model call, tool call, network access, child process, training or controlled C-011 execution occurred."
+  ]
+}

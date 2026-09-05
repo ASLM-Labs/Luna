@@ -1,0 +1,102 @@
+{
+  "capability": "C-011",
+  "slice": "C-011A_READ_ONLY_PARALLEL_EVIDENCE_HANDOFF",
+  "stage": "S4_BOUNDED_LIVE_READ_ONLY_WORKERS",
+  "stage_status": "C011_S4_LIVE_WORKERS_ACCEPTED",
+  "owner_authorization_date": "2026-08-28",
+  "evidence_date": "2026-08-29",
+  "baseline_commit": "144c2d1bf7fef6a71d1246761f50086cb9868e34",
+  "baseline_tree": "aa0b4446fc98d8e776846f30694ab14b5516bb37",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_code_gate": "C011_POST_S4_PRODUCTION_PROVIDER_AND_PROMOTION_BLOCKED_PENDING_OWNER_DECISION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "live_model_execution": false,
+  "controlled_c011_execution": false,
+  "deterministic_subprocess_fixture_execution": true,
+  "scope_file_count": 27,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s4_verification.json",
+    "docs/C011_S4_LIVE_WORKERS_REPORT.md",
+    "docs/C011_S4_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s4.py",
+    "src/luna/context/__init__.py",
+    "src/luna/context/extensions.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/context_broker.py",
+    "src/luna/parallel_cognition/controls.py",
+    "src/luna/parallel_cognition/events.py",
+    "src/luna/parallel_cognition/live.py",
+    "src/luna/parallel_cognition/live_runtime.py",
+    "src/luna/parallel_cognition/live_store.py",
+    "src/luna/parallel_cognition/subprocess_backend.py",
+    "src/luna/runtime/dependencies.py",
+    "src/luna/runtime/loop.py",
+    "tests/test_c011_s4_live_workers.py",
+    "tests/test_phase12e_single_policy_loop.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "s4_live_worker_tests": {
+      "status": "PASS",
+      "passed": 10,
+      "failed": 0
+    },
+    "c011_and_solo_targeted_suite": {
+      "status": "PASS",
+      "passed": 84,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1377,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_51_OF_51",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "root_task_state_owner": "MAIN_LUNA_ONLY",
+    "root_user_facing_voice": "MAIN_LUNA_ONLY",
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_process_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_state_mutation_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "automatic_handoff_adoption": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "S4 is injected through a generic root-context extension; Luna runtime imports no C-011 package.",
+    "The default policy remains disabled and kill-switched; no ambient environment flag can enable S4.",
+    "Only current S3-admitted zero-to-three read-only lanes may reach the subprocess backend.",
+    "Worker scratch and raw summaries never enter root context; only root-qualified distilled handoffs do.",
+    "Durable reservations deny blind replay; every terminal handoff reuse receives a fresh journaled current-state fence.",
+    "No live model, network access, worker tool call, production rollout or controlled C-011 execution occurred.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S4."
+  ]
+}

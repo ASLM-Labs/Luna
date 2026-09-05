@@ -1,0 +1,104 @@
+{
+  "aslm_gates": {
+    "controlled_execution": "NONE",
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED"
+  },
+  "authority": {
+    "active": false,
+    "canary": false,
+    "completion": false,
+    "promotion": false,
+    "root_context_adoption": false,
+    "runtime": false,
+    "task_state": false,
+    "user_facing_voice": false
+  },
+  "baseline_commit": "ede7000e4ba990b40b8c505070d24fe6278e63b4",
+  "bridge_abi_version": 2,
+  "bridge_binary_sha256": "e3ce30308489d2c1cc75b020afe38a013dd2262b48c4ace0fb07a190ff429466",
+  "bridge_binary_size_bytes": 139264,
+  "bridge_exports": [
+    "luna_nr2b_abi_version",
+    "luna_nr2b_engine_create",
+    "luna_nr2b_engine_create_v2",
+    "luna_nr2b_engine_destroy",
+    "luna_nr2b_generate",
+    "luna_nr2b_generate_v2"
+  ],
+  "bridge_pre_post_integrity": "PASS",
+  "bridge_source_sha256": "d0054f5773890a17123f9764774d00c941c186e3b0f50e9244224e8f581d077a",
+  "build_receipt_sha256": "92c83b8ce810451607910ea8d3fe23d0971ea6f5cd51ff1434bc5e319804d27a",
+  "c011_driver_proof": {
+    "analysis_content_emitted": false,
+    "canonical_final": "Yes, I'm ready to work today.",
+    "exit_code": 0,
+    "reported_tokens": 129,
+    "result_sha256": "c7e3871b20440c3c0b2edc84944fa17f7c41a8e215e157274e3ee55e8aa66f00",
+    "result_size_bytes": 395,
+    "single_direct_child": true,
+    "status": "PASS_C011_NATIVE_DRIVER_ABI_V2_MEASURED_USAGE",
+    "usage": {
+      "input_tokens": 72,
+      "output_tokens": 57,
+      "schema_version": "1.0",
+      "source": "ENGINE_NATIVE_COUNTERS",
+      "total_tokens": 129
+    },
+    "wall_time_ms": 10391
+  },
+  "completed_at_utc": "2026-09-03T02:39:45.126030Z",
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "live_model_execution": true,
+  "llama_cpp_commit": "08659901c43b51de735740f1cf61bb82fbe0c4e4",
+  "llama_cpp_tag": "b10333",
+  "model_pre_post_integrity": "PASS",
+  "model_sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901",
+  "model_size_bytes": 12109566624,
+  "model_source_identity": "ggml-org/gpt-oss-20b-GGUF:gpt-oss-20b-MXFP4.gguf",
+  "native_worker_proof": {
+    "analysis_content_emitted": false,
+    "canonical_final": "Yes, I'm ready to work today.",
+    "request_id_match": true,
+    "state_after": "STOPPED",
+    "state_before": "STOPPED",
+    "status": "PASS_LUNANATIVEWORKER_ABI_V2_MEASURED_USAGE",
+    "stream_event_types": [
+      "TEXT_DELTA",
+      "FINISH"
+    ],
+    "usage": {
+      "input_tokens": 19,
+      "output_tokens": 75,
+      "source": "ENGINE_NATIVE_COUNTERS",
+      "total_tokens": 94
+    },
+    "wall_time_ms": 9953
+  },
+  "provider_call_executed": true,
+  "repository_pre_post_status_unchanged": true,
+  "runtime_file_count": 18,
+  "runtime_pre_post_integrity": "PASS",
+  "schema_version": 1,
+  "scope": "C011_NATIVE_ABI_V2_MEASURED_USAGE_REAL_PROOF",
+  "started_at_utc": "2026-09-03T02:39:24.773411Z",
+  "status": "PASS_C011_NATIVE_ABI_V2_ENGINE_NATIVE_USAGE_FULL_CHAIN",
+  "usage_semantics": {
+    "counter_type": "uint64_t",
+    "failure_values": "ZERO",
+    "fields": [
+      "input_tokens",
+      "output_tokens",
+      "total_tokens"
+    ],
+    "includes_bos_if_actually_fed": true,
+    "includes_special_tokens_actually_fed": true,
+    "input_basis": "POST_CHAT_TEMPLATE_MODEL_TOKENIZATION",
+    "output_basis": "SAMPLED_NON_EOG_TOKENS",
+    "source": "ENGINE_NATIVE_COUNTERS",
+    "success_assignment": "ATOMIC_AFTER_TEXT_VALIDATION",
+    "terminal_eog_included": false,
+    "total_basis": "INPUT_PLUS_OUTPUT"
+  }
+}

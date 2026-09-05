@@ -1,0 +1,81 @@
+{
+  "capability": "C-011",
+  "stage": "S5B_LOCAL_NATIVE_DRIVER_ADAPTER",
+  "stage_status": "C011_S5B_LOCAL_NATIVE_DRIVER_ADAPTER_ACCEPTED",
+  "owner_authorization_date": "2026-08-30",
+  "evidence_date": "2026-08-30",
+  "baseline_commit": "3d302c1ace97d65c612cd4c040c5d54f3c5bec00",
+  "baseline_tree": "bca0ae37a9e57e1f7c71782cad44aef656382171",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "fixture_child_process_executed": true,
+  "provider_call_executed": false,
+  "live_model_execution": false,
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "s5b_properties": {
+    "fixture_only_driver_mode": true,
+    "exact_s5a_shadow_selection_revalidated_at_execution": true,
+    "content_addressed_provider_binding": true,
+    "exact_executable_driver_model_hash_binding": true,
+    "exact_explicit_environment_digest_binding": true,
+    "ambient_environment_inheritance": false,
+    "shell_execution": false,
+    "artifact_hash_verified_before_and_after_execution": true,
+    "cooperative_cancel_terminate_kill_cleanup_preserved": true,
+    "s4_result_content_identity_preserved": true,
+    "s5b_result_binds_provider_binding_id": true,
+    "default_policy_disabled": true,
+    "default_kill_switch_engaged": true,
+    "real_provider_execution_added": false,
+    "production_runtime_wiring_added": false
+  },
+  "verification": {
+    "s5b_native_adapter_tests": {
+      "status": "PASS",
+      "passed": 13,
+      "failed": 0
+    },
+    "ruff_changed_scope": "PASS",
+    "mypy_strict": "PASS",
+    "full_local_gate": {
+      "status": "PASS",
+      "command": "scripts/check.bat",
+      "pytest_passed": 1409,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_53_OF_53",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "authority": {
+    "real_provider_execution_authority": false,
+    "root_context_adoption_authority": false,
+    "task_state_authority": false,
+    "worker_write_authority": false,
+    "worker_network_authority": false,
+    "worker_tool_authority": false,
+    "worker_delegation_authority": false,
+    "worker_memory_commit_authority": false,
+    "worker_completion_authority": false,
+    "worker_user_facing_voice_authority": false,
+    "promotion_authority": false
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "open_stage_boundaries": [
+    "Only deterministic temporary fixture artifacts were executed; no real provider, model, credential or network call occurred.",
+    "Current external model, driver and executable identities plus target-host numeric budgets remain open.",
+    "Pre/post hashing detects drift but does not claim race-free OS containment; stronger process and artifact isolation remains external evidence.",
+    "Real local-native execution is blocked pending current external evidence; S5C shadow evaluation has not started.",
+    "C-011 remains QUEUED and default-off; fixture execution grants no adoption, state, completion, voice or promotion authority.",
+    "ASLM Research is a separate project and was not evaluated or modified by Luna S5B."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E2_RUNTIME_ACCOUNTING_CONTRACT",
+  "stage_status": "C011_REAL_EQUAL_COMPUTE_RUNTIME_ACCOUNTING_CONTRACT_ACCEPTED_BLOCKED_ABI_V1",
+  "baseline_commit": "a86c41510187a95b057c3ea615f79f70dc6bb9cf",
+  "baseline_tree": "bb9149310341700cf6e923ceb691f4277bd7eee7",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "accounting_outcome": "BLOCKED_USAGE_CHANNEL_ABSENT",
+  "next_gate": "C011_NATIVE_ABI_V2_MEASURED_USAGE_CHANNEL_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "owner_authorization_recorded": true,
+  "provider_execution_during_gate": false,
+  "live_model_execution_during_gate": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 24,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_runtime_accounting_verification.json",
+    "docs/C011_RUNTIME_ACCOUNTING_CONTRACT_REPORT.md",
+    "docs/C011_RUNTIME_ACCOUNTING_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_real_equal_compute_preflight.py",
+    "scripts/verify_c011_runtime_accounting.py",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "scripts/verify_c011_s5c.py",
+    "scripts/verify_c011_s5d.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/runtime_accounting.py",
+    "tests/test_c011_runtime_accounting.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_20",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "runtime_accounting_fail_closed_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1497,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_315_FILES",
+      "verifier_and_cli_chain": "PASS_59_OF_59",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "Engine-native counters are the only accepted token measurement source.",
+    "ABI v1 has internal token operations but no usage result channel.",
+    "No model call ran because the current ABI cannot produce valid accounting evidence.",
+    "The native bridge, worker process and real driver remain unchanged in this gate.",
+    "C-011 remains QUEUED and default-off; ASLM Research remains a separate project."
+  ]
+}

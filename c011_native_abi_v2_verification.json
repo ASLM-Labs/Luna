@@ -1,0 +1,153 @@
+{
+  "capability": "C-011",
+  "stage": "S5D_E3_NATIVE_ABI_V2_MEASURED_USAGE_CHANNEL",
+  "stage_status": "C011_NATIVE_ABI_V2_MEASURED_USAGE_CHANNEL_ACCEPTED",
+  "owner_authorization_date": "2026-09-03",
+  "owner_authorization_recorded": true,
+  "owner_authorization_scope": "NATIVE_ABI_V2_MEASURED_USAGE_CHANNEL_ONLY",
+  "real_model_test_permitted_by_owner": true,
+  "evidence_date": "2026-09-03",
+  "baseline_commit": "ede7000e4ba990b40b8c505070d24fe6278e63b4",
+  "baseline_tree": "9175a12f8a05add9b4ec1a15f4db2eebfbd57abd",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "local_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "origin_main": "0154390581e6f145eb8b912fe91595cdd54496af",
+  "capability_status": "QUEUED",
+  "default_enabled": false,
+  "accounting_outcome": "ENGINE_NATIVE_USAGE_CHANNEL_VERIFIED",
+  "bridge_abi_version": 2,
+  "required_exports": [
+    "luna_nr2b_abi_version",
+    "luna_nr2b_engine_create",
+    "luna_nr2b_engine_create_v2",
+    "luna_nr2b_generate",
+    "luna_nr2b_generate_v2",
+    "luna_nr2b_engine_destroy"
+  ],
+  "usage_semantics": {
+    "source": "ENGINE_NATIVE_COUNTERS",
+    "counter_type": "uint64_t",
+    "input_basis": "POST_CHAT_TEMPLATE_MODEL_TOKENIZATION",
+    "output_basis": "SAMPLED_NON_EOG_TOKENS",
+    "terminal_eog_included": false,
+    "total_basis": "INPUT_PLUS_OUTPUT",
+    "failure_values": "ZERO"
+  },
+  "predecessor_gate": {
+    "stage_status": "C011_REAL_EQUAL_COMPUTE_RUNTIME_ACCOUNTING_CONTRACT_ACCEPTED_BLOCKED_ABI_V1",
+    "receipt_path": "c011_runtime_accounting_verification.json",
+    "receipt_canonical_sha256": "4dea09f278fe7603ef9f34eae093c12d92e7ddf99322a5c4109ab5677bb3d449"
+  },
+  "source_basis": {
+    "native_shim": {
+      "path": "native/neural_bridge/luna_nr2b_shim_harmony.cpp",
+      "canonical_text_lf_sha256": "d0054f5773890a17123f9764774d00c941c186e3b0f50e9244224e8f581d077a",
+      "size_bytes": 23078
+    },
+    "bridge_contract": {
+      "path": "native/neural_bridge/bridge_contract.json",
+      "canonical_text_lf_sha256": "f63ddc86c29cbadc0617d0e7d9587c60d38f7e6f9b7d6680b61b6659bf03ebc2",
+      "size_bytes": 4279
+    },
+    "native_worker_process": {
+      "path": "src/luna/neural/native_worker_process.py",
+      "canonical_text_lf_sha256": "ae1cf76443f7e2faa01ae50946a85edcf5c6e6a67030a7bd7c9f87847b8cb186",
+      "size_bytes": 13114
+    },
+    "native_worker": {
+      "path": "src/luna/neural/native_worker.py",
+      "canonical_text_lf_sha256": "733a66911b1593a95172c2c869813291b9f22790bfcd59d316a2ebfad50eb174",
+      "size_bytes": 13057
+    },
+    "native_real_driver": {
+      "path": "src/luna/parallel_cognition/native_real_driver.py",
+      "canonical_text_lf_sha256": "85f4905b9905d42b1a8e7e7aaef549c35fe6a34fcc313d82200f9441233be6ac",
+      "size_bytes": 9067
+    },
+    "live_draft_contract": {
+      "path": "src/luna/parallel_cognition/live.py",
+      "canonical_text_lf_sha256": "a2e380ebeb76065d50ae63d66f5ce56c1a1fe37d09ba065984fba144bd059f47",
+      "size_bytes": 20656
+    },
+    "real_proof": {
+      "path": "docs/C011_NATIVE_ABI_V2_REAL_PROOF_RECEIPT.json",
+      "canonical_text_lf_sha256": "65d878bac43fe0668242bf3fdf4350844925c26b5fc23c9693ead313dd60456d",
+      "size_bytes": 3527
+    }
+  },
+  "native_build": {
+    "status": "PASS_REPO_OWNED_NATIVE_BRIDGE_BUILD",
+    "llama_cpp_tag": "b10333",
+    "llama_cpp_commit": "08659901c43b51de735740f1cf61bb82fbe0c4e4",
+    "bridge_binary_sha256": "e3ce30308489d2c1cc75b020afe38a013dd2262b48c4ace0fb07a190ff429466",
+    "bridge_binary_size_bytes": 139264,
+    "exact_export_count": 6
+  },
+  "real_model_evidence": {
+    "status": "PASS_C011_NATIVE_ABI_V2_ENGINE_NATIVE_USAGE_FULL_CHAIN",
+    "live_model_execution": true,
+    "provider_call_executed": true,
+    "native_worker_usage": {
+      "source": "ENGINE_NATIVE_COUNTERS",
+      "input_tokens": 19,
+      "output_tokens": 75,
+      "total_tokens": 94
+    },
+    "c011_driver_usage": {
+      "schema_version": "1.0",
+      "source": "ENGINE_NATIVE_COUNTERS",
+      "input_tokens": 72,
+      "output_tokens": 57,
+      "total_tokens": 129
+    },
+    "canonical_final": "Yes, I'm ready to work today.",
+    "model_pre_post_integrity": "PASS",
+    "bridge_pre_post_integrity": "PASS",
+    "runtime_pre_post_integrity": "PASS",
+    "repository_pre_post_status_unchanged": true
+  },
+  "controlled_c011_execution": false,
+  "hidden_chain_of_thought_access": false,
+  "authority": {
+    "runtime": false,
+    "task_state": false,
+    "root_context_adoption": false,
+    "completion": false,
+    "user_facing_voice": false,
+    "canary": false,
+    "active": false,
+    "promotion": false
+  },
+  "verification": {
+    "focused_contract_and_adversarial_tests": "PASS_36",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS_7_FILES",
+    "native_bridge_build": "PASS",
+    "real_model_full_chain": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1503,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_315_FILES",
+      "verifier_and_cli_chain": "PASS_60_OF_60",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "next_gate": "C011_REAL_RUNTIME_CONFIGURATION_CONTRACTS_BLOCKED_PENDING_SEPARATE_OWNER_AUTHORIZATION",
+  "open_stage_boundaries": [
+    "ABI v2 proves a backward-compatible engine-native measured-usage channel; it does not authorize C-011 execution or promotion.",
+    "Legacy ABI v1 exports and signatures remain present while versioned entry points carry requested batch and usage outputs.",
+    "The real proof is one bounded CPU-only observation and is not equal-compute non-inferiority evidence.",
+    "Production runtime configuration, persistent residency, GPU enforcement, packaging and installer policy remain separate gates.",
+    "C-011 remains QUEUED, default-off and BLOCKED; CANARY and ACTIVE are not authorized.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}

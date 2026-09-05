@@ -10,7 +10,11 @@ from types import MappingProxyType
 from pydantic import field_validator, model_validator
 
 from luna.actions import ActionResolver
-from luna.context import ContextIntegrityGate, LayeredContextComposer
+from luna.context import (
+    ContextIntegrityGate,
+    LayeredContextComposer,
+    RootContextExtensionProvider,
+)
 from luna.continuity import ContinuityService
 from luna.contracts.base import LunaContractModel
 from luna.decision_state import DecisionStateService
@@ -151,12 +155,14 @@ class RuntimeLoopDependencies:
     knowledge_evolution_handoff_provider: (
         KnowledgeEvolutionRuntimeHandoffProvider | None
     ) = None
+    root_context_extension_provider: RootContextExtensionProvider | None = None
     phase12f: Phase12FServices | None = None
 
     def __post_init__(self) -> None:
         for item in fields(self):
             if item.name in {
                 "knowledge_evolution_handoff_provider",
+                "root_context_extension_provider",
                 "phase12f",
             }:
                 continue

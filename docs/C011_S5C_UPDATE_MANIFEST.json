@@ -1,0 +1,67 @@
+{
+  "capability": "C-011",
+  "stage": "S5C_SHADOW_EVALUATION_LEDGER",
+  "stage_status": "C011_S5C_SHADOW_EVALUATION_LEDGER_ACCEPTED",
+  "baseline_commit": "a7907bdfa1633ab68efdc8a535e7628181f149ff",
+  "baseline_tree": "3f5babb8c356256de895ef86bb47bdcba6a9e133",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_gate": "C011_S5D_EXTERNAL_EVIDENCE_AND_PROMOTION_DECISION_BLOCKED_PENDING_OWNER_DECISION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "real_provider_execution": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 21,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s5c_verification.json",
+    "docs/C011_S5C_SHADOW_EVALUATION_LEDGER_REPORT.md",
+    "docs/C011_S5C_UPDATE_MANIFEST.json",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_adapter.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "scripts/verify_c011_s5c.py",
+    "src/luna/parallel_cognition/__init__.py",
+    "src/luna/parallel_cognition/shadow_evaluation.py",
+    "tests/test_c011_s5c_shadow_evaluation.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "focused_fixture_and_adversarial_tests": "PASS_20",
+    "changed_scope_ruff": "PASS",
+    "changed_scope_mypy_strict": "PASS",
+    "deterministic_ledger_gate": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1440,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS_312_FILES",
+      "verifier_and_cli_chain": "PASS_56_OF_56",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "S5C adds passive typed content-addressed contracts, pure comparison and an atomic SQLite shadow ledger.",
+    "The accepted repository evidence is deterministic-fixture-only; no provider, model or production runtime path was invoked.",
+    "Comparison output has no task-state, root-context, completion, user-voice or promotion authority.",
+    "Real equal-compute non-inferiority, external ledger anchoring and every S5D decision remain open.",
+    "C-011 remains QUEUED and default-off; ASLM Research remains a separate project."
+  ]
+}

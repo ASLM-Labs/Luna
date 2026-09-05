@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "scope": "C011_NATIVE_BRIDGE_V2_BUILD_GOVERNANCE",
+  "status": "RECONCILED_PENDING_LOCAL_BUILD_PROOF",
+  "bridge_source": "native/neural_bridge/c011_v2/luna_c011_nr2b_shim_harmony_v2.cpp",
+  "bridge_source_sha256": "D0054F5773890A17123F9764774D00C941C186E3B0F50E9244224E8F581D077A",
+  "bridge_source_provenance": {
+    "parent_bridge_source_sha256": "6D130A9B53B6014ECBAE91276E15478E4424DE7EA72CCFC35E087D8DDAFA8FF1",
+    "reconciled_batch_policy_branch_source_sha256": "8DDDF0243FB4036910EF8FD4A9051389915CD07577077A11507D7DF176B7F160",
+    "external_proof_source_sha256": "EE88E17E52565FA0B12634E41CFC1F908F9C2898677B3F67745116B178562804",
+    "change_class": "ABI_V2_BACKWARD_COMPATIBLE_BATCH_AND_MEASURED_USAGE",
+    "normalization": "reviewed_change_from_parent_source",
+    "byte_changes_other_than_final_lf": true
+  },
+  "abi_version": 2,
+  "required_exports": [
+    "luna_nr2b_abi_version",
+    "luna_nr2b_engine_create",
+    "luna_nr2b_engine_create_v2",
+    "luna_nr2b_generate",
+    "luna_nr2b_generate_v2",
+    "luna_nr2b_engine_destroy"
+  ],
+  "abi_compatibility": {
+    "legacy_v1_exports_preserved": true,
+    "legacy_v1_signatures_preserved": true,
+    "versioned_engine_create_adds_requested_batch": true,
+    "versioned_generate_adds_usage_outputs": true
+  },
+  "usage_contract": {
+    "source": "ENGINE_NATIVE_COUNTERS",
+    "counter_type": "uint64_t",
+    "fields": [
+      "input_tokens",
+      "output_tokens",
+      "total_tokens"
+    ],
+    "input_basis": "POST_CHAT_TEMPLATE_MODEL_TOKENIZATION",
+    "includes_special_tokens_actually_fed": true,
+    "includes_bos_if_actually_fed": true,
+    "output_basis": "SAMPLED_NON_EOG_TOKENS",
+    "terminal_eog_included": false,
+    "total_basis": "INPUT_PLUS_OUTPUT",
+    "success_assignment": "ATOMIC_AFTER_TEXT_VALIDATION",
+    "failure_values": "ZERO"
+  },
+  "llama_cpp": {
+    "repository": "https://github.com/ggml-org/llama.cpp.git",
+    "tag": "b10333",
+    "commit": "08659901c43b51de735740f1cf61bb82fbe0c4e4",
+    "vendored": false,
+    "locked_files": {
+      "include/llama.h": "9670030D4ABDAACBB847CAA94279C77396D350E38F53400722EFEA5641647775",
+      "ggml/include/ggml.h": "B8AF90F5415EC9442E05DBCF9CF0C34E9351EF0CED6805E4D41174BEE213F148",
+      "ggml/include/ggml-backend.h": "B376D5CE489E642B4A52EA6DCC440157876FA9940E4ECFC8F3991C7FD47CA194"
+    }
+  },
+  "runtime_assets": {
+    "vendored": false,
+    "cpu_only_rebuild_scope": true,
+    "locked_files": {
+      "llama.dll": "CB34CF39D2D0A8BF9784A506A6943C7246C419514F6596FA6C752983434E0FFD",
+      "ggml.dll": "43260B2802808B7ADD13E5838AC7BF2ED12450A8B102425B43A3BCD9F518AE5F",
+      "ggml-base.dll": "54BC2ABFAE49963AAE75C7A19DF66910AF68EEA9B70FC60B479843882F87BDBF"
+    }
+  },
+  "build": {
+    "platform": "windows_x64",
+    "compiler": "msvc",
+    "cxx_standard": "c++17",
+    "optimization": "O2",
+    "reproducible_link_flag": "/Brepro",
+    "import_libraries": "reconstructed from locked DLL exports",
+    "object_output_must_be_inside_build_dir": true,
+    "model_load_required_for_build": false,
+    "inference_required_for_build": false
+  },
+  "authority": {
+    "primary_path_promoted": false,
+    "gpu_promotion": false,
+    "persistent_residency": false,
+    "identity_test": false,
+    "tool_authority_transfer": false,
+    "memory_authority_transfer": false,
+    "training_authority_transfer": false,
+    "promotion_authority_transfer": false
+  },
+  "verification": {
+    "reconciled_isolated_build_proof_locked": false,
+    "upstream_c011_proof_reused_as_local_proof": false,
+    "primary_path_promoted": false,
+    "persistent_residency_claimed": false,
+    "gpu_budget_enforcement_claimed": false,
+    "identity_test_executed": false
+  },
+  "upstream_c011": {
+    "tip_commit": "a4bb9f20abe2a2eff1227fb6f76f008c1c2b0e5a",
+    "abi_v2_origin_commit": "00a684f600e5dba74ce7e991e4583af6bc8b0bab",
+    "source_sha256": "D0054F5773890A17123F9764774D00C941C186E3B0F50E9244224E8F581D077A",
+    "verification": {
+      "historical_v1_full_chain_proof_locked": true,
+      "historical_v1_proof_receipt": "docs/NEURAL_NATIVE_BRIDGE_REAL_PROOF_RECEIPT.json",
+      "historical_v1_repo_built_bridge_sha256": "506D320F0D811E54192B852F81E62330DE9662F26DCEB3C7BEFE788BF9BFADFB",
+      "current_v2_real_proof_locked": true,
+      "current_v2_proof_receipt": "docs/C011_NATIVE_ABI_V2_REAL_PROOF_RECEIPT.json",
+      "current_v2_proof_receipt_canonical_sha256": "65D878BAC43FE0668242BF3FDF4350844925C26B5FC23C9693EAD313DD60456D",
+      "current_v2_proof_status": "PASS_C011_NATIVE_ABI_V2_ENGINE_NATIVE_USAGE_FULL_CHAIN",
+      "current_v2_repo_built_bridge_sha256": "E3CE30308489D2C1CC75B020AFE38A013DD2262B48C4ACE0FB07A190FF429466",
+      "primary_path_promoted": false,
+      "persistent_residency_claimed": false,
+      "gpu_budget_enforcement_claimed": false,
+      "identity_test_executed": false
+    }
+  },
+  "isolation": {
+    "common_v1_bridge_replaced": false,
+    "common_v1_python_transport_modified": false,
+    "c011_explicit_bridge_artifact_required": true,
+    "c011_abi_version": 2,
+    "ultra_path_protected": true
+  }
+}

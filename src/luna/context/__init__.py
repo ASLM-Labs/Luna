@@ -3,6 +3,11 @@
 from luna.context.authority import ContextAuthorityResolver
 from luna.context.collector import ContextCollector
 from luna.context.composer import LayeredContextComposer
+from luna.context.extensions import (
+    RootContextExtensionIntegrityError,
+    RootContextExtensionProvider,
+    RootContextExtensionResult,
+)
 from luna.context.integrity import ContextIntegrityGate
 from luna.context.integrity_models import (
     ContextAuthorityRole,
@@ -70,4 +75,7 @@ __all__ = [
     "LayeredContextEntry",
     "LayeredContextPolicy",
     "ReadinessDecision",
+    "RootContextExtensionIntegrityError",
+    "RootContextExtensionProvider",
+    "RootContextExtensionResult",
 ]

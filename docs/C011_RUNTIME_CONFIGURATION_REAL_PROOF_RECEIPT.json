@@ -1,0 +1,133 @@
+{
+  "aslm_gates": {
+    "controlled_execution": "NONE",
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED"
+  },
+  "asset_binding_id": "c011-real-runtime-assets:sha256:dd01e2ce08143e62f2d0ec895d243425c9190443791869ebb671ae02f96c492e",
+  "assets": {
+    "asset_pre_post_integrity": "PASS",
+    "bridge_abi_version": 2,
+    "bridge_sha256": "e3ce30308489d2c1cc75b020afe38a013dd2262b48c4ace0fb07a190ff429466",
+    "bridge_size_bytes": 139264,
+    "driver_sha256": "e638cf3bf10d0a3e430f963e7974e39f9854c234c7ea5fb2f8c7399edd778562",
+    "environment_sha256": "b4e96fbf011e9b565a32d70053fe2d521340d24afc7c91aba4f6dcf5c80d3e43",
+    "model_sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901",
+    "model_size_bytes": 12109566624,
+    "model_source_identity": "ggml-org/gpt-oss-20b-GGUF:gpt-oss-20b-MXFP4.gguf",
+    "runtime_bundle_sha256": "befb886e8fd2682a556cb3315af59f4dabeb89ab0f5d384a85409371a99005ad",
+    "runtime_file_count": 18
+  },
+  "authority": {
+    "active": false,
+    "canary": false,
+    "completion": false,
+    "promotion": false,
+    "root_context_adoption": false,
+    "runtime": false,
+    "task_state": false,
+    "user_facing_voice": false
+  },
+  "backend_id": "local-native:c011-runtime-configuration-evidence",
+  "baseline_commit": "00a684f600e5dba74ce7e991e4583af6bc8b0bab",
+  "completed_at_utc": "2026-09-04T04:29:22.055797Z",
+  "configuration_set_id": "c011-real-runtime-set:sha256:9e9f567f200ff2af31f6956b77107d97fa0cf72a35a09078d1f5b702c86442ca",
+  "controlled_c011_execution": false,
+  "equal_compute_contract": {
+    "configurations": [
+      "SOLO",
+      "ULTRA_SOLO",
+      "PARALLEL"
+    ],
+    "engine_native_usage_required": true,
+    "max_total_output_tokens_per_arm": 256,
+    "normalized_compute_units_per_arm": 1000,
+    "real_equal_compute_triplet_executed": false
+  },
+  "full_three_arm_runner_executed": false,
+  "hidden_chain_of_thought_access": false,
+  "live_model_execution": true,
+  "max_concurrent_observed": 2,
+  "member_binding_id": "c011-native-driver-binding:sha256:f2db63798d2653e208d95e4246b31afe6fe09f3befc1cc422ed01a77470b7e38",
+  "native_usage_survived_result_boundary": true,
+  "parallel_workers": 2,
+  "per_member_budget": {
+    "background_inference": false,
+    "batch_size": 256,
+    "cpu_threads": 4,
+    "idle_unload_seconds": 0,
+    "inference_allowed": true,
+    "max_context_tokens": 512,
+    "max_gpu_utilization_percent": 0,
+    "max_kv_cache_mib": 512,
+    "max_parallel_generations": 1,
+    "max_system_ram_mib": 16384,
+    "max_vram_mib": 0,
+    "model_resident": false,
+    "request_priority": 50,
+    "schema_version": "1.0"
+  },
+  "pool_binding_id": "c011-native-adapter-pool:sha256:a94c60a5805f9aaf1c4c2d02c6cae9ca35798a212e99b7384cae1549d8631ef4",
+  "pool_exhausted_without_replay": true,
+  "production_runtime_wiring_added": false,
+  "profile_id": "c011-provider-profile:sha256:7305722f52ecd6559599259ffaa00ca09cc58a4a81a61d3e6f6fab45ee40d09d",
+  "provider_calls_executed": 2,
+  "repository_pre_post_status_unchanged": true,
+  "results": [
+    {
+      "analysis_content_emitted": false,
+      "canonical_final": "READY.",
+      "claims_count": 0,
+      "cleanup_state": "CLEANUP_COMPLETE",
+      "hard_termination_used": false,
+      "outcome_state": "RESULT_RECEIVED",
+      "request_id": "c011-live-request:sha256:12978b15494b9a5dc1dffac5b5861158120953ab069cbab3d016b07ebd212039",
+      "result_id": "c011-live-result:sha256:f0c60d7d87999addc67a2d1bb5f4b1e83fe54f6267fd6f159c0d780deef98449",
+      "role": "PARALLEL",
+      "runtime_ms": 13812,
+      "usage": {
+        "input_tokens": 76,
+        "output_tokens": 24,
+        "schema_version": "1.0",
+        "source": "ENGINE_NATIVE_COUNTERS",
+        "total_tokens": 100
+      }
+    },
+    {
+      "analysis_content_emitted": false,
+      "canonical_final": "READY.",
+      "claims_count": 0,
+      "cleanup_state": "CLEANUP_COMPLETE",
+      "hard_termination_used": false,
+      "outcome_state": "RESULT_RECEIVED",
+      "request_id": "c011-live-request:sha256:5e2ae8327cc1825af85a6f0c1e6ca7c992de0aeda8e86f2f43e0e091cc63542e",
+      "result_id": "c011-live-result:sha256:069e223a5a4cccdfbd7a5a7e8fcb2275625d59cfef623de782fd498acb1f01bd",
+      "role": "INDEPENDENT_REVIEWER",
+      "runtime_ms": 13327,
+      "usage": {
+        "input_tokens": 76,
+        "output_tokens": 24,
+        "schema_version": "1.0",
+        "source": "ENGINE_NATIVE_COUNTERS",
+        "total_tokens": 100
+      }
+    }
+  ],
+  "runtime_arm_ids": {
+    "PARALLEL": "c011-real-runtime-arm:sha256:e56d211951028dc80f28fb6fc4d1ffe17056bc8e33a72fa6d0c62fed45203582",
+    "SOLO": "c011-real-runtime-arm:sha256:ac04b37ff1f1e814abcfaf195a6af187a0ce0d5baef9415c9cf6ae15c6051792",
+    "ULTRA_SOLO": "c011-real-runtime-arm:sha256:992ddb3cff31b75185015c98903334ed96708d7a8d731a38cffbe7d1b99fa701"
+  },
+  "runtime_configuration_set_constructed": true,
+  "schema_version": 1,
+  "scope": "C011_REAL_RUNTIME_CONFIGURATION_TWO_LANE_PROOF",
+  "shadow_arm_execution_sha256": {
+    "PARALLEL": "e56d211951028dc80f28fb6fc4d1ffe17056bc8e33a72fa6d0c62fed45203582",
+    "SOLO": "ac04b37ff1f1e814abcfaf195a6af187a0ce0d5baef9415c9cf6ae15c6051792",
+    "ULTRA_SOLO": "992ddb3cff31b75185015c98903334ed96708d7a8d731a38cffbe7d1b99fa701"
+  },
+  "started_at_utc": "2026-09-04T04:28:50.121587Z",
+  "status": "PASS_C011_REAL_RUNTIME_CONFIGURATION_TWO_LANE_FULL_CHAIN",
+  "wall_time_ms": 31937,
+  "worker_output_token_ceiling": 64
+}

@@ -27,6 +27,8 @@ from luna.context import (
     LayeredContextCandidate,
     LayeredContextPolicy,
     ReadinessDecision,
+    RootContextExtensionIntegrityError,
+    RootContextExtensionResult,
 )
 from luna.continuity import ResumePolicy, ResumeStatus
 from luna.continuity.policy_reconciliation import (
@@ -284,6 +286,23 @@ class LunaRuntime:
             )
 
         return state, integration
+
+    def _root_context_extension_for(
+        self,
+        *,
+        request: RuntimeRequest,
+        state: TaskState,
+    ) -> RootContextExtensionResult | None:
+        provider = self._deps.root_context_extension_provider
+        if provider is None or not provider.enabled:
+            return None
+        return provider.collect_for_root(
+            state=state,
+            root_owner_ref=request.actor.actor_id,
+            cancellation_probe=lambda: (
+                self._pending_cancellation_reason(request.task_id) is not None
+            ),
+        )
 
     def suspend(
         self,
@@ -554,12 +573,31 @@ class LunaRuntime:
             acceptance_basis_fingerprint=acceptance.acceptance_basis_fingerprint,
         )
         state = state.transition_to(TaskPhase.PLANNED)
+        try:
+            root_context_extension = self._root_context_extension_for(
+                request=request,
+                state=state,
+            )
+        except RootContextExtensionIntegrityError:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                reasons=("root_context_extension_integrity_failure",),
+                resume_phase=TaskPhase.PLANNED,
+                next_step=(
+                    "repair root-context extension provenance before policy execution"
+                ),
+                started_at=started_at,
+            )
         return self._drive(
             request=request,
             tool_policy=tool_policy,
             state=state,
             usage=usage,
             started_at=started_at,
+            root_context_extension=root_context_extension,
         )
 
     def resume(self, *, request: RuntimeRequest, tool_policy: ToolPolicy) -> RuntimeOutcome:
@@ -862,12 +900,31 @@ class LunaRuntime:
                 reasons=(f"unsupported safe resume phase: {state.phase.value}",),
                 started_at=started_at,
             )
+        try:
+            root_context_extension = self._root_context_extension_for(
+                request=request,
+                state=state,
+            )
+        except RootContextExtensionIntegrityError:
+            return self._checkpoint_outcome(
+                request=request,
+                state=state,
+                usage=usage,
+                stop_reason=RuntimeStopReason.INTEGRITY_FAILURE,
+                reasons=("root_context_extension_integrity_failure",),
+                resume_phase=TaskPhase.PLANNED,
+                next_step=(
+                    "repair root-context extension provenance before resumed execution"
+                ),
+                started_at=started_at,
+            )
         return self._drive(
             request=request,
             tool_policy=tool_policy,
             state=state,
             usage=usage,
             started_at=started_at,
+            root_context_extension=root_context_extension,
         )
 
     def _drive(
@@ -878,6 +935,7 @@ class LunaRuntime:
         state: TaskState,
         usage: _UsageCounter,
         started_at: datetime,
+        root_context_extension: RootContextExtensionResult | None,
     ) -> RuntimeOutcome:
         while True:
             control = self._deps.runtime_journal.pending_control(request.task_id)
@@ -954,7 +1012,11 @@ class LunaRuntime:
             if state.phase is TaskPhase.PLANNED or state.phase is TaskPhase.OBSERVING:
                 state = state.transition_to(TaskPhase.ACTING)
 
-            context = self._compose_context(request=request, state=state)
+            context = self._compose_context(
+                request=request,
+                state=state,
+                root_context_extension=root_context_extension,
+            )
             if not context.ready:
                 state = self._deactivate_step(state, reason=None)
                 state = state.transition_to(TaskPhase.OBSERVING)
@@ -1074,6 +1136,7 @@ class LunaRuntime:
                 context = self._compose_context(
                     request=request,
                     state=state,
+                    root_context_extension=root_context_extension,
                 )
                 if not context.ready:
                     state = self._deactivate_step(
@@ -2581,6 +2644,7 @@ class LunaRuntime:
         *,
         request: RuntimeRequest,
         state: TaskState,
+        root_context_extension: RootContextExtensionResult | None = None,
     ) -> LayeredContextBundle:
         candidates = list(request.layered_context_candidates)
         candidates.extend(
@@ -2627,6 +2691,23 @@ class LunaRuntime:
                 ),
             )
         )
+        if (
+            root_context_extension is not None
+            and root_context_extension.context_available
+        ):
+            candidates.append(
+                LayeredContextCandidate.from_text(
+                    layer=ContextLayer.RUNTIME_CONTINUITY,
+                    kind=ContextSourceKind.PROJECT_STATE,
+                    locator=root_context_extension.context_locator,
+                    text=root_context_extension.render_for_root_context(),
+                    priority=96,
+                    required=False,
+                    interpretation=ContextInterpretation.DATA_ONLY,
+                    verified=True,
+                    observed_at=root_context_extension.generated_at,
+                )
+            )
         for record in self._deps.runtime_journal.list_observations(
             request.task_id,
             limit=4,

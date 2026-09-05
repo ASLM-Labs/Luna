@@ -1,0 +1,60 @@
+{
+  "capability": "C-011",
+  "stage": "S5B_REAL_LOCAL_NATIVE_EVIDENCE",
+  "stage_status": "C011_S5B_REAL_LOCAL_NATIVE_EVIDENCE_ACCEPTED",
+  "baseline_commit": "d5d995baf36277a51cf332599aa2fb9153ecade0",
+  "baseline_tree": "0565b15ec5118056d3baa17b3f170996d92ff6a6",
+  "target_branch": "capability/c011-single-voice-parallel-cognition",
+  "capability_status": "QUEUED",
+  "next_code_gate": "C011_S5B_REAL_ADAPTER_EXECUTION_PENDING_IMPLEMENTATION",
+  "default_enabled": false,
+  "production_behavior_changed_when_disabled": false,
+  "real_local_native_inference_executed": true,
+  "s5b_adapter_execution_executed": false,
+  "controlled_c011_execution": false,
+  "scope_file_count": 16,
+  "scope_files": [
+    "LUNA_HANDOFF.md",
+    "MANIFEST.json",
+    "SHA256SUMS.txt",
+    "c011_s5b_real_evidence.json",
+    "docs/C011_S5B_REAL_EVIDENCE_UPDATE_MANIFEST.json",
+    "docs/C011_S5B_REAL_LOCAL_NATIVE_EVIDENCE_REPORT.md",
+    "docs/LUNA_ROADMAP.md",
+    "docs/NEURAL_NATIVE_BRIDGE_UPDATE_MANIFEST.json",
+    "docs/NEURAL_RUNTIME_NR2B_UPDATE_MANIFEST.json",
+    "docs/rfcs/RFC-C011_SINGLE_VOICE_PARALLEL_COGNITION.md",
+    "scripts/check.bat",
+    "scripts/verify_c011_s4.py",
+    "scripts/verify_c011_s5a.py",
+    "scripts/verify_c011_s5b.py",
+    "scripts/verify_c011_s5b_real_evidence.py",
+    "tests/test_project_metadata.py"
+  ],
+  "verification": {
+    "external_asset_pre_post_integrity": "PASS",
+    "real_native_probe": "PASS",
+    "repository_full_gate": {
+      "status": "PASS",
+      "pytest_passed": 1410,
+      "pytest_skipped_platform": 1,
+      "ruff": "PASS",
+      "mypy_strict": "PASS",
+      "verifier_and_cli_chain": "PASS_54_OF_54",
+      "execution_environment": "EXACT_STAGED_TREE_SHORT_WINDOWS_TEMP_PATH"
+    },
+    "implementation_commit": null,
+    "ci": "NOT_RUN"
+  },
+  "aslm_gates": {
+    "research_saturation_gate": "NOT_READY",
+    "target_spec": "BLOCKED",
+    "controlled_execution": "NONE"
+  },
+  "notes": [
+    "One bounded current LunaNativeWorker real inference passed against fully recorded external assets and host observations.",
+    "The proof was not routed through LocalNativeDriverAdapter; its real-mode implementation remains the next code gate.",
+    "C-011 remains QUEUED, default-off and authority-negative; production behavior did not change.",
+    "ASLM Research is a separate project and was not evaluated or modified."
+  ]
+}
