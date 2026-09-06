@@ -1,648 +1,594 @@
-# Luna 0.1
+# Luna
 
-**Geliştirici:** ASLM
+**YOUR AI ASSISTANT**
 
-Luna 0.1, tek aktif ajan ve tek devamlı kimlik kullanan yerel bir yapay zekâ
-runtime çekirdeğidir.
+> A governed AI runtime for reliable execution, durable continuity, explicit verification, and controlled capability growth.
 
-Repository şu anda **Faz 19F — Improvement Gate** mimari durumundadır; gerçek eğitilmiş candidate evaluation henüz yürütülmemiştir.
+[![Quality](https://github.com/ASLM-Labs/Luna/actions/workflows/quality.yml/badge.svg)](https://github.com/ASLM-Labs/Luna/actions/workflows/quality.yml)
+![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
+![Ruff](https://img.shields.io/badge/Ruff-checked-261230)
+![mypy](https://img.shields.io/badge/mypy-strict-2A6DB2)
 
-## Çalışan zincir
+---
+
+## Intelligence with boundaries
+
+Luna is built around a simple principle:
+
+> **Intelligence may propose. Evidence, policy, and runtime state decide what becomes authoritative.**
+
+Luna separates reasoning from authority, planning from execution, observations from evidence, and evidence from verified completion.
+
+The system is designed to remain understandable as it grows: one authoritative root identity, explicit execution boundaries, durable runtime state, deterministic verification, and capability expansion that does not silently grant itself more power.
+
+```mermaid
+flowchart LR
+    USER["User"] --> LUNA["Luna"]
+    LUNA --> UNDERSTAND["Understand"]
+    UNDERSTAND --> PLAN["Plan"]
+    PLAN --> ACT["Act"]
+    ACT --> OBSERVE["Observe"]
+    OBSERVE --> VERIFY["Verify"]
+    VERIFY -->|Verified| COMPLETE["Complete"]
+    VERIFY -->|Changed basis| PLAN
+    VERIFY -->|Insufficient authority| BLOCK["Block"]
+```
+
+---
+
+## What Luna is
+
+Luna is not just a chat interface around a model. It is a **stateful AI execution system** that coordinates:
+
+- task contracts and authoritative task state
+- layered context composition
+- planning and replanning
+- model interaction and action resolution
+- registered tools and safe workspace operations
+- owned subprocess boundaries
+- durable queues, checkpoints, and resume
+- observations, evidence, and verification
+- reviewed long-term memory
+- desktop, Discord, voice, and CLI surfaces
+- governed advanced-cognition research
+
+The model participates in the system.
+
+**It does not own the system.**
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph SURFACES["Product Surfaces"]
+        DESKTOP["Desktop"]
+        DISCORD["Discord"]
+        VOICE["Voice"]
+        CLI["CLI"]
+    end
+
+    subgraph CONTROL["Authoritative Luna Runtime"]
+        IDENTITY["Identity & Task Contract"]
+        CONTEXT["Context Composition"]
+        PLANNER["Planning & Replanning"]
+        POLICY["Policy Agent"]
+        ACTION["Action Resolution"]
+        RECOVERY["Recovery & Isolation"]
+    end
+
+    subgraph EXECUTION["Execution Boundaries"]
+        TOOLS["Registered Tools"]
+        WORKSPACE["Workspace"]
+        PROCESS["Owned Process Trees"]
+        PROVIDERS["Model / Provider Adapters"]
+        QUEUE["Durable Queue & Scheduler"]
+    end
+
+    subgraph TRUST["Trust & Continuity"]
+        OBS["Observations"]
+        EVIDENCE["Evidence"]
+        VERIFY["Verification"]
+        JOURNAL["Runtime Journal"]
+        CHECKPOINT["Checkpoint / Resume"]
+        MEMORY["Verified Memory"]
+    end
+
+    SURFACES --> CONTROL
+    CONTROL --> EXECUTION
+    EXECUTION --> OBS
+    OBS --> EVIDENCE
+    EVIDENCE --> VERIFY
+    VERIFY --> CONTROL
+    CONTROL <--> JOURNAL
+    CONTROL <--> CHECKPOINT
+    CONTROL <--> MEMORY
+```
+
+The key distinction is that **execution does not automatically imply truth**, and **model output does not automatically imply authority**.
+
+---
+
+## The authoritative runtime loop
+
+Luna maintains one authoritative task state and advances it through an explicit action-observation-verification cycle.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Contracted
+    Contracted --> ContextReady
+    ContextReady --> Planned
+    Planned --> ActionSelected
+    ActionSelected --> Dispatched
+    Dispatched --> Observed
+    Observed --> Verification
+    Verification --> Completed: evidence sufficient
+    Verification --> Planned: changed basis / replan
+    Verification --> Suspended: durable suspension
+    Verification --> Blocked: policy / integrity / authority
+    Verification --> Rollback: verification failure
+    Rollback --> Planned
+    Suspended --> ContextReady: resume
+    Completed --> [*]
+    Blocked --> [*]
+```
+
+A tool call is therefore not the end of an operation. It is an observation-producing event inside a larger governed state machine.
+
+---
+
+## One Luna. One authority.
+
+Luna is intentionally built around a **single authoritative voice**.
+
+Models, memory, retrieval systems, tools, external evidence, and parallel workers may contribute information. None of them silently become equal authorities.
+
+```mermaid
+flowchart TD
+    ROOT["Luna Root Authority"]
+    MODEL["Model"] -->|proposal| ROOT
+    MEMORY["Memory"] -->|data| ROOT
+    RETRIEVAL["Retrieval"] -->|evidence candidates| ROOT
+    WORKER["Worker"] -->|candidate output| ROOT
+    TOOL["Tool"] -->|observation| ROOT
+    EXTERNAL["External Evidence"] -->|evidence| ROOT
+    ROOT --> DECISION["Authoritative Decision"]
+```
+
+### Capability is not authority
+
+```mermaid
+flowchart LR
+    CAN["Can it do this?"] --> MAY["May it do this?"]
+    MAY --> SCOPE["Is it in scope?"]
+    SCOPE --> STATE["Is current state valid?"]
+    STATE --> EXECUTE["Execute"]
+```
+
+An implementation may technically support an operation while policy, scope, current state, or risk still forbids it.
+
+---
+
+## Context is structured, not dumped
+
+Luna composes model-visible context through canonical layers with different control and trust semantics.
+
+```mermaid
+flowchart TB
+    ACTIVE["1 · ACTIVE<br/>Current control state"]
+    TASK["2 · TASK<br/>Task contract & requirements"]
+    CONTINUITY["3 · RUNTIME CONTINUITY<br/>Resume-safe working state"]
+    WORKSPACE["4 · WORKSPACE<br/>Observed project data"]
+    MEMORY["5 · VERIFIED MEMORY<br/>Reviewed long-term context"]
+    ACTIVE --> TASK --> CONTINUITY --> WORKSPACE --> MEMORY
+```
+
+This design keeps several invariants explicit:
+
+- active control state has priority
+- passive data cannot escalate authority
+- stale continuity can be rejected
+- unverified memory does not become trusted context
+- secrets can be removed before model exposure
+- missing critical context remains visible instead of being invented
+
+---
+
+## Planning is not execution
+
+A plan is an intention. An action must pass a separate resolution boundary before anything happens.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant L as Luna Runtime
+    participant M as Model
+    participant R as Action Resolver
+    participant T as Tool
+    participant V as Verifier
+
+    U->>L: Task
+    L->>M: Bounded context + task state
+    M-->>L: Proposed action
+    L->>R: Resolve proposal
+
+    alt Authorized
+        R-->>L: Prepared action
+        L->>T: Execute one governed action
+        T-->>L: Observation
+        L->>V: Evidence + expected outcome
+        V-->>L: Verification result
+    else Denied
+        R-->>L: Structured denial
+    end
+```
+
+This prevents a model-generated tool call from becoming an implicit permission grant.
+
+---
+
+## Safe execution
+
+```mermaid
+flowchart TD
+    REQUEST["Proposed Action"] --> REGISTERED{"Registered?"}
+    REGISTERED -->|No| DENY["Deny"]
+    REGISTERED -->|Yes| PERMISSION{"Authorized?"}
+    PERMISSION -->|No| DENY
+    PERMISSION -->|Yes| IMPACT{"Impact / Risk"}
+    IMPACT -->|Read-only / low| SAFE["Safe execution boundary"]
+    IMPACT -->|Write / higher risk| ISOLATE["Isolation / snapshot / worktree"]
+    SAFE --> RUN["Execute"]
+    ISOLATE --> RUN
+    RUN --> OBSERVE["Capture observation"]
+    OBSERVE --> VERIFY["Verify"]
+    VERIFY -->|Pass| ACCEPT["Accept"]
+    VERIFY -->|Failure| RECOVER["Recover / Rollback / Replan"]
+```
+
+Luna's runtime foundations include exact-argv process execution, bounded output, explicit environments, process-tree ownership, workspace protection, rollback/recovery, scope checks, and governed side-effect handling.
+
+---
+
+## Evidence before completion
+
+> **Successful execution and verified completion are different events.**
+
+```mermaid
+flowchart LR
+    OUTPUT["Tool / Model Output"] --> OBS["Observation"]
+    OBS --> EVIDENCE["Evidence"]
+    EVIDENCE --> CHECK["Verification"]
+    CHECK -->|Strong + current + consistent| COMPLETE["Verified Complete"]
+    CHECK -->|Weak| MORE["Gather more evidence"]
+    CHECK -->|Changed state| REPLAN["Replan"]
+    CHECK -->|Conflict| BLOCK["Block"]
+    MORE --> EVIDENCE
+```
+
+This prevents false completion from tool output alone, stale evidence, contradictory evidence, or unverified model confidence.
+
+---
+
+## Durable by design
+
+Luna treats interruption and restart as normal runtime conditions.
+
+```mermaid
+flowchart TD
+    RUN["Running Task"] --> JOURNAL["Runtime Journal"]
+    RUN --> CHECKPOINT["Checkpoint"]
+    CHECKPOINT --> STOP["Process Stops"]
+    STOP --> RESUME["Resume Validation"]
+    RESUME --> COMPAT["Compatibility Check"]
+    COMPAT -->|Compatible| CONTINUE["Continue"]
+    COMPAT -->|Schema / contract drift| BLOCK["Fail Closed"]
+    CONTINUE --> RUN
+```
+
+Continuity is protected through durable journals, checkpoint integrity, compatibility validation, replay fences, resumable state, and explicit suspend/cancel controls.
+
+---
+
+## Memory is reviewed knowledge
+
+```mermaid
+flowchart LR
+    EXPERIENCE["Observed Experience"] --> CANDIDATE["Memory Candidate"]
+    CANDIDATE --> REVIEW["Validation / Review"]
+    REVIEW -->|Accepted| STORE["Verified Memory"]
+    REVIEW -->|Rejected| DROP["Discard"]
+    STORE --> RETRIEVE["Scoped Retrieval"]
+    RETRIEVE --> CONTEXT["Data-only context"]
+```
+
+Long-term memory is intentionally separated from transient context. Provenance, verification state, confidence, scope, supersession, expiry, and forgetting remain explicit concerns.
+
+---
+
+## Recovery instead of blind retry
+
+```mermaid
+flowchart TD
+    FAIL["Failure"] --> CLASSIFY{"Failure basis"}
+    CLASSIFY -->|Permission / scope| BLOCK["Block"]
+    CLASSIFY -->|Integrity| STOP["Stop"]
+    CLASSIFY -->|Stale state| REINSPECT["Reinspect"]
+    CLASSIFY -->|Verification| ROLLBACK["Rollback"]
+    CLASSIFY -->|Transient + changed basis| RETRY["Bounded retry"]
+    REINSPECT --> REPLAN["Replan"]
+    ROLLBACK --> REPLAN
+    RETRY --> OBSERVE["Observe new result"]
+```
+
+A failed action does not become more valid merely because it is attempted again. Retry state is bounded, evidence-aware, cancellable, and durable.
+
+---
+
+## C-011: parallel cognition without parallel authority
+
+C-011 is Luna's governed parallel-cognition track. It explores bounded parallel cognition while preserving the single authoritative root identity.
+
+```mermaid
+flowchart TB
+    ROOT["Luna<br/>Authoritative Root"] --> ORCH["Governed Parallel Cognition"]
+    ORCH --> W1["Worker A"]
+    ORCH --> W2["Worker B"]
+    ORCH --> W3["Worker C"]
+    W1 --> R1["Candidate"]
+    W2 --> R2["Candidate"]
+    W3 --> R3["Candidate"]
+    R1 --> RECON["Reconciliation"]
+    R2 --> RECON
+    R3 --> RECON
+    RECON -->|data / evidence only| ROOT
+```
+
+Workers do not receive root identity, completion authority, memory-commit authority, promotion authority, or unrestricted tool authority by default.
+
+### Native isolation
+
+Existing Common / Ultra native paths remain isolated from the C-011 ABI-v2 experimentation surface.
+
+```mermaid
+flowchart LR
+    subgraph EXISTING["Existing Neural Path"]
+        COMMON["Common / Ultra"] --> ABI1["Native ABI v1"] --> BRIDGE1["Native Bridge"]
+    end
+
+    subgraph C011["C-011 Isolated Path"]
+        PARALLEL["Parallel Cognition"] --> ABI2["C-011 ABI v2"] --> BRIDGE2["Isolated Native Bridge"]
+    end
+
+    ABI1 -.-|No implicit replacement| ABI2
+```
+
+The separation is deliberate: advanced capability work should not silently replace previously verified execution paths.
+
+---
+
+## Product surfaces
+
+The same governed runtime can sit behind multiple user-facing interfaces without fragmenting authority.
+
+```mermaid
+flowchart TB
+    USER["User"]
+    USER --> DESKTOP["Desktop"]
+    USER --> DISCORD["Discord"]
+    USER --> VOICE["Voice"]
+    USER --> CLI["CLI"]
+    DESKTOP --> GATE["Ingress / Identity / Policy"]
+    DISCORD --> GATE
+    VOICE --> GATE
+    CLI --> GATE
+    GATE --> CORE["Luna Runtime"]
+```
+
+Product surfaces submit requests. They do not independently redefine identity, policy, evidence, or completion semantics.
+
+---
+
+## Research and learning governance
+
+Luna contains foundations for controlled research, evaluation, learning-integrity, and candidate-improvement workflows.
+
+```mermaid
+flowchart LR
+    TRACE["Structured Traces"] --> DATA["Governed Dataset"]
+    DATA --> CANDIDATE["Candidate Improvement"]
+    CANDIDATE --> EVAL["Independent Evaluation"]
+    EVAL --> INTEGRITY["Learning Integrity"]
+    INTEGRITY --> GATE["Improvement Gate"]
+    GATE -->|Evidence sufficient| REVIEW["Controlled Review"]
+    GATE -->|Regression / contamination| REJECT["Reject"]
+```
+
+The architecture separates runtime execution, dataset preparation, evaluation, candidate training evidence, and promotion decisions. A candidate improvement cannot promote itself.
+
+---
+
+## System map
+
+At a higher level, Luna can be viewed as four interacting systems.
+
+```mermaid
+flowchart TB
+    subgraph THINK["Cognition"]
+        CTX["Context"]
+        PLAN["Planning"]
+        MODEL["Model Policy"]
+        PC["Parallel Cognition"]
+    end
+
+    subgraph ACT["Action"]
+        SELECT["Action Selection"]
+        TOOLS["Tools"]
+        PROCESS["Processes"]
+        WORKSPACE["Workspace"]
+    end
+
+    subgraph TRUST["Trust"]
+        OBS["Observations"]
+        EVIDENCE["Evidence"]
+        VERIFY["Verification"]
+        AUDIT["Audit"]
+    end
+
+    subgraph TIME["Continuity"]
+        JOURNAL["Journal"]
+        CHECKPOINT["Checkpoint"]
+        QUEUE["Queue"]
+        MEMORY["Verified Memory"]
+    end
+
+    THINK --> ACT
+    ACT --> TRUST
+    TRUST --> THINK
+    THINK <--> TIME
+    ACT <--> TIME
+    TRUST <--> TIME
+```
+
+---
+
+## Repository map
 
 ```text
-intent → explicit context candidates → contract → plan → expected observation
-→ controlled tool use → snapshot/rollback
-→ append-only observation/evidence
-→ deterministic verification → audited completion
-→ SQLite WAL checkpoint → guarded restart/resume
-→ memory candidate → policy/verification → commit or reject
-→ scoped retrieval → expiry/supersede
-→ versioned identity profile → runtime autonomy level 0–4
-→ gate-bound final report → explicit evidence/uncertainty/risk
-→ revision-locked fixed eval suite → comparable metrics
-→ runtime-owned release gate → PASS or BLOCKED
-→ authenticated request source + verified actor role
-→ explicit runtime scope/autonomy/context/execution budgets
-→ deterministic duplicate-task fingerprint
-→ TaskState-bound RuntimeOutcome
-→ layered context composer
-→ ACTIVE / TASK / RUNTIME_CONTINUITY / WORKSPACE / VERIFIED_MEMORY
-→ sanitized + freshness-aware + budgeted model context
-→ untrusted ActionProposal
-→ Stage 1 ToolFamily selection
-→ Stage 2 registered ToolSpec selection
-→ argument + runtime policy preflight
-→ PREPARED request veya StructuredDenial + BLOCKED Observation
-→ structured failure taxonomy
-→ deterministic recovery decision
-→ changed-basis-only retry / replan / reinspect / approval / rollback / suspend / stop
-→ minimal-change path + file + line budget
-→ observed scope-creep check
-→ risk-based NONE / SNAPSHOT / WORKTREE isolation
-→ single Luna policy-agent loop
-→ exactly one model action proposal per iteration
-→ one ToolDispatcher dispatch → durable observation → reevaluation
-→ write-ahead side-effect journal + safe suspend/cancel
-→ actual HIGH/CRITICAL Git worktree lifecycle
-→ effective isolated workspace continuity across later steps/resume
-→ Phase 12F deterministic evidence finalization
-→ runtime-owned evidence strength + explicit disagreement
-→ gate-bound final report + terminal checkpoint
-→ review-required learning candidate (no auto-commit)
-→ revision-locked runtime behavior conformance suite
-→ 11 critical real-runtime E2E scenarios
-→ exact oracle comparison + repeatable semantic signature
-→ Phase 12 runtime foundation conformance gate
-→ real-model compatibility probe
-→ structured backend failure normalization
-→ runtime-owned BLOCKED / SHADOW / CANARY / ACTIVE rollout gate
-→ deterministic canary allocation + rollback tripwires
-→ runtime-owned read-only Research Gateway
-→ explicit domain allow/deny + request/time/token budgets
-→ provenance-bound source + prompt-injection DATA_ONLY boundary
-→ citation-backed supported claim / unsupported claim
-→ moderate DOCUMENT evidence without false completion
-→ durable SQLite operations queue
-→ UTC schedule eligibility + bounded catch-up
-→ worker/model/network resource admission
-→ pre-runtime DISPATCHED replay fence
-→ LunaRuntime outcome-bound local notification outbox
-→ local light-first desktop product shell
-→ runtime-bound desktop command gateway + evidence-aware task cards
-→ verified Discord transport + configured channel/role mapping
-→ read-only Discord RuntimeRequest → durable queue + append-only audit
+Luna/
+├─ src/luna/
+│  ├─ actions/
+│  ├─ context/
+│  ├─ continuity/
+│  ├─ modeling/
+│  ├─ neural/
+│  ├─ parallel_cognition/
+│  ├─ planning/
+│  ├─ recovery/
+│  ├─ runtime/
+│  ├─ shell/
+│  ├─ tools/
+│  ├─ verification/
+│  └─ workspace/
+├─ native/neural_bridge/
+├─ scripts/
+├─ tests/
+├─ docs/
+└─ .github/workflows/
 ```
 
-Faz 12G, Faz 12A–12F katmanlarını gerçek runtime senaryolarında birlikte sınar.
-Component testlerinin yeşil olması tek başına yeterli değildir; completion truth,
-evidence discipline, policy boundary, safe control, side-effect replay, scope integrity,
-isolation ve budget davranışları entegre olarak da doğru kalmalıdır.
+Implementation, native boundaries, tests, verification scripts, and technical evidence are kept separate intentionally.
 
+---
 
-## Faz 18 Voice Gateway sınırları
+## Development
 
-Faz 18, yerel voice transport'u mevcut runtime, queue ve audit sinirlarina baglar. Sesli
-transkript authority degildir ve Luna'nin nihai sesi bu fazda secilmez.
+### Install
 
-- STT/TTS adapter kontratlari provider-neutral kalir;
-- verified local session + configured speaker identity gerekir;
-- transcript view capture mode, command/chat ve confirmation durumunu gorunur tutar;
-- read-only command bir explicit confirmation ister;
-- high-impact request iki confirmation ister;
-- double confirmation sonrasi high-impact istek yalniz read-only approval-review olur;
-- voice source project write, process/terminal veya network authority vermez;
-- interrupt/cancel pending confirmation'i temizler ve safe pre-dispatch queue'yu iptal eder;
-- audit raw transcript/audio yerine SHA-256 digest tutar;
-- final TTS provider/voice profile/persona sesi sonraki urun kararina birakilir.
+```bash
+python -m pip install --upgrade pip setuptools
+python -m pip install -e ".[dev]"
+```
 
-Görünür Phase 18 smoke:
+### Runtime checks
+
+```bash
+python -m luna --version
+python -m luna status
+```
+
+### Test and static analysis
+
+```bash
+python -m pytest -q -p no:cacheprovider --basetemp=.pytest_tmp
+python -m ruff check .
+python -m mypy src
+```
+
+### Canonical Windows repository gate
 
 ```bat
-.venv\Scripts\python.exe -m luna phase18-smoke
+scripts\check.bat
 ```
 
-## Faz 17 Discord Gateway sınırları
+---
 
-Faz 17, Discord mesajlarını mevcut runtime identity, autonomy, durable queue ve audit sınırlarına
-bağlar. Discord mesajı veya samimi üslup yeni yetki kaynağı değildir.
+## Verification philosophy
 
-- guild/channel purpose yalnız runtime-owned configured allowlist'ten çözülür;
-- owner user ID ve trusted/community role ID eşleşmeleri yalnız verified transport metadata'sından gelir;
-- eşleşmeyen doğrulanmış üye `GUEST` olur; mesaj metni rolü değiştiremez;
-- accepted Discord işleri `RequestSource.DISCORD` + `LEVEL_1_READ_ONLY` ile durable queue'ya gider;
-- project write, process/terminal ve network authority Phase 17 Discord ingress'te kapalıdır;
-- ana model kullanılamıyorsa accepted message `QUEUED_FOR_MODEL` olarak durable queue'da bekler;
-- duplicate Discord delivery deterministic idempotency ile ikinci task üretmez;
-- role-bound fixed-window rate limit ve bot/webhook/mass-mention ingress moderation uygulanır;
-- audit raw mesajı saklamaz; content SHA-256 + routing/decision metadata'sı yazar;
-- reply route ingress channel + source message'e kilitlidir; gateway doğrudan network send yapmaz.
+Luna uses executable verification extensively.
 
-Görünür Phase 17 smoke:
+Tests ask:
 
-```bat
-.venv\Scripts\python.exe -m luna phase17-smoke
+> Does this implementation behave correctly?
+
+Capability and phase verifiers additionally ask:
+
+> Does the repository still satisfy the architectural contract this capability was built under?
+
+```mermaid
+flowchart LR
+    CODE["Implementation"] --> TESTS["Tests"]
+    CODE --> STATIC["Static Analysis"]
+    CODE --> CONTRACTS["Capability Verifiers"]
+    TESTS --> GATE["Repository Gate"]
+    STATIC --> GATE
+    CONTRACTS --> GATE
 ```
 
-Deterministic verifier:
+---
 
-```bat
-.venv\Scripts\python.exe scripts\verify_phase17.py
-```
+## Engineering principles
 
+**Evidence over confidence.** A confident model output is not stronger than missing evidence.
 
+**Explicit authority.** No model, tool, worker, memory item, or external source grants itself permission.
 
+**Observe before infer.** Current observable state has priority over assumptions.
 
-## Faz 16 Desktop Product Shell sınırları
+**Recover with changed basis.** Retry is not a substitute for new information.
 
-Faz 16, Luna'nın mevcut runtime/operations çekirdeğinin üstüne yerel masaüstü ürün kabuğunu
-ekler. UI otorite üretmez; yalnızca runtime ve durable operations durumunu dürüstçe sunar.
+**Durable state.** Important runtime transitions should survive process restarts.
 
-- light-first beyaz/graphite/soft-surface/Luna-blue tema ve Codex-benzeri sakin yerleşim;
-- conversation-first workspace, sol navigation, alt composer ve isteğe bağlı details drawer;
-- composer varsayılanı `READ_ONLY`; `CONTROLLED_WRITE` yalnız açık kullanıcı onayı + path/line/file
-  bütçesiyle oluşturulabilir;
-- desktop kaynaklı işler `RequestSource.DESKTOP` ile `RuntimeRequest → WorkEnvelope → durable queue`
-  yolundan geçer;
-- desktop shell model veya tool'u doğrudan çağıramaz;
-- `Doğrulandı` etiketi yalnız `COMPLETED + VERIFIED_COMPLETE + verification_report_id +
-  final_report_id` birleşiminden üretilebilir;
-- queue, schedule, resource ve local notification durumu read-model olarak gösterilir;
-- notification external delivery Phase 16'da hâlâ kapalıdır;
-- Tk renderer lazy-load edilir; headless verifier/test ortamı GUI açmaz.
+**Isolation before impact.** Higher-risk operations require stronger execution boundaries.
 
-Görünür Phase 16 smoke:
+**One authoritative identity.** Parallel work may increase cognition capacity without creating competing system identities.
 
-```bat
-.venv\Scripts\python.exe -m luna phase16-smoke
-```
+**No false claims.** Unexecuted training, unverified results, unavailable capabilities, and incomplete evidence remain visibly incomplete.
 
-Desktop shell:
+---
 
-```bat
-.venv\Scripts\python.exe -m luna desktop --workspace .
-```
+## Current maturity
 
-Deterministic verifier:
+Luna is an actively developed AI runtime and research platform. The repository contains substantial foundations across runtime execution, continuity, memory, verification, product gateways, neural execution, and capability governance.
 
-```bat
-.venv\Scripts\python.exe scripts\verify_phase16.py
-```
+Some advanced paths remain deliberately constrained, experimental, default-off, or subject to further rollout work. That distinction is intentional.
 
-## Faz 15 Resource Manager / Queue / Scheduler / Notifications sınırları
+Luna prefers **implemented over imagined, verified over assumed, and explicitly incomplete over falsely complete**.
 
-Faz 15, Luna'nın zaman içinde bekleyen ve uygun olduğunda çalıştırılan işleri güvenli
-şekilde koordine eden ilk durable operations katmanıdır.
+---
 
-- `WorkEnvelope`, mevcut `RuntimeRequest + ToolPolicy` otoritesini taşır; queue/scheduler
-  yeni tool, network, write, process veya risk yetkisi veremez;
-- shared `SQLiteOperationsStore` WAL + FULL sync + canonical JSON SHA-256 integrity kullanır;
-- queue idempotent'tir ve ready sırası priority → eligibility time → insertion order'dır;
-- `LEASED → DISPATCHED` geçişi runtime çağrısından önce durable may-have-executed fence yazar;
-- expired `LEASED` item safe requeue olabilir; expired `DISPATCHED` item
-  `RECOVERY_REQUIRED` olur ve blind replay edilmez;
-- worker/model/network resource slot'ları yalnız kapasite admission'ıdır, permission değildir;
-- `STALE` resource lease belirsizlik çözülmeden kapasiteden düşmez;
-- scheduler UTC `ONE_SHOT` ve `FIXED_INTERVAL` destekler ve yalnız queue work materialize eder;
-- recurring occurrence fresh deterministic task/request/trace ID alır; task-bound Level 4
-  `FREE_RESEARCH` grant recurring schedule'a kopyalanamaz;
-- coordinator dispatch başına en fazla bir runtime invocation yapar;
-- successful finalization, resource release ve local outbox event aynı SQLite transaction'ında yazılır;
-- notification yalnız `RuntimeOutcome` truth'undan üretilir; verified success için
-  `VERIFIED_COMPLETE` + verification report + final report gerekir;
-- external notification transport Phase 15'te yoktur.
+## Technical history
 
-Görünür Phase 15 smoke:
+The previous root README contained the detailed phase-by-phase implementation history, boundaries, smoke commands, and capability notes. It has been preserved rather than deleted:
 
-```bat
-.venv\Scripts\python.exe -m luna phase15-smoke
-```
+**[Read the full phase and capability history →](docs/legacy/README_PHASE_HISTORY.md)**
 
-Deterministic verifier:
+---
 
-```bat
-.venv\Scripts\python.exe scripts\verify_phase15.py
-```
+## Luna
 
-## Faz 14 Research Gateway / Evidence RAG sınırları
+Luna is built around a question larger than *Can an AI perform this task?*
 
-Faz 14, güncel dış bilgiyi Luna'ya doğrudan otorite olarak değil, provenance ve
-citation taşıyan untrusted `DATA_ONLY` research evidence olarak alır.
+The more important questions are:
 
-- network varsayılan olarak kapalıdır; runtime network scope + budget ve ayrıca
-  `ResearchPolicy(network_enabled=True)` gerekir;
-- domain allowlist/denylist dispatch öncesi uygulanır; Level 4 `FREE_RESEARCH`
-  kontratı varsa onun domain/request sınırı da ayrıca korunur;
-- araştırma yalnız read-only `GET` yapabilir; external action ve runtime-policy
-  mutation yasaktır;
-- request, elapsed-time, per-source character ve total admitted-token budget'ları
-  runtime-owned biçimde uygulanır;
-- admitted source URL, publisher, source family, retrieval timestamp, optional
-  publication timestamp ve SHA-256 provenance taşır;
-- prompt-injection sinyalleri risk etiketi olarak kalır; web içeriği hiçbir zaman
-  runtime control instruction'a yükseltilmez;
-- current factual claim yalnız exact source excerpt'e bağlanan citation ile
-  `SUPPORTED` olabilir; kaynaksız claim publishable değildir;
-- aynı source family bağımsız corroboration gibi çoğaltılmaz;
-- research citation `DOCUMENT` evidence'a çevrilse bile Phase 12F altında
-  `MODERATE` ve non-reproducible kalır; tek başına `VERIFIED_COMPLETE` üretemez;
-- research sonucu verified memory'ye otomatik commit olamaz; review gerekir.
+- Should it act?
+- What does it actually know?
+- What changed?
+- What evidence supports the result?
+- Can the result survive verification?
+- Can the system resume safely tomorrow?
 
-Görünür Phase 14 smoke:
+That is the foundation Luna is being built on.
 
-```bat
-.venv\Scripts\python.exe -m luna phase19-smoke
-```
-
-Deterministic verifier:
-
-```bat
-.venv\Scripts\python.exe scripts\verify_phase14.py
-```
-
-## Faz 13 real-model compatibility / controlled rollout sınırları
-
-Faz 13, gerçek model kullanımını scripted test backend'den ayırır ve modelin
-runtime otoritesi olmadığını koruyarak kontrollü rollout kapısı ekler.
-
-- compatibility probe dört provider-neutral capability sonucu üretir:
-  `TEXT_RESPONSE`, `SINGLE_TOOL_CALL`, `JSON_TOOL_ARGUMENTS`, `USAGE_ACCOUNTING`;
-- ilk üç capability rollout için required'dır; usage accounting optional kalır;
-- compatibility report SHA-256 fingerprint ile runtime-approved artefakta bağlanır;
-- live probe yalnız loopback OpenAI-compatible endpoint'e bağlanır ve rollout yetkisi vermez;
-- provider timeout/rate-limit/unavailable/malformed/protocol/rollout failures structured
-  `ModelBackendErrorCode` ile normalize edilir;
-- retryable backend failure runtime'da `RESOURCE_SUSPENDED` olur; otomatik retry yapılmaz;
-- `BLOCKED` ve `SHADOW` authoritative runtime model kararını çalıştıramaz;
-- `CANARY` tahsisi `task_id + backend_id` üzerinden deterministic bucket kullanır;
-- `ACTIVE` bile compatibility fingerprint ve health tripwire'lardan geçmek zorundadır;
-- false-success veya authority-violation tripwire'ı aktif modeli bile bloklar;
-- model output rollout stage, compatibility approval veya health authority olamaz;
-- controlled backend sessiz fallback yapmaz;
-- Phase 12G locked runtime conformance temeli değişmeden korunur.
-
-Görünür deterministic smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase13-smoke
-```
-
-Gerçek yerel model için opsiyonel compatibility probe:
-
-```bat
-.venv\Scripts\python.exe -m luna phase13-live-probe --model MODEL_ADI
-```
-
-Bu probe yalnız compatibility raporu üretir; `ACTIVE` rollout yetkisi üretmez.
-
-## Faz 12G runtime E2E / behavior conformance sınırları
-
-- suite revision `1.0.0` ve fixture/oracle içeriği canonical SHA-256 ile kilitlidir;
-- 11 senaryonun tamamı critical'dır;
-- gerçek `LunaRuntime`, durable journal, continuity, evidence ve worktree stack'i çalıştırılır;
-- no-evidence, weak/conflicting/stale evidence false completion üretemez;
-- multi-action, zero tool budget ve out-of-scope path dispatch öncesi bloklanır;
-- `STARTED` side effect restart sonrası kör biçimde replay edilmez;
-- HIGH-risk write gerçek Git worktree içinde kalır ve original checkout korunur;
-- observation sonraki model turn'üne DATA_ONLY continuity olarak ulaşır;
-- conformance executor exception'ı PASS'e çevrilmez, fail-closed `ERROR` olur;
-- bağımsız iki run aynı semantic signature üretmelidir;
-- kilitli Faz 11 acceptance suite ayrıca 11/11 PASS kalmalıdır.
-
-Faz 12F, Phase 12E'nin `VERIFYING` sınırını deterministic evidence assessment,
-completion gate, truthful final report, terminal checkpoint ve review-gated learning
-candidate akışına bağlar. Model completion veya evidence-strength authority değildir.
-
-## Faz 12F verification/evidence/learning sınırları
-
-- evidence strength runtime tarafından `WEAK / MODERATE / STRONG / DETERMINISTIC` olarak atanır;
-- varsayılan completion politikası en az `STRONG` evidence ister;
-- generic `TOOL_OUTPUT` doğrudan observation olsa da tek başına completion kanıtı değildir;
-- revision, environment ve freshness uyuşmayan evidence reddedilir;
-- current qualifying PASS/FAIL çelişkisi explicit disagreement üretir ve success'i engeller;
-- durable evidence store SQLite WAL + canonical payload SHA-256 integrity kullanır;
-- evidence ID aynı payload ile idempotent, farklı payload ile conflict'tir;
-- `CompletionGate` completion status'un tek otoritesidir;
-- final report gate status'undan daha iyimser olamaz ve evidence strength'i görünür kılar;
-- no-evidence durumda runtime `VERIFICATION_PENDING` kalır ve resumable checkpoint üretir;
-- `UNVERIFIED / INCONCLUSIVE / BLOCKED / CONFLICTING_EVIDENCE` sonuçları terminal değildir;
-- bu sonuçlar stronger/current evidence için `VERIFYING` resume checkpoint'i bırakır;
-- yalnız terminal completion/failure `REPORTING → CLOSED` sonrası terminal checkpoint yazar;
-- learning candidate yalnız review önerisidir: `review_required=true`;
-- `automatic_commit_allowed=false`; memory/policy/source otomatik değiştirilmez.
-
-## Faz 12E single policy-agent loop sınırları
-
-- tek Luna identity ve tek authoritative `TaskState` kullanılır;
-- role/persona chain veya subagent yoktur;
-- model response en fazla bir tool call taşıyabilir; çoklu call dispatch öncesi reddedilir;
-- her tool sonucu sonraki model kararından önce structured observation olarak görülür;
-- recent dispatch evidence `RUNTIME_CONTINUITY` içinde `DATA_ONLY` olarak modele geri verilir;
-- side effect `PREPARED → STARTED → COMPLETED → OBSERVED → CHECKPOINTED` fence'inden geçer;
-- crash `STARTED` aşamasındaysa otomatik replay yasaktır;
-- `PREPARED` action safe cancel ile execution öncesi `ABORTED` olabilir;
-- suspend/cancel yalnız safe runtime boundary'de acknowledge edilir; in-flight handler force-kill edilmez;
-- HIGH/CRITICAL mutation gerçek Git worktree gerektirir; sessiz snapshot downgrade yoktur;
-- worktree açıldıktan sonra sonraki action/checkpoint/resume aynı effective isolated root'u kullanır;
-- zero-capacity model/tool/network budget capability'yi dispatch öncesi kapatır;
-- Phase 12E `VERIFIED_COMPLETE` üretmez; başarılı son handoff `VERIFICATION_PENDING` olur.
-
-## Faz 12D recovery ve isolation sınırları
-
-- failure category yalnız structured runtime evidence üzerinden sınıflandırılır;
-- model prose arbitrary failure'ı transient ilan edemez;
-- transient retry yalnız `RetryDecision(CHANGED_BASIS)` ile mümkündür;
-- permission/scope denial retry yerine explicit approval ister;
-- stale workspace tekrar işlem yerine reinspection ister;
-- mutation sonrası verification failure rollback gerektirir;
-- integrity failure ve hard budget exhaustion safe stop üretir;
-- unavailable resource spin yerine suspension üretir;
-- declared change exact path + file + line bütçesine bağlanır;
-- observed change approved scope/line estimate dışına çıkamaz;
-- LOW/MEDIUM mutation snapshot ister; HIGH/CRITICAL mutation worktree ister;
-- required worktree yoksa snapshot'a sessiz downgrade yapılmaz;
-- Phase 12D policy kodu gerçek tool/worktree/rollback execution yapmaz.
-
-## Faz 12C action-selection sınırları
-
-- `ActionProposal` untrusted intent'tir; permission değildir;
-- proposal runtime-owned risk alanı taşımaz;
-- Stage 1 yalnız action kind → tool family seçer;
-- Stage 2 yalnız runtime-owned route ve registered ToolSpec kullanır;
-- uydurulmuş tool adı executable request'e dönüşmez;
-- birden fazla uygun tool varsa tahmin yerine `AMBIGUOUS_TOOL` denial döner;
-- preferred tool policy tarafından reddedilirse başka tool'a sessiz fallback yapılmaz;
-- strict tool argument schema request preparation öncesi çalışır;
-- mevcut autonomy/risk/scope/expectation policy deterministic preflight edilir;
-- denial yapılandırılmış `BLOCKED` Observation üretir;
-- bir iteration en fazla bir side-effect proposal taşıyabilir;
-- selector/resolver handler çalıştırmaz; gerçek execution ToolDispatcher'a aittir.
-
-## Faz 12B context sınırları
-
-- yalnız caller tarafından zaten gözlenmiş açık kaynaklar candidate olabilir;
-- `MISSING` ve `DECLARED_NOT_OBSERVED` kaynaklar context'e giremez;
-- active/task/runtime control context lower-value workspace/memory'den önce seçilir;
-- workspace ve verified memory daima `DATA_ONLY` kalır;
-- verified memory açık task relevance gerekçesi ister;
-- unverified memory blocking policy ile kapatılamaz;
-- secret candidate model context'e giremez;
-- model-visible metin mevcut deterministic secret redactor'dan geçer;
-- secret redaction policy ile kapatılamaz;
-- per-source freshness ve future timestamp kontrolleri vardır;
-- per-layer ve overall hard budget uygulanır;
-- required source dışlanırsa açık `missing_sources` gap oluşur;
-- composer file/process/database/network I/O yapmaz;
-- bundle fingerprint random bundle ID ve wall-clock age'den bağımsızdır.
-
-## Faz 12A runtime sınırları
-
-- owner/trusted/system rolleri runtime doğrulaması olmadan kabul edilmez;
-- model actor rolü veya yetki kaynağı olamaz;
-- read-only istekler varsayılan sıfır write ve sıfır network bütçesidir;
-- write scope açık değişiklik bütçesi ister;
-- `DRY_RUN` workspace yazma yetkisi taşıyamaz;
-- resume task ID'si otoriter task ID ile aynı olmalıdır;
-- `COMPLETED`, kapalı `TaskState`, `VERIFIED_COMPLETE` ve final report referansı ister;
-- orchestrator bağımlılıkları açıkça enjekte edilir; global fallback yoktur.
-
-## Faz 11 sabit kabul seti
-
-Faz 11 suite'i fixture ve oracle içeriğini SHA-256 ile kilitler. Suite revision
-ve hash açıkça değiştirilmeden kabul görevleri sessizce değiştirilemez.
-Faz 12A–12G bu suite'i değiştirmez.
-
-
-## Faz 19 trace/dataset governance ve cognitive quality foundation
-
-Faz 19 iki paralel hattı birlikte kurar:
-
-- **Dataset Governance:** trajectory reconstruction, taxonomy, semantic tool normalization,
-  task/repository/trajectory-family grouped leak-free split ve target-only training transformation.
-- **Cognitive Quality:** reasoning, planning, tool selection, failure recovery, evidence usage,
-  uncertainty calibration ve self-correction için frozen pre-training baseline + karşılaştırma.
-
-Canonical trajectory ham hidden chain-of-thought değildir. Yalnız runtime tarafından gözlemlenebilir
-`TASK / PLAN / ACTION / OBSERVATION / REPLAN / EVIDENCE / VERIFICATION / FINAL` olayları, kısa
-decision basis ve evidence referansları tutulur. Raw hidden chain-of-thought sözleşme seviyesinde
-yasaktır.
-
-Failure taxonomy binary PASS/FAIL yerine intent, context, planning, tool selection, tool argument,
-execution, observation interpretation, evidence, verification, uncertainty ve self-correction
-hatalarını ayırır.
-
-Confidence evidence-bound'dur: contradictory evidence her zaman STOP üretir. Self-correction yeni
-evidence + failed assumption + strategy change + changed dimensions ister; blind retry öğrenme
-sayılmaz.
-
-Train/validation/held-out ayrımı training transformation'dan önce yapılır. Explicit held-out task
-families train/validation'a giremez ve held-out trajectory training example'a dönüştürülemez.
-
-Bu repository paketi **foundation** uygular; gerçek büyük trace corpus importu, GPU/SFT koşusu ve
-post-training held-out ölçümü yapılmış sayılmaz.
-
-Görünür smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase19-smoke
-```
-
-## Faz 19B Evaluation Governance
-
-Faz 19B, Faz 19A'nin cognitive scorecard ve leak-free dataset temeli uzerinde tekrar edilebilir
-evaluation governance katmanini kurar:
-
-- held-out ve OOD case kimlikleri semantic revision + SHA-256 ile dondurulur;
-- evaluator revision ve implementation fingerprint acikca kaydedilir;
-- evaluator candidate artifacts ve training data'dan bagimsiz olmak zorundadir;
-- model-judge evaluator candidate modelin kendisi olamaz;
-- benchmark contamination exact content, source trajectory ve task/repository/trajectory family
-  overlap ile kontrol edilir;
-- regression suite zorunlu case inventory ve critical-case subset'i dondurur;
-- release snapshot'lari tam ayni case inventory + evaluator fingerprint ile karsilastirilir;
-- evaluator/suite drift veya contamination comparison'i BLOCKED yapar;
-- comparison per-dimension delta ve regressed case'leri raporlar;
-- evaluation katmani promotion authority tasimaz.
-
-Bu faz altyapi/governance uygular. Gercek buyuk benchmark populate edilmis, gercek model baseline
-calistirilmis, SFT yapilmis veya model iyilesti diye iddia edilmez.
-
-Gorunur smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase19b-smoke
-```
-
-## Faz 19C Learning Integrity
-
-Faz 19C, merged Faz 19B evaluation governance uzerine learning-integrity kontrollerini ekler:
-
-- learning-integrity policy semantic revision + SHA-256 ile dondurulur;
-- train/held-out/OOD gap'leri overfitting riski icin kontrol edilir;
-- matched observational shortcut slice gap'leri shortcut-learning riski olarak raporlanir;
-- frozen benchmark case identity exposure benchmark gaming olarak bloklanir;
-- governed evaluator identity exposure ve independent-evaluator disagreement evaluator gaming olarak bloklanir;
-- proxy metric gain governed cognitive regression ile birlikteyse proxy/specification optimization riski
-  raporlanir;
-- contradictory evidence'in goz ardi edilmesi confirmation bias olarak raporlanir;
-- candidate output tek basina independent verification sayilmaz ve self-confirmation olarak bloklanir;
-- learning-integrity katmani promotion authority tasimaz.
-
-Shortcut slice kontrolu observational evidence'dir; counterfactual causal proof degildir. Controlled
-replay/sandbox counterfactual analysis Faz 19D'ye ertelenmistir. Bu faz gercek training, reward
-optimization, trained weights veya measured improvement iddia etmez.
-
-Gorunur smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase19c-smoke
-```
-
-## Kurulum
-
-```bat
-scripts\bootstrap.bat
-```
-
-## Testler
-
-```bat
-python -m pytest
-```
-
-## Kalite kapısı
-
-Pencerenin sonuçtan sonra açık kalması için:
-
-```bat
-scripts\check_hold.bat
-```
-
-Beklenen son satır:
-
-```text
-[PASS] Luna 0.1 Phase 19F improvement gate passed.
-```
-
-## Görünür güncel faz testi
-
-```bat
-.venv\Scripts\python.exe -m luna phase19f-smoke
-```
-
-Başarılı çıktıda Phase 19F mevcut gerçek candidate yokken `INSUFFICIENT_EVIDENCE` fail-closed boundary görünürdür. Phase 19E için `phase19e-smoke` kullanılabilir.
-
-Phase 19C için ayrıca `phase19c-smoke` kullanılabilir. Başarılı çıktıda frozen learning-integrity policy, shortcut/benchmark/evaluator/overfitting/proxy/
-confirmation/self-confirmation probes ve no-promotion-authority boundary görünürdür.
-
-Faz 12F evidence smoke ayrıca kullanılabilir:
-
-```bat
-.venv\Scripts\python.exe -m luna phase12f-smoke
-```
-
-## Bilinen sınırlar
-
-- Single policy-agent action/observation loop Faz 12E ile uygulanmıştır.
-- Deterministic verification/report/evidence finalization Faz 12F ile uygulanmıştır.
-- Action/tool candidate policy Faz 12C ile uygulanmıştır.
-- Failure taxonomy, minimal-change ve risk-based isolation Faz 12D ile uygulanmıştır.
-- Runtime E2E ve behavior conformance Faz 12G ile uygulanmıştır.
-- Gerçek-model compatibility ve runtime-owned controlled rollout Faz 13 ile uygulanmıştır.
-- Research Gateway ve citation-bound Evidence RAG Faz 14 ile uygulanmıştır.
-- Harici cloud-provider adapter/secrets entegrasyonu bu fazda açılmaz; live probe loopback-only kalır.
-- Gerçek ağ araştırması ve harici entegrasyonlar kapalıdır.
-- GitHub salt-okunur veya diğer dış entegrasyonlar bu fazın kapsamında değildir.
-- Ses, Discord, masaüstü ve diğer ürün gateway'leri ayrı faz ister.
-- Sabit eval çekirdeği deterministik backend ve yerel dosya fixture'ları kullanır.
-
-## Phase 19D — Controlled Counterfactual Analysis
-
-Phase 19D adds an experimental, non-authoritative counterfactual lab. A proposed alternative plan,
-tool selection, evidence path, recovery path, or minimal path is only a hypothesis until it is actually
-executed in a controlled replay or sandbox. Like-for-like comparisons require the same case, source
-revision, and replay environment. Candidate output cannot serve as independent proof of its own
-alternative, and counterfactual analysis cannot authorize release promotion or generalized causal
-claims.
-
-
-## Phase 19E — Small Controlled SFT Governance
-
-Phase 19E adds the controlled boundary between a normalized training corpus and a real external SFT
-run. It audits only `train` rows, enforces target-only loss, canonical Luna tool schema, privacy/context
-normalization, source derivation, duplicate checks, and conservative initial subset mixing. A passing
-corpus can be bound to a revision-locked base model, trainer, corpus digest, seed, and hyperparameter
-specification.
-
-The repository does **not** execute a GPU trainer or fabricate weights. A trained candidate is recorded
-only when an external execution receipt proves a successful run and binds the resulting artifact to the
-frozen spec. Even then the artifact remains `TRAINED_CANDIDATE_UNPROMOTED`; Phase 19F owns the
-post-training improvement gate.
-
-Visible smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase19e-smoke
-```
-
-## Phase 19F — Improvement Gate
-
-Phase 19F adds the final evidence boundary for a real trained candidate. It requires the Phase 19E
-spec/receipt/artifact chain, frozen held-out/OOD and regression identities, independent evaluator
-fingerprints, contamination checks, and Phase 19C learning-integrity status before comparing the
-candidate with the frozen baseline.
-
-Non-critical cognitive changes use frozen meaningful-change thresholds plus paired confidence
-intervals. Critical regressions remain zero-tolerance. A candidate may receive `PROMOTE`, `REJECT`,
-`ROLLBACK`, or `INSUFFICIENT_EVIDENCE`, but the gate itself has no runtime release execution
-authority.
-
-The repository currently has no real trained Phase 19E candidate evidence, so the visible smoke
-intentionally proves that the correct current decision is `INSUFFICIENT_EVIDENCE` rather than a false
-improvement claim.
-
-Visible smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna phase19f-smoke
-```\n\n## C-002 — Capability Lineage\n\nC-002 adds a read-only canonical capability registry and deterministic impact analysis.\n\n```bat\n.venv\Scripts\python.exe -m luna capability-lineage C-002\n.venv\Scripts\python.exe scripts\verify_c002.py\n```\n\nThe query reports explicit dependencies and downstream blast radius. C-002 cannot mutate the roadmap,\ngrant runtime authority, promote a model, execute workers, start training, or perform self-optimization.\n
-
-<!-- C001_ADAPTIVE_RETRIEVAL_BEGIN -->
-
-## C-001 Adaptive Knowledge Retrieval
-
-C-001 adds deterministic evidence-aware source routing across internal knowledge, observed working
-context, verified memory, available project/document RAG, Phase 14 Research Gateway/web, and suitable
-structured APIs. Contradictory evidence stops and reinspects; current/high-uncertainty requests require
-fresh governed evidence. The router performs no direct network execution and never auto-commits
-retrieval results to long-term memory.
-
-<!-- C001_ADAPTIVE_RETRIEVAL_END -->
-
-<!-- C003_EXPERIENCE_DISTILLATION_BEGIN -->
-
-## C-003 Experience Distillation
-
-C-003 converts governed observable experience into reusable **review-required** lesson candidates.
-
-```text
-governed TRAIN experience
--> evidence-bound case relation
--> cross-case support check
--> contradiction check
--> bounded generalization
--> review-required candidate
-```
-
-A single case is insufficient. At least two independent split groups are required by the default
-foundation. Validation and held-out data remain evaluation-only.
-
-Model self-report cannot certify a lesson. Evidence refs must exist in the source trajectory, and cited
-traces must already be license-reviewed and PII-reviewed.
-
-C-003 does not execute runtime actions, train models, commit memory, promote candidates, or grant
-authority.
-
-Visible smoke:
-
-```bat
-.venv\Scripts\python.exe -m luna c003-smoke
-```
-
-<!-- C003_EXPERIENCE_DISTILLATION_END -->
-
-
-<!-- C007_DEBUGGING_TRANSFER_BEGIN -->
-
-## C-007 Debugging Capability Decomposition & Transfer
-
-C-007 is implemented as a non-executing, review-bound transfer evaluator. Debugging is measured as an
-observable stack from error observation through diagnosis, minimal repair, targeted/full verification,
-changed-basis replanning when needed, and prevention/process lessons. Reviewed C-003 lesson candidates
-are tested only on paired unseen `HELD_OUT` cases; training-support groups cannot be reused as transfer
-evidence.
-
-The gate measures both **repair success** and **diagnosis quality** plus stage-specific deltas. A
-`SUPPORTED` result is bounded evidence for that lesson/case set and never grants runtime, training,
-memory, promotion, deployment, or external-action authority.
-
-<!-- C007_DEBUGGING_TRANSFER_END -->
+**YOUR AI ASSISTANT**
