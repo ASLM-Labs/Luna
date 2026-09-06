@@ -16,6 +16,12 @@ from luna.tools.disclosure import (
     ToolDisclosureState,
     ToolVisibilityProjection,
 )
+from luna.tools.discovery import (
+    ToolDiscoveryCandidate,
+    ToolDiscoveryIndex,
+    ToolDiscoveryMatchReason,
+    ToolDiscoveryResult,
+)
 from luna.tools.dispatcher import ToolDispatcher
 from luna.tools.lifecycle import (
     ExecutionLifecycle,
@@ -64,6 +70,10 @@ __all__ = [
     "ToolDisclosureDenialCode",
     "ToolDisclosureProjector",
     "ToolDisclosureState",
+    "ToolDiscoveryCandidate",
+    "ToolDiscoveryIndex",
+    "ToolDiscoveryMatchReason",
+    "ToolDiscoveryResult",
     "ToolDispatcher",
     "ToolEvent",
     "ToolEventDecision",

@@ -107,6 +107,8 @@ from luna.tools import (
     ToolDisclosureDecision,
     ToolDisclosureProjector,
     ToolDisclosureState,
+    ToolDiscoveryIndex,
+    ToolDiscoveryResult,
     ToolPolicy,
     ToolRequest,
     ToolResultStatus,
@@ -182,6 +184,7 @@ class LunaRuntime:
         self._provider_retry = ProviderRetryCoordinator()
         self._tool_selector = dependencies.action_resolver.selector
         self._tool_disclosure_projector = ToolDisclosureProjector()
+        self._tool_discovery_index = ToolDiscoveryIndex()
         self._tool_disclosure_states: dict[UUID, ToolDisclosureState] = {}
         self._tool_disclosure_lock = RLock()
         self._expectations = ExpectationEvaluator()
@@ -346,6 +349,31 @@ class LunaRuntime:
         with self._tool_disclosure_lock:
             self._tool_disclosure_states[task_id] = state.model_copy(deep=True)
         return state
+
+    def discover_deferred_tools(
+        self,
+        *,
+        task_id: UUID,
+        query: str,
+        policy: ToolPolicy,
+        limit: int = 8,
+    ) -> ToolDiscoveryResult:
+        """Discover policy-eligible deferred tool metadata without changing authority."""
+        with self._tool_disclosure_lock:
+            state = self._tool_disclosure_states.get(task_id)
+            if state is None:
+                raise ValueError("tool disclosure is not configured for this task")
+            snapshot = state.model_copy(deep=True)
+
+        return self._tool_discovery_index.search(
+            task_id=task_id,
+            query=query,
+            disclosure_state_revision=snapshot.revision,
+            deferred_tools=snapshot.deferred_tools,
+            specs=self._tool_selector.specs(),
+            policy_allowed_tools=policy.allowed_tools,
+            limit=limit,
+        )
 
     def request_tool_disclosure(
         self,
