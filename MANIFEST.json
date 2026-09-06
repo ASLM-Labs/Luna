@@ -2109,8 +2109,8 @@
       "size_bytes": 145632
     },
     "src/luna/parallel_cognition/subprocess_backend.py": {
-      "sha256": "1e4ecda642dc832fbe0d1427940e1cd314e92f0c7c38fb0a10b7a1f00d0aa792",
-      "size_bytes": 23424
+      "sha256": "ff3bb953bcfb509c3ec1e734d733840303922f885cbff18a05f36d347ff52417",
+      "size_bytes": 24206
     },
     "src/luna/planning/__init__.py": {
       "sha256": "3d5db19bf3d875f0b2f8f388491b372c593e02e4d538a38b3b731e9c83ce6440",
@@ -2641,8 +2641,8 @@
       "size_bytes": 49642
     },
     "tests/test_c011_s4_live_workers.py": {
-      "sha256": "b9e1151188a77b2f8b657bbf0203f550f647a6f761874ae95f1c965b63036b82",
-      "size_bytes": 36334
+      "sha256": "5bfee7c3c0e736028307c22f1363eba9e4d7b6e95f7f2ee74bbc4e539e21f331",
+      "size_bytes": 39617
     },
     "tests/test_c011_s5_provider_profiles.py": {
       "sha256": "76a8f1c565d35456b5c7af46690ec27409296cb028817751439da6a044c56504",
