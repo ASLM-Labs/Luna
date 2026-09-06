@@ -44,6 +44,7 @@ class ContextInterpretation(StrEnum):
     """How the model is allowed to interpret an admitted entry."""
 
     CONTROL = "CONTROL"
+    PROCEDURAL_GUIDANCE = "PROCEDURAL_GUIDANCE"
     DATA_ONLY = "DATA_ONLY"
 
 
@@ -84,6 +85,11 @@ class LayeredContextCandidate(LunaContractModel):
             ContextLayer.RUNTIME_CONTINUITY,
         }:
             raise ValueError("workspace and memory context must remain DATA_ONLY")
+        if (
+            self.interpretation is ContextInterpretation.PROCEDURAL_GUIDANCE
+            and self.layer is not ContextLayer.WORKSPACE
+        ):
+            raise ValueError("procedural guidance must remain in WORKSPACE context")
         if self.layer is ContextLayer.VERIFIED_MEMORY and self.relevance_basis is None:
             raise ValueError("verified memory context requires an explicit relevance_basis")
         return self
@@ -242,6 +248,11 @@ class LayeredContextEntry(LunaContractModel):
             ContextLayer.RUNTIME_CONTINUITY,
         }:
             raise ValueError("workspace and memory entries cannot become control instructions")
+        if (
+            self.interpretation is ContextInterpretation.PROCEDURAL_GUIDANCE
+            and self.layer is not ContextLayer.WORKSPACE
+        ):
+            raise ValueError("procedural guidance must remain in WORKSPACE context")
         if self.layer is ContextLayer.VERIFIED_MEMORY and self.relevance_basis is None:
             raise ValueError("verified memory entry must retain relevance_basis")
         return self

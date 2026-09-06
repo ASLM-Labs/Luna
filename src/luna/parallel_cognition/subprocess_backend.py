@@ -87,6 +87,39 @@ class _ObservedProcessOutcome:
     runtime_ms: int
 
 
+_WINDOWS_SHARING_VIOLATION = 32
+_SCRATCH_CLEANUP_RETRY_SECONDS = 0.5
+_SCRATCH_CLEANUP_POLL_SECONDS = 0.01
+
+
+def _cleanup_scratch_directory(
+    scratch: TemporaryDirectory[str],
+) -> bool:
+    """Remove scratch with bounded retry for Windows sharing violations."""
+
+    deadline = monotonic() + _SCRATCH_CLEANUP_RETRY_SECONDS
+
+    while True:
+        try:
+            scratch.cleanup()
+            return True
+        except OSError as exc:
+            if getattr(exc, "winerror", None) != _WINDOWS_SHARING_VIOLATION:
+                return False
+
+            remaining = deadline - monotonic()
+
+            if remaining <= 0:
+                return False
+
+            sleep(
+                min(
+                    _SCRATCH_CLEANUP_POLL_SECONDS,
+                    remaining,
+                )
+            )
+
+
 class SubprocessWorkerBackend:
     """Run an explicitly configured S4 driver command in bounded scratch.
 
@@ -501,9 +534,7 @@ class SubprocessWorkerBackend:
                         # Windows KILL_ON_JOB_CLOSE remains the final fail-safe.
                         tree.close()
             finally:
-                try:
-                    scratch.cleanup()
-                except OSError:
+                if not _cleanup_scratch_directory(scratch):
                     cleanup_state = CleanupState.CLEANUP_FAILED
 
         assert observation is not None

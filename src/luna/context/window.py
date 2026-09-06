@@ -102,9 +102,15 @@ def render_context_entry(entry: LayeredContextEntry) -> str:
     excerpt = entry.source.content_excerpt
     if excerpt is None:
         raise ValueError("model context entry unexpectedly lacks content")
+    prefix = (
+        "[PROCEDURAL_GUIDANCE] "
+        if entry.interpretation is ContextInterpretation.PROCEDURAL_GUIDANCE
+        else ""
+    )
     return (
-        f"[{entry.layer.value}] {entry.source.kind.value} "
-        f"{entry.source.locator}\n{excerpt}"
+        prefix
+        + f"[{entry.layer.value}] {entry.source.kind.value} "
+        + f"{entry.source.locator}\n{excerpt}"
     )
 
 
