@@ -41,8 +41,8 @@
       "size_bytes": 206
     },
     "README.md": {
-      "sha256": "f83bfa2b64640c6d7d6776c110b447a098dfb4709859185cb002c37fac8ccdf9",
-      "size_bytes": 31041
+      "sha256": "638ef30782567b2244cebdfdda8691550683d670735128dda0ad594c126d073c",
+      "size_bytes": 17378
     },
     "UYGULAMA.txt": {
       "sha256": "6ae6d945cb8b0d7751a8cb618f59e7eef5818a03473d45448e891aeb257b1906",
@@ -647,6 +647,10 @@
     "docs/governance/Luna_0.1_Teknik_Anayasa_v0.1_ONAY_KAYDI.md": {
       "sha256": "6ab3fc0097f9efea734c2edeb1356a1304a1c98522b0db67d7cf855624edc0e4",
       "size_bytes": 675
+    },
+    "docs/legacy/README_PHASE_HISTORY.md": {
+      "sha256": "f83bfa2b64640c6d7d6776c110b447a098dfb4709859185cb002c37fac8ccdf9",
+      "size_bytes": 31041
     },
     "docs/rfcs/RFC-012A_SINGLE_POLICY_AGENT_RUNTIME.md": {
       "sha256": "e5716db3c083b1d577a2100db4f5ce9ef9b838323c51afbd580c6beb444b55b6",
