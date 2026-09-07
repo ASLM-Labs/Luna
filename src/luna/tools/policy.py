@@ -20,6 +20,10 @@ from luna.tools.paths import (
     canonical_workspace_path,
     path_is_allowed,
 )
+from luna.tools.process_effects import (
+    ProcessEffect,
+    classify_process_effects,
+)
 
 _RISK_ORDER = {
     RiskLevel.LOW: 0,
@@ -77,6 +81,43 @@ def evaluate_tool_policy(
     checks.append("risk_budget:PASS")
 
     capabilities = set(spec.capabilities)
+    requested_argv: tuple[str, ...] | None = None
+    if ToolCapability.PROCESS in capabilities and "argv" in spec.argument_schema:
+        argv_value = request.arguments.get("argv")
+        if not isinstance(argv_value, list) or not all(
+            isinstance(item, str) for item in argv_value
+        ):
+            return _denied(checks, "process_effect", "process argv is not valid")
+        requested_argv = tuple(argv_value)
+        try:
+            assessment = classify_process_effects(requested_argv)
+        except ValueError as exc:
+            return _denied(checks, "process_effect", str(exc))
+
+        checks.append(
+            "process_effects:"
+            + ",".join(effect.value for effect in assessment.effects)
+        )
+        checks.append(f"process_effect_rule:{assessment.rule_id}")
+
+        if ProcessEffect.INSTALL in assessment.effects:
+            return _denied(
+                checks,
+                "process_install_effect",
+                "process argv requires unsupported install authority",
+            )
+        if ProcessEffect.DESTRUCTIVE in assessment.effects:
+            return _denied(
+                checks,
+                "process_destructive_effect",
+                "process argv requires unsupported destructive authority",
+            )
+        if ProcessEffect.WRITE in assessment.effects:
+            capabilities.add(ToolCapability.WRITE)
+        if ProcessEffect.NETWORK in assessment.effects:
+            capabilities.add(ToolCapability.NETWORK)
+        checks.append("process_effect:PASS")
+
     exact_approval_required = (
         spec.risk_level in {RiskLevel.HIGH, RiskLevel.CRITICAL}
         or spec.name in policy.owner_approved_tools
@@ -231,12 +272,12 @@ def evaluate_tool_policy(
     checks.append("working_directory:PASS")
 
     if ToolCapability.PROCESS in capabilities and "argv" in spec.argument_schema:
-        argv_value = request.arguments.get("argv")
-        if not isinstance(argv_value, list) or not all(
-            isinstance(item, str) for item in argv_value
-        ):
-            return _denied(checks, "process_approval", "process argv is not valid")
-        requested_argv = tuple(argv_value)
+        if requested_argv is None:
+            return _denied(
+                checks,
+                "process_approval",
+                "process argv was not classified",
+            )
         matched_process_approval = None
         for approval in policy.process_approvals:
             try:

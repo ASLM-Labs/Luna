@@ -349,6 +349,8 @@ def validate_safe_argv(argv: tuple[str, ...]) -> None:
     executable = _executable_name(argv[0])
     if executable in _BANNED_EXECUTABLES:
         raise SafeProcessError("shell and script-host executables are not allowed")
+    if executable.endswith((".bat", ".cmd")):
+        raise SafeProcessError("Windows batch-script executables are not allowed")
 
     lowered_args = {value.casefold() for value in argv[1:]}
     is_python_launcher = executable in {"py", "py.exe"} or executable.startswith("python")

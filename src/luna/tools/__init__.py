@@ -47,6 +47,11 @@ from luna.tools.models import (
     ToolResultStatus,
     ToolSpec,
 )
+from luna.tools.process_effects import (
+    ProcessEffect,
+    ProcessEffectAssessment,
+    classify_process_effects,
+)
 from luna.tools.registry import ToolExecutionContext, ToolExecutionOutput, ToolRegistry
 
 __all__ = [
@@ -61,6 +66,8 @@ __all__ = [
     "ExecutionStopKind",
     "FreeResearchContract",
     "ProcessApproval",
+    "ProcessEffect",
+    "ProcessEffectAssessment",
     "ToolArgumentRule",
     "ToolArgumentType",
     "ToolCapability",
@@ -91,4 +98,5 @@ __all__ = [
     "ToolVisibilityProjection",
     "build_phase4_registry",
     "build_phase5_registry",
+    "classify_process_effects",
 ]
