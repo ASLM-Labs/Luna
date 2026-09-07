@@ -1824,6 +1824,18 @@
       "sha256": "223ce0985ae997131b2745c286d33588e014e68e1f5ffb53ce3f410618038b5e",
       "size_bytes": 967
     },
+    "src/luna/influence/__init__.py": {
+      "sha256": "9709fe0f45b0c1a01ee712285c022e267da5aad2df3ce1d4699a207b611570f8",
+      "size_bytes": 508
+    },
+    "src/luna/influence/combine.py": {
+      "sha256": "175cdffd8d0cfafde8980c51f3eed306fe505b8e24339ff4988553a4c34fee0c",
+      "size_bytes": 2180
+    },
+    "src/luna/influence/models.py": {
+      "sha256": "b9ac640516885898cbdbec3a1281d68519d66004a80e70e76705e8c7d5033841",
+      "size_bytes": 2653
+    },
     "src/luna/intent/__init__.py": {
       "sha256": "e1fa9e0c379e3efe2d72228119ff8049901bc78c3067402ca036891c86a79e31",
       "size_bytes": 446
@@ -2224,6 +2236,10 @@
       "sha256": "dbdc7c8e2cf2c817e2880bce1b80e25bdfa42797b97bf140951df7e074eefb58",
       "size_bytes": 19381
     },
+    "src/luna/research/influence.py": {
+      "sha256": "8972031579749a97702f98006b02a1fa3b015b67e58e40d3367dc51c8f0605dc",
+      "size_bytes": 573
+    },
     "src/luna/research/injection_guard.py": {
       "sha256": "d646410cd6eb0d761277844696ca5df3e1a2f1de2a3f6ba025ac51540db711db",
       "size_bytes": 1444
@@ -2375,6 +2391,10 @@
     "src/luna/skills/discovery.py": {
       "sha256": "0976c9e57d9c00d241f06920526d57fb1d7f7337e96b40911d726ae61d8de3ea",
       "size_bytes": 3795
+    },
+    "src/luna/skills/influence.py": {
+      "sha256": "4b35904efe12ddeee33b2a824786d757d4b927a7484f8e38b72eb000c18a4d36",
+      "size_bytes": 727
     },
     "src/luna/skills/models.py": {
       "sha256": "6233316c232b859c156312028f3afa2c93067e24c7b34ee779d5953e9316765d",
@@ -2863,6 +2883,10 @@
     "tests/test_import.py": {
       "sha256": "90a6ac717b290e557a2e4415e7a72f0aeda15d2fe7905aaf6c8e08339af07011",
       "size_bytes": 112
+    },
+    "tests/test_influence_trust.py": {
+      "sha256": "52d3467c205c1c994273bf3aca0450cafa86652edbb0fd81a117ecc07553cf63",
+      "size_bytes": 7605
     },
     "tests/test_intent_resolution.py": {
       "sha256": "fdbdea8a4b9541032df6276d8930a821dd4b3c6c63e3b1cd8edda57e06c5fb52",
