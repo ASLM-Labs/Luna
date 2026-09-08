@@ -2025,8 +2025,8 @@
       "size_bytes": 35180
     },
     "src/luna/parallel_cognition/__init__.py": {
-      "sha256": "3fb3637760a3a6c7a19a9044817eb8763e36a7ab0a4b19762a417398a638c108",
-      "size_bytes": 13115
+      "sha256": "f20ca36ec8896da776dc5ed8b67cac02a98d11f08f311566f777656cdb258873",
+      "size_bytes": 13492
     },
     "src/luna/parallel_cognition/admission.py": {
       "sha256": "f1f5a8d14c333deda183c427b35432e75a275b6fd16d83948db5a8e0f1c219c1",
@@ -2111,6 +2111,10 @@
     "src/luna/parallel_cognition/runtime_configuration.py": {
       "sha256": "59da085354080f9cdb340cd6e8c66cffb669fc65b1ba390af28152f06af15c1a",
       "size_bytes": 16030
+    },
+    "src/luna/parallel_cognition/runtime_profiles.py": {
+      "sha256": "5f452839f50e3ac82e2a77abb43e168d1bd049776cc0b253fe9ff669578b725d",
+      "size_bytes": 16564
     },
     "src/luna/parallel_cognition/shadow_evaluation.py": {
       "sha256": "29209c15bd784f5dda0bb55dc9d7c43c0295e27828e3bd5d473d1fd3af854fda",
@@ -2679,6 +2683,10 @@
     "tests/test_c011_runtime_configuration.py": {
       "sha256": "812db2f3e197819ec17d84324b7fc44a4a0045a3006fe4e50020b477c6f1cdde",
       "size_bytes": 13201
+    },
+    "tests/test_c011_runtime_profiles.py": {
+      "sha256": "16b68f12bd7173728ef2e4aba29f20b52380b1997a313eeda46f35d1d09d5734",
+      "size_bytes": 16422
     },
     "tests/test_c011_s2_durable_recovery.py": {
       "sha256": "57899b98f1e999fe74233a5378870d4afafa04a9656daa54d8e005a7038095b8",
