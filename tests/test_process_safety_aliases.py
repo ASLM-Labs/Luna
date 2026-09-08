@@ -26,3 +26,12 @@ def test_shell_aliases_are_rejected(executable: str) -> None:
 def test_python_launchers_reject_inline_code(launcher: str) -> None:
     with pytest.raises(SafeProcessError, match="inline Python"):
         validate_safe_argv((launcher, "-c", "print('blocked')"))
+
+
+@pytest.mark.parametrize(
+    "executable",
+    ("script.bat", "SCRIPT.BAT", "script.cmd", "SCRIPT.CMD"),
+)
+def test_windows_batch_scripts_are_rejected(executable: str) -> None:
+    with pytest.raises(SafeProcessError, match="batch-script"):
+        validate_safe_argv((executable, "arg"))

@@ -25,6 +25,7 @@ def _contract(
     root: Path,
     *,
     write_allowed: bool = False,
+    network_allowed: bool = False,
     process_allowed: bool = False,
 ) -> TaskContract:
     return TaskContract(
@@ -35,6 +36,7 @@ def _contract(
             workspace_root=str(root),
             allowed_paths=("notes.txt",),
             write_allowed=write_allowed,
+            network_allowed=network_allowed,
             process_allowed=process_allowed,
         ),
         risk_level=RiskLevel.HIGH,
@@ -200,7 +202,12 @@ def test_process_tool_requires_exact_argv_and_cwd_approval(tmp_path: Path) -> No
 
 
 def test_banned_shell_is_blocked_even_when_exactly_approved(tmp_path: Path) -> None:
-    contract = _contract(tmp_path, process_allowed=True)
+    contract = _contract(
+        tmp_path,
+        write_allowed=True,
+        network_allowed=True,
+        process_allowed=True,
+    )
     argv = ("cmd.exe", "/c", "echo", "unsafe")
     request = ToolRequest(
         task_id=contract.task_id,

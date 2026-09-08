@@ -221,6 +221,13 @@ from luna.parallel_cognition.runtime_configuration import (
     build_default_real_runtime_configuration_set,
     runtime_prompt_protocol_sha256,
 )
+from luna.parallel_cognition.runtime_profiles import (
+    C011RuntimeProfileCatalog,
+    C011RuntimeProfileName,
+    C011RuntimeProfileProjection,
+    C011RuntimeProfileSpec,
+    project_c011_runtime_profile,
+)
 from luna.parallel_cognition.shadow_evaluation import (
     EqualComputeBudget,
     ShadowArmSpec,
@@ -282,6 +289,10 @@ __all__ = [
     "BackendSafetyCapabilities",
     "BoundedRealNativeAdapterPool",
     "C011ContractModel",
+    "C011RuntimeProfileCatalog",
+    "C011RuntimeProfileName",
+    "C011RuntimeProfileProjection",
+    "C011RuntimeProfileSpec",
     "ClaimFreshness",
     "ClaimRecord",
     "ClaimResolutionReceipt",
@@ -448,6 +459,7 @@ __all__ = [
     "evaluate_runtime_accounting",
     "evaluate_s5d_promotion",
     "execute_real_equal_compute",
+    "project_c011_runtime_profile",
     "reconstruct_contract",
     "runtime_prompt_protocol_sha256",
     "validate_attempt_transition",

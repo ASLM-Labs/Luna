@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import Lock
 from typing import cast
 from uuid import UUID
@@ -440,6 +441,138 @@ def test_subprocess_backend_cancellation_timeout_and_cleanup(
     assert result.payload.claims == ()
     if mode == "hang":
         assert result.hard_termination_used is True
+
+
+def test_subprocess_backend_retries_transient_windows_sharing_violation_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _contract_fixture()
+    backend = _subprocess_backend(tmp_path, mode="success")
+    original_cleanup = TemporaryDirectory.cleanup
+    calls = 0
+
+    def flaky_cleanup(
+        directory: TemporaryDirectory[str],
+    ) -> None:
+        nonlocal calls
+        calls += 1
+
+        if calls == 1:
+            error = PermissionError(
+                13,
+                "synthetic Windows sharing violation",
+            )
+            error.winerror = 32
+            raise error
+
+        original_cleanup(directory)
+
+    monkeypatch.setattr(
+        TemporaryDirectory,
+        "cleanup",
+        flaky_cleanup,
+    )
+
+    result = backend.execute(
+        request=fixture.request,
+        context=fixture.focused,
+        policy=_active_policy(),
+        cancellation_probe=lambda: False,
+    )
+
+    assert result.outcome_state is AgentLifecycleState.RESULT_RECEIVED
+    assert (
+        result.cleanup_state.value
+        == AgentLifecycleState.CLEANUP_COMPLETE.value
+    )
+    assert calls == 2
+
+
+def test_subprocess_backend_persistent_windows_sharing_violation_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _contract_fixture()
+    backend = _subprocess_backend(tmp_path, mode="success")
+    calls = 0
+
+    def blocked_cleanup(
+        directory: TemporaryDirectory[str],
+    ) -> None:
+        nonlocal calls
+        del directory
+        calls += 1
+
+        error = PermissionError(
+            13,
+            "persistent Windows sharing violation",
+        )
+        error.winerror = 32
+        raise error
+
+    monkeypatch.setattr(
+        TemporaryDirectory,
+        "cleanup",
+        blocked_cleanup,
+    )
+
+    result = backend.execute(
+        request=fixture.request,
+        context=fixture.focused,
+        policy=_active_policy(),
+        cancellation_probe=lambda: False,
+    )
+
+    assert result.outcome_state is AgentLifecycleState.RESULT_RECEIVED
+    assert (
+        result.cleanup_state.value
+        == AgentLifecycleState.CLEANUP_FAILED.value
+    )
+    assert calls > 1
+
+
+def test_subprocess_backend_non_sharing_cleanup_error_does_not_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _contract_fixture()
+    backend = _subprocess_backend(tmp_path, mode="success")
+    calls = 0
+
+    def denied_cleanup(
+        directory: TemporaryDirectory[str],
+    ) -> None:
+        nonlocal calls
+        del directory
+        calls += 1
+
+        error = PermissionError(
+            13,
+            "synthetic non-sharing cleanup failure",
+        )
+        error.winerror = 5
+        raise error
+
+    monkeypatch.setattr(
+        TemporaryDirectory,
+        "cleanup",
+        denied_cleanup,
+    )
+
+    result = backend.execute(
+        request=fixture.request,
+        context=fixture.focused,
+        policy=_active_policy(),
+        cancellation_probe=lambda: False,
+    )
+
+    assert result.outcome_state is AgentLifecycleState.RESULT_RECEIVED
+    assert (
+        result.cleanup_state.value
+        == AgentLifecycleState.CLEANUP_FAILED.value
+    )
+    assert calls == 1
 
 
 def test_live_journal_reservation_is_durable_and_never_replayed(
